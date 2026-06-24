@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrickFinder 乐高人仔雷达 - 极简搜索</title>
+    <!-- Google Fonts: Outfit & Inter for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+    <!-- Background Grid Effect -->
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="header-left">
+            <a href="#" class="nav-link active" id="nav-search-btn">雷达搜索</a>
+            <a href="#" class="nav-link" id="nav-gallery-btn">人仔图鉴</a>
+            <a href="#" class="nav-link" id="nav-about-btn">关于</a>
+        </div>
+        <div class="header-right">
+            <!-- Theme Toggler -->
+            <button id="theme-toggle" class="icon-btn" aria-label="切换主题" title="切换主题">
+                <i class="fas fa-sun"></i>
+                <i class="fas fa-moon"></i>
+            </button>
+            <a href="#" class="btn-secondary">API 接口</a>
+            <div class="user-avatar" title="个人中心">
+                <i class="fas fa-user-astronaut"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Section -->
+    <main>
+        <div class="search-container">
+            <!-- Dynamic SVG Logo -->
+            <div class="logo-wrapper">
+                <svg class="main-logo" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="brick-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#FFD500" />
+                            <stop offset="100%" stop-color="#FF9900" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Lego Head Icon -->
+                    <g class="logo-icon" transform="translate(15, 10)">
+                        <!-- Radar waves behind -->
+                        <circle cx="30" cy="30" r="28" fill="none" stroke="var(--accent-glow)" stroke-width="1.5" class="radar-wave wave-1" />
+                        <circle cx="30" cy="30" r="22" fill="none" stroke="var(--accent-color)" stroke-width="1" class="radar-wave wave-2" stroke-dasharray="4 2" />
+                        <!-- Minifigure head silhouette -->
+                        <!-- Stud on top -->
+                        <rect x="23" y="10" width="14" height="6" rx="2" fill="url(#brick-grad)" />
+                        <!-- Head -->
+                        <rect x="15" y="15" width="30" height="28" rx="8" fill="url(#brick-grad)" class="lego-head" />
+                        <!-- Head cheeks/bottom correction to look like Lego -->
+                        <rect x="13" y="22" width="34" height="15" rx="5" fill="url(#brick-grad)" />
+                        <!-- Face Details (Eyes & Smile) -->
+                        <circle cx="23" cy="28" r="2.5" fill="#1A1D20" class="lego-eye eye-left" />
+                        <circle cx="37" cy="28" r="2.5" fill="#1A1D20" class="lego-eye eye-right" />
+                        <path d="M 26 35 Q 30 39 34 35" fill="none" stroke="#1A1D20" stroke-width="2.5" stroke-linecap="round" />
+                    </g>
+                    <!-- Brand Text -->
+                    <text x="75" y="44" class="logo-text-main" font-family="'Outfit', sans-serif" font-weight="800" font-size="26" fill="var(--text-primary)">Brick</text>
+                    <text x="138" y="44" class="logo-text-sub" font-family="'Outfit', sans-serif" font-weight="800" font-size="26" fill="var(--accent-color)">Seek</text>
+                    <text x="76" y="58" class="logo-tagline" font-family="'Inter', sans-serif" font-weight="500" font-size="9" letter-spacing="2" fill="var(--text-muted)">LEGO MINIFIGURE RADAR</text>
+                </svg>
+            </div>
+
+            <!-- Split Search Box -->
+            <div class="search-box-wrapper">
+                <div class="search-box">
+                    <!-- Left: Text search -->
+                    <div class="search-text-part">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="search-input" placeholder="输入人仔特征、编号或所属系列..." autocomplete="off">
+                        <div class="search-shortcut" id="search-shortcut">/</div>
+                        <button id="clear-btn" class="clear-btn" aria-label="清空输入" title="清空"><i class="fas fa-times"></i></button>
+                    </div>
+                    
+                    <!-- Middle: Divider -->
+                    <div class="search-divider"></div>
+                    
+                    <!-- Right: Camera/Upload action -->
+                    <div class="search-camera-part" id="camera-trigger" title="拍照或上传人仔照片进行识别">
+                        <div class="camera-icon-wrapper">
+                            <i class="fas fa-camera camera-icon"></i>
+                            <div class="camera-scan-line"></div>
+                        </div>
+                        <span class="camera-text">拍照识别</span>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+
+        <!-- Minifigure Gallery Page (Encyclopedia Gallery) -->
+        <div class="gallery-container" id="gallery-container" style="display: none;">
+            <div class="gallery-header">
+                <button type="button" class="btn-back" id="back-from-gallery-btn">
+                    <i class="fas fa-arrow-left"></i> 返回搜索
+                </button>
+                <div class="gallery-title-box">
+                    <h2><i class="fas fa-th-large"></i> 乐高人仔图鉴中心</h2>
+                    <p>浏览全量收录的乐高人仔，探索他们的零件构成与拼搭结构</p>
+                </div>
+            </div>
+            
+            <!-- Filters bar -->
+            <div class="gallery-filter-bar">
+                <div class="filter-group">
+                    <label for="gallery-theme-filter"><i class="fas fa-filter"></i> 筛选系列:</label>
+                    <select id="gallery-theme-filter">
+                        <option value="">全部系列</option>
+                        <option value="忍者">忍者系列 (Ninjago)</option>
+                        <option value="星战">星球大战 (Star Wars)</option>
+                        <option value="哈利波特">哈利波特 (Harry Potter)</option>
+                        <option value="超级英雄">超级英雄 (Super Heroes)</option>
+                        <option value="太空">太空系列 (Space)</option>
+                        <option value="警察">城市警察 (Police)</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="gallery-sort-filter"><i class="fas fa-sort"></i> 排序方式:</label>
+                    <select id="gallery-sort-filter">
+                        <option value="num_parts_desc">零件数从多到少</option>
+                        <option value="num_parts_asc">零件数从少到多</option>
+                        <option value="minifig_num_asc">编号顺序</option>
+                    </select>
+                </div>
+                
+                <!-- Quick Search within Gallery -->
+                <div class="gallery-quick-search">
+                    <input type="text" id="gallery-search-input" placeholder="在图鉴中快速检索名称或编号...">
+                    <i class="fas fa-search"></i>
+                </div>
+            </div>
+
+            <!-- Gallery grid -->
+            <div class="gallery-grid" id="gallery-grid">
+                <!-- Dynamic cards loaded via AJAX -->
+            </div>
+
+            <!-- Pagination/Load More button -->
+            <div class="gallery-pagination-row">
+                <button type="button" class="btn-load-more" id="btn-gallery-load-more">
+                    加载更多人仔 <i class="fas fa-chevron-down"></i>
+                </button>
+                <span class="gallery-loading-text" id="gallery-loading-indicator" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i> 正在读取人仔图库数据...
+                </span>
+            </div>
+        </div>
+
+        <!-- About & Legal Page Container -->
+        <div class="about-container" id="about-container" style="display: none;">
+            <div class="about-header">
+                <button type="button" class="btn-back" id="back-from-about-btn">
+                    <i class="fas fa-arrow-left"></i> 返回搜索
+                </button>
+                <div class="about-title-box">
+                    <h2><i class="fas fa-info-circle"></i> 关于 BrickSeek</h2>
+                    <p>了解人仔雷达探测系统的技术构想、服务条款与隐私保障</p>
+                </div>
+            </div>
+
+            <div class="about-content-grid">
+                <!-- Left: Tech info & story -->
+                <div class="about-card main-about-card">
+                    <div class="about-logo-hero" style="text-align: center; margin-bottom: 20px;">
+                        <i class="fas fa-cubes about-hero-icon" style="font-size: 3rem; color: var(--accent-color); margin-bottom: 10px; display: inline-block;"></i>
+                        <h3 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary);">BrickSeek v1.2</h3>
+                        <span class="version-badge" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: var(--accent-glow); color: var(--accent-color); font-weight: 700;">极客探索版</span>
+                    </div>
+                    <div class="about-rich-text" style="font-size: 0.92rem; line-height: 1.6; color: var(--text-secondary); display: flex; flex-direction: column; gap: 12px;">
+                        <p><strong>BrickSeek</strong> 是一款为广大乐高爱好者和收藏家打造的极客级乐高人仔探索与百科系统。</p>
+                        <p>我们致力于通过前沿的数字化技术重塑实体积木的拼装乐趣。系统融合了以下核心模块：</p>
+                        <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
+                            <li><i class="fas fa-palette" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>色彩量化匹配</strong>：实时量化提取照片主色调，进行色彩欧式距离计算识别。</li>
+                            <li><i class="fas fa-database" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>SQLite 百科图谱</strong>：联查人仔与零件共享网络，提供同款零件秒级数据检索。</li>
+                            <li><i class="fas fa-expand-arrows-alt" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>3D 爆炸图装配</strong>：利用 CSS 3D 轴向坐标拉伸发射模拟高保真爆炸图分解与自动组装。</li>
+                        </ul>
+                        <p style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 12px; font-size: 0.85rem; color: var(--text-muted);">本系统所有数据来自 Rebrickable 开放社群数据库，仅作非商业的个人技术学习交流使用。所有乐高相关的商标及版权均属于乐高集团（The LEGO Group）。</p>
+                    </div>
+                </div>
+
+                <!-- Right: Terms & Privacy -->
+                <div class="about-card legal-card" style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="legal-tab-nav" style="display: flex; gap: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                        <button type="button" class="legal-tab active" data-target="legal-terms" style="background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--text-primary); cursor: pointer; position: relative; padding: 5px 0;">使用条款</button>
+                        <button type="button" class="legal-tab" data-target="legal-privacy" style="background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--text-muted); cursor: pointer; position: relative; padding: 5px 0;">隐私政策</button>
+                    </div>
+                    
+                    <div class="legal-tab-content active" id="legal-terms" style="display: flex; flex-direction: column; gap: 15px; font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary);">
+                        <div class="legal-section">
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">1. 服务条款的接受</h5>
+                            <p>通过使用 BrickSeek（以下简称“本站”），您即表示同意接受本使用条款的所有条款约束。如果您不同意这些条款，请勿使用本服务。</p>
+                        </div>
+                        <div class="legal-section">
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">2. 知识产权声明</h5>
+                            <p>本站展示的乐高人仔图像、零件图谱及相关标志（商标）的所有权和版权完全属于乐高集团（The LEGO Group）或其原始持有者。本站与乐高集团不存在任何官方隶属关系。</p>
+                        </div>
+                        <div class="legal-section">
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">3. 个人与非商业用途</h5>
+                            <p>本站提供的信息及步骤仅供您个人非商业目的的学习、观摩参考。严禁用于任何形式的商业销售、转售或盈利活动。</p>
+                        </div>
+                    </div>
+
+                    <div class="legal-tab-content" id="legal-privacy" style="display: none; flex-direction: column; gap: 15px; font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary);">
+                        <div class="legal-section">
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">1. 个人敏感数据</h5>
+                            <p>BrickSeek 承诺保护个人隐私，我们<strong>不会</strong>收集、上传或存储您的任何个人身份敏感信息（如姓名、地址等）。</p>
+                        </div>
+                        <div class="legal-section">
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">2. 摄像头与拍照识别</h5>
+                            <p>当您使用“拍照识别”功能时，系统请求的摄像头画面仅在您本地设备的浏览器沙箱中用于色块捕捉计算，**绝对不会上传、存储或分发您拍摄的图像数据**。</p>
+                        </div>
+                        <div class="legal-section">
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">3. 本地存储 (LocalStorage)</h5>
+                            <p>我们仅使用 LocalStorage 记录您的主题配置（深色/浅色模式），数据完全保留在您的本地设备上。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Minifigure Details Page (Encyclopedia) -->
+        <div class="detail-container" id="detail-container" style="display: none;">
+            <!-- Header back button & title -->
+            <div class="detail-nav">
+                <button type="button" class="btn-back" id="back-to-search-btn">
+                    <i class="fas fa-arrow-left"></i> 返回搜索
+                </button>
+                <div class="detail-nav-header">
+                    <span class="detail-series-badge" id="detail-series-badge">系列</span>
+                    <h2 id="detail-title">人仔名称</h2>
+                </div>
+            </div>
+
+            <div class="detail-content-grid">
+                <!-- Left: 3D Exploded-view Assembly Player -->
+                <div class="assembly-card">
+                    <div class="assembly-header">
+                        <span class="card-subtitle"><i class="fas fa-cubes"></i> 交互式组装器</span>
+                        <div class="assembly-controls-row">
+                            <button type="button" class="btn-control-mini" id="btn-explode" title="拆解部件">
+                                <i class="fas fa-expand-arrows-alt"></i> 拆解
+                            </button>
+                            <button type="button" class="btn-control-mini" id="btn-assemble" title="组装部件">
+                                <i class="fas fa-compress-arrows-alt"></i> 组装
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="lego-figure-canvas" id="lego-assembly-stage">
+                        <!-- Complete Minifigure Showcase -->
+                        <div class="lego-full-figure" id="lego-full-figure">
+                            <img id="lego-full-figure-img" src="" alt="Complete Minifigure">
+                        </div>
+                    </div>
+
+                    <div class="assembly-footer">
+                        <span class="audio-toggle-hint"><i class="fas fa-volume-up"></i> 组装音效已开启</span>
+                        <span class="click-instruction-hint">点击人仔各个部件可以查看它的共享角色 👆</span>
+                    </div>
+                </div>
+
+                <!-- Right: Information & Shared Parts Panel -->
+                <div class="info-sidebar">
+                    <!-- General Details Card -->
+                    <div class="glass-subcard detail-summary-card">
+                        <h4>人仔基本档案</h4>
+                        <table class="detail-table">
+                            <tbody>
+                                <tr>
+                                    <th>人仔编号</th>
+                                    <td id="info-id" class="highlight-text">SW0527</td>
+                                </tr>
+                                <tr>
+                                    <th>发行年份</th>
+                                    <td id="info-year">2014年</td>
+                                </tr>
+                                <tr>
+                                    <th>稀有程度</th>
+                                    <td id="info-rarity"><span class="rarity-legendary">传奇 (Legendary)</span></td>
+                                </tr>
+                                <tr>
+                                    <th>主要部件</th>
+                                    <td>4 个核心零部件</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Shared Parts Explorer Card -->
+                    <div class="glass-subcard shared-parts-card">
+                        <div class="shared-parts-header">
+                            <h4><i class="fas fa-project-diagram"></i> 共享零件分析</h4>
+                            <span class="current-selected-part" id="selected-part-name">当前零件: 点击上方人仔部件</span>
+                        </div>
+                        
+                        <div class="shared-results" id="shared-list-results">
+                            <div class="empty-shared-state">
+                                <div class="icon-wrapper">
+                                    <i class="fas fa-hand-point-left animate-pulse"></i>
+                                </div>
+                                <p>点击左侧人仔拼装区域的任意部件，即可透视查看与此角色共享该零件的其他乐高人仔！</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom: Associated Sets -->
+            <div class="sets-section">
+                <h3><i class="fas fa-box-open"></i> 包含此人仔的乐高系列/套装</h3>
+                <div class="sets-grid" id="detail-sets-grid">
+                    <!-- Dynamic sets cards -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scan / Upload Overlay Modal -->
+    <div class="modal-overlay" id="scan-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fas fa-qrcode"></i> 人仔雷达扫描仪</h3>
+                <button class="close-btn" id="close-modal-btn"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Dropzone state -->
+                <div class="drop-zone" id="drop-zone">
+                    <input type="file" id="file-input" accept="image/*" class="file-input-hidden">
+                    <div class="drop-zone-content">
+                        <div class="scan-upload-icon-container">
+                            <i class="fas fa-cloud-upload-alt upload-cloud"></i>
+                            <i class="fas fa-robot scan-robot"></i>
+                        </div>
+                        <p class="drop-title">拖拽乐高人仔照片到这里</p>
+                        <p class="drop-sub">或者 <span class="highlight-text">浏览本地文件</span></p>
+                        
+                        <div class="camera-action-row">
+                            <span class="divider-or">或</span>
+                            <button type="button" class="btn-camera-activate" id="activate-camera-btn">
+                                <i class="fas fa-video"></i> 开启摄像头实时拍摄
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera/Video Viewport State -->
+                <div class="camera-viewport" id="camera-viewport" style="display: none;">
+                    <video id="webcam" autoplay playsinline></video>
+                    <canvas id="camera-canvas" style="display: none;"></canvas>
+                    <div class="camera-overlay-frame">
+                        <div class="corner top-left"></div>
+                        <div class="corner top-right"></div>
+                        <div class="corner bottom-left"></div>
+                        <div class="corner bottom-right"></div>
+                        <div class="center-target">
+                            <div class="target-circle"></div>
+                            <span class="target-label">请将人仔对准中心</span>
+                        </div>
+                    </div>
+                    <div class="camera-controls">
+                        <button type="button" class="btn-control-secondary" id="cancel-camera-btn">返回</button>
+                        <button type="button" class="btn-shutter" id="shutter-btn" title="拍照">
+                            <div class="shutter-inner"></div>
+                        </button>
+                        <div class="spacer"></div>
+                    </div>
+                </div>
+
+                <!-- Scanning Animation Viewport -->
+                <div class="scan-preview-container" id="scan-preview-container" style="display: none;">
+                    <div class="preview-image-wrapper">
+                        <img id="preview-image" src="" alt="待识别的人仔">
+                        <div class="laser-scanner"></div>
+                        <!-- Bounding Box overlays -->
+                        <div class="scan-bounding-box" id="box-head" style="display: none;">
+                            <span class="box-label">Head [匹配中...]</span>
+                        </div>
+                        <div class="scan-bounding-box" id="box-torso" style="display: none;">
+                            <span class="box-label">Torso [匹配中...]</span>
+                        </div>
+                        <div class="scan-bounding-box" id="box-legs" style="display: none;">
+                            <span class="box-label">Legs [匹配中...]</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Scan Status Details -->
+                    <div class="scan-status-panel">
+                        <div class="status-header">
+                            <span class="status-title"><i class="fas fa-microchip animate-pulse"></i> 图像分析引擎已就绪</span>
+                            <span class="status-percent" id="status-percent">0%</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                        </div>
+                        <ul class="scan-logs" id="scan-logs">
+                            <!-- Logs will be generated via JS -->
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Result Viewport -->
+                <div class="scan-result-container" id="scan-result-container" style="display: none;">
+                    <div class="result-header">
+                        <i class="fas fa-check-circle success-icon"></i>
+                        <div>
+                            <h4>人仔识别成功！</h4>
+                            <p class="result-subtext">在特征数据库中找到 3 个高比例匹配结果</p>
+                        </div>
+                    </div>
+                    
+                    <div class="result-cards">
+                        <!-- Card 1 (Best Match) -->
+                        <div class="result-card best-match" data-minifig-num="fig-000581" style="cursor: pointer;">
+                            <div class="badge-best">最佳匹配 99.4%</div>
+                            <div class="result-image-box">
+                                <img id="match-img-1" src="" alt="Lego Star Wars">
+                            </div>
+                            <div class="result-info">
+                                <span class="fig-id">编号：FIG-000581</span>
+                                <h5 class="fig-name">Darth Vader (达斯·维达 - 铬黑版)</h5>
+                                <p class="fig-meta"><strong>系列：</strong> 星球大战 (Star Wars)</p>
+                                <p class="fig-meta"><strong>发行年份：</strong> 2009</p>
+                                <p class="fig-meta"><strong>稀有度：</strong> <span class="rarity-legendary">传奇级 (Legendary)</span></p>
+                                <div class="card-actions">
+                                    <button type="button" class="btn-card-primary" id="best-match-action-btn">查看详细配件</button>
+                                    <button type="button" class="btn-card-secondary" onclick="alert('即将接入官方交易接口，敬请期待！')">估价与交易</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Secondary Matches -->
+                        <div class="secondary-matches">
+                            <!-- Card 2 -->
+                            <div class="result-card-mini" data-minifig-num="fig-001783" style="cursor: pointer;">
+                                <div class="mini-percent">84.2% 相似</div>
+                                <img id="match-img-2" src="" alt="Lego Star Wars Alternative">
+                                <div class="mini-info">
+                                    <span class="fig-id">编号：FIG-001783</span>
+                                    <h6>Darth Vader (Light Nougat)</h6>
+                                    <p class="fig-meta">星球大战 / 2013</p>
+                                </div>
+                            </div>
+
+                            <!-- Card 3 -->
+                            <div class="result-card-mini" data-minifig-num="fig-000516" style="cursor: pointer;">
+                                <div class="mini-percent">62.8% 相似</div>
+                                <img id="match-img-3" src="" alt="Lego Star Wars Alternative 2">
+                                <div class="mini-info">
+                                    <span class="fig-id">编号：FIG-000516</span>
+                                    <h6>Darth Vader (LBG Skin)</h6>
+                                    <p class="fig-meta">星球大战 / 2006</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="result-action-row">
+                        <button type="button" class="btn-secondary-outline" id="rescan-btn">
+                            <i class="fas fa-redo"></i> 重新扫描
+                        </button>
+                        <button type="button" class="btn-primary" id="view-all-matches">
+                            <i class="fas fa-th-list"></i> 查看完整相似度列表
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-links">
+            <a href="#" id="footer-about-btn">关于 BrickSeek</a>
+            <a href="#" id="footer-database-btn">乐高数据库</a>
+            <a href="#" id="footer-terms-btn">使用条款</a>
+            <a href="#" id="footer-privacy-btn">隐私权政策</a>
+        </div>
+        <div class="footer-status">
+            <span class="pulse-indicator"></span> 索引状态: <strong>84,921 个乐高人仔已收录</strong>
+        </div>
+    </footer>
+
+    <!-- Instruction Manual Viewer Modal -->
+    <div class="modal-overlay" id="manual-modal">
+        <div class="modal-card modal-large">
+            <div class="modal-header">
+                <h3><i class="fas fa-book-open"></i> 乐高官方说明书预览 (仿真拼搭步骤)</h3>
+                <button class="close-btn" id="close-manual-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body manual-viewer-body">
+                <div class="manual-pdf-link-container" style="margin-bottom: 15px; width: 100%; display: flex; justify-content: center;">
+                    <a href="#" target="_blank" id="btn-download-pdf" class="btn-primary" style="display: flex; align-items: center; gap: 10px; width: 90%; justify-content: center; text-decoration: none;">
+                        <i class="fas fa-file-pdf"></i> 下载官方原厂 PDF 说明书
+                    </a>
+                </div>
+                <div class="manual-book-container">
+                    <div class="manual-page manual-left-page" id="manual-left-page">
+                        <!-- Content dynamically loaded -->
+                    </div>
+                    <div class="manual-page-divider"></div>
+                    <div class="manual-page manual-right-page" id="manual-right-page">
+                        <!-- Content dynamically loaded -->
+                    </div>
+                </div>
+                <div class="manual-controls">
+                    <button type="button" id="btn-manual-prev">
+                        <i class="fas fa-arrow-left"></i> 上一步
+                    </button>
+                    <span class="manual-page-number" id="manual-page-num">第 1 / 4 步</span>
+                    <button type="button" id="btn-manual-next">
+                        下一步 <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
