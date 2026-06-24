@@ -8,6 +8,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearBtn = document.getElementById('clear-btn');
     const searchBoxWrapper = document.querySelector('.search-box-wrapper');
     const cameraTrigger = document.getElementById('camera-trigger');
+
+    // Settings & Auth DOM Elements
+    const settingsBtn = document.getElementById('settings-btn');
+    const closeSettingsBtn = document.getElementById('close-settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const avatarBtn = document.getElementById('avatar-btn');
+    const loginModal = document.getElementById('login-modal');
+    const closeLoginBtn = document.getElementById('close-login-btn');
+    const btnShowLogin = document.getElementById('btn-show-login');
+    const btnDoLogout = document.getElementById('btn-do-logout');
+    const settingCameraSelect = document.getElementById('setting-camera-select');
+    const settingSoundToggle = document.getElementById('setting-sound-toggle');
+    const settingsFavoritesList = document.getElementById('settings-favorites-list');
+    const favCountSpan = document.getElementById('fav-count');
+    const loggedUsernameSpan = document.getElementById('logged-username');
+    const accountLoggedOutView = document.getElementById('account-logged-out-view');
+    const accountLoggedInView = document.getElementById('account-logged-in-view');
+    const loginForm = document.getElementById('login-form');
+    const authUsernameInput = document.getElementById('auth-username');
+    const authPasswordInput = document.getElementById('auth-password');
+    const loginErrorMsg = document.getElementById('login-error-msg');
+    const authSubmitBtn = document.getElementById('auth-submit-btn');
+    const loginSwitchLink = document.getElementById('login-switch-link');
+    const authSwitchPrompt = document.getElementById('auth-switch-prompt');
+    const loginModalTitle = document.getElementById('login-modal-title');
+    const favoriteBtn = document.getElementById('favorite-btn');
     
     // Dynamic Suggestions Dropdown
     const suggestionsContainer = document.createElement('div');
@@ -106,9 +132,135 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentManualSteps = [];
     let currentManualPageIdx = 0;
 
+    // --- State & Preferences ---
+    let currentUser = localStorage.getItem('currentUser') || null;
+    let preferences = {
+        soundEnabled: true,
+        cameraId: "",
+        favorites: [], // [{"id": "fig-002816", "name": "Killow"}]
+        theme: "dark"
+    };
+
+    // Load local storage preferences as fallback
+    try {
+        const localPrefs = localStorage.getItem('preferences');
+        if (localPrefs) {
+            preferences = { ...preferences, ...JSON.parse(localPrefs) };
+        }
+    } catch(e) {
+        console.error("加载本地偏好失败:", e);
+    }
+
+    async function savePreferences() {
+        localStorage.setItem('preferences', JSON.stringify(preferences));
+        if (currentUser) {
+            try {
+                const res = await fetch('/api/save-preferences', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: currentUser, preferences })
+                });
+                if (!res.ok) console.error("同步偏好失败");
+            } catch (err) {
+                console.error("同步偏好失败:", err);
+            }
+        }
+    }
+
+    function applyTheme() {
+        if (preferences.theme === 'light') {
+            body.classList.remove('dark-theme');
+            body.classList.add('light-theme');
+        } else {
+            body.classList.remove('light-theme');
+            body.classList.add('dark-theme');
+        }
+    }
+
+    function updateAccountUI() {
+        const userAvatar = document.querySelector('.user-avatar');
+        if (currentUser) {
+            userAvatar.classList.add('logged-in');
+            loggedUsernameSpan.textContent = currentUser;
+            accountLoggedOutView.style.display = 'none';
+            accountLoggedInView.style.display = 'block';
+        } else {
+            userAvatar.classList.remove('logged-in');
+            accountLoggedOutView.style.display = 'block';
+            accountLoggedInView.style.display = 'none';
+        }
+    }
+
+    async function loadCameraDevices() {
+        try {
+            // First check media devices support
+            if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                settingCameraSelect.innerHTML = '<option value="">浏览器不支持镜头检测</option>';
+                return;
+            }
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === 'videoinput');
+            
+            settingCameraSelect.innerHTML = '';
+            if (videoDevices.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = '未检测到镜头设备';
+                settingCameraSelect.appendChild(opt);
+                return;
+            }
+            
+            videoDevices.forEach((device, index) => {
+                const opt = document.createElement('option');
+                opt.value = device.deviceId;
+                opt.textContent = device.label || `摄像头 ${index + 1}`;
+                if (preferences.cameraId === device.deviceId) {
+                    opt.selected = true;
+                }
+                settingCameraSelect.appendChild(opt);
+            });
+            
+            // Auto select first device if none is selected
+            if (!preferences.cameraId && videoDevices.length > 0) {
+                preferences.cameraId = videoDevices[0].deviceId;
+                savePreferences();
+            }
+        } catch (err) {
+            console.error("加载摄像头列表失败:", err);
+            settingCameraSelect.innerHTML = '<option value="">无法获取摄像头列表</option>';
+        }
+    }
+
+    function renderSettingsFavorites() {
+        settingsFavoritesList.innerHTML = '';
+        const favs = preferences.favorites || [];
+        favCountSpan.textContent = favs.length;
+        
+        if (favs.length === 0) {
+            settingsFavoritesList.innerHTML = '<p class="empty-fav-text">暂无收藏，快去人仔详情页标星吧！</p>';
+            return;
+        }
+        
+        favs.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'fav-item-card';
+            card.title = item.name;
+            card.innerHTML = `
+                <img src="https://cdn.rebrickable.com/media/sets/${item.id}.jpg" alt="${item.name}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\' width=\\'100\\' height=\\'100\\'><defs><linearGradient id=\\'glow-grad\\' x1=\\'0%\\' y1=\\'0%\\' x2=\\'100%\\' y2=\\'100%\\'><stop offset=\\'0%\\' stop-color=\\'#FFD500\\' /><stop offset=\\'100%\\' stop-color=\\'#FF5E00\\' /></linearGradient></defs><g fill=\\'url(#glow-grad)\\'><rect x=\\'45\\' y=\\'16\\' width=\\'10\\' height=\\'4\\' rx=\\'1\\'/><rect x=\\'39\\' y=\\'21\\' width=\\'22\\' height=\\'19\\' rx=\\'5\\'/><rect x=\\'37\\' y=\\'26\\' width=\\'26\\' height=\\'9\\' rx=\\'3\\'/><rect x=\\'46\\' y=\\'40\\' width=\\'8\\' height=\\'3\\'/><path d=\\'M 34,44 L 66,44 L 71,72 L 29,72 Z\\'/><rect x=\\'31\\' y=\\'74\\' width=\\'38\\' height=\\'6\\' rx=\\'1\\'/><rect x=\\'31\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/><rect x=\\'52\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/></g></svg>')">
+                <span>${item.id}</span>
+            `;
+            card.addEventListener('click', () => {
+                settingsModal.classList.remove('active');
+                showDetailPage(item.id);
+            });
+            settingsFavoritesList.appendChild(card);
+        });
+    }
+
     // AUDIO CONTEXT - Satisfying snap click sounds
     let audioCtx = null;
     function playAssembleSound() {
+        if (!preferences.soundEnabled) return;
         try {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -135,24 +287,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Initialize UI theme & login state
+    applyTheme();
+    updateAccountUI();
+    settingSoundToggle.checked = preferences.soundEnabled;
+
     // --- 1. Theme Toggle ---
     themeToggleBtn.addEventListener('click', () => {
-        if (body.classList.contains('dark-theme')) {
-            body.classList.remove('dark-theme');
-            body.classList.add('light-theme');
-            localStorage.setItem('theme', 'light');
-        } else {
-            body.classList.remove('light-theme');
-            body.classList.add('dark-theme');
-            localStorage.setItem('theme', 'dark');
-        }
+        preferences.theme = body.classList.contains('dark-theme') ? 'light' : 'dark';
+        applyTheme();
+        savePreferences();
     });
-
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') {
-        body.classList.remove('dark-theme');
-        body.classList.add('light-theme');
-    }
 
     // --- 2. Input Box Focusing & Suggestions ---
     searchInput.addEventListener('focus', () => {
@@ -338,6 +483,161 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Settings Modal Triggers & Events
+    const openSettingsModal = async () => {
+        settingsModal.classList.add('active');
+        await loadCameraDevices();
+        renderSettingsFavorites();
+        updateAccountUI();
+    };
+
+    const closeSettingsModal = () => {
+        settingsModal.classList.remove('active');
+    };
+
+    settingsBtn.addEventListener('click', openSettingsModal);
+    closeSettingsBtn.addEventListener('click', closeSettingsModal);
+    avatarBtn.addEventListener('click', openSettingsModal);
+
+    settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) closeSettingsModal();
+    });
+
+    settingCameraSelect.addEventListener('change', () => {
+        preferences.cameraId = settingCameraSelect.value;
+        savePreferences();
+    });
+
+    settingSoundToggle.addEventListener('change', () => {
+        preferences.soundEnabled = settingSoundToggle.checked;
+        savePreferences();
+    });
+
+    // Auth & Login Modal Triggers & Events
+    const openLoginModal = () => {
+        loginModal.classList.add('active');
+        loginErrorMsg.style.display = 'none';
+        loginErrorMsg.textContent = '';
+        authUsernameInput.value = '';
+        authPasswordInput.value = '';
+        setAuthMode(true);
+    };
+
+    const closeLoginModal = () => {
+        loginModal.classList.remove('active');
+    };
+
+    let isLoginMode = true;
+    function setAuthMode(isLogin) {
+        isLoginMode = isLogin;
+        if (isLogin) {
+            loginModalTitle.textContent = '账号登录';
+            authSubmitBtn.textContent = '立即登录';
+            authSwitchPrompt.textContent = '还没有账号？';
+            loginSwitchLink.textContent = '立即注册';
+        } else {
+            loginModalTitle.textContent = '账号注册';
+            authSubmitBtn.textContent = '立即注册';
+            authSwitchPrompt.textContent = '已有账号？';
+            loginSwitchLink.textContent = '立即登录';
+        }
+    }
+
+    btnShowLogin.addEventListener('click', () => {
+        closeSettingsModal();
+        openLoginModal();
+    });
+
+    btnDoLogout.addEventListener('click', () => {
+        currentUser = null;
+        localStorage.removeItem('currentUser');
+        updateAccountUI();
+        closeSettingsModal();
+        alert('已成功退出登录。');
+    });
+
+    closeLoginBtn.addEventListener('click', closeLoginModal);
+    
+    loginSwitchLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        setAuthMode(!isLoginMode);
+    });
+
+    loginModal.addEventListener('click', (e) => {
+        if (e.target === loginModal) closeLoginModal();
+    });
+
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginErrorMsg.style.display = 'none';
+        
+        const username = authUsernameInput.value.trim();
+        const password = authPasswordInput.value.trim();
+        if (!username || !password) return;
+        
+        const url = isLoginMode ? '/api/login' : '/api/register';
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                loginErrorMsg.textContent = data.error || '认证失败，请稍后重试。';
+                loginErrorMsg.style.display = 'block';
+                return;
+            }
+            
+            if (isLoginMode) {
+                currentUser = data.username;
+                localStorage.setItem('currentUser', currentUser);
+                preferences = { ...preferences, ...data.preferences };
+                localStorage.setItem('preferences', JSON.stringify(preferences));
+                
+                applyTheme();
+                updateAccountUI();
+                renderSettingsFavorites();
+                closeLoginModal();
+            } else {
+                alert('注册成功！正在为您自动登录...');
+                currentUser = username;
+                localStorage.setItem('currentUser', currentUser);
+                await savePreferences();
+                updateAccountUI();
+                renderSettingsFavorites();
+                closeLoginModal();
+            }
+        } catch (err) {
+            console.error("认证请求出错:", err);
+            loginErrorMsg.textContent = '无法连接到服务器，请检查您的网络连接。';
+            loginErrorMsg.style.display = 'block';
+        }
+    });
+
+    // Favorite Star Click Event Handler
+    favoriteBtn.addEventListener('click', () => {
+        const minifigId = currentMinifigId;
+        if (!minifigId) return;
+        
+        const nameEl = document.getElementById('detail-title');
+        const nameText = nameEl ? nameEl.textContent : minifigId;
+        
+        const index = preferences.favorites.findIndex(f => f.id === minifigId);
+        if (index > -1) {
+            preferences.favorites.splice(index, 1);
+            favoriteBtn.classList.remove('active');
+            favoriteBtn.innerHTML = '<i class="far fa-star"></i>';
+        } else {
+            preferences.favorites.push({ id: minifigId, name: nameText });
+            favoriteBtn.classList.add('active');
+            favoriteBtn.innerHTML = '<i class="fas fa-star"></i>';
+        }
+        
+        savePreferences();
+        renderSettingsFavorites();
+    });
+
     // --- 4. Drag & Drop File Upload ---
     dropZone.addEventListener('click', () => fileInput.click());
 
@@ -427,8 +727,14 @@ document.addEventListener('DOMContentLoaded', () => {
     activateCameraBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         try {
+            let videoConstraints = { width: 640, height: 480 };
+            if (preferences.cameraId) {
+                videoConstraints.deviceId = { ideal: preferences.cameraId };
+            } else {
+                videoConstraints.facingMode = 'environment';
+            }
             webcamStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment', width: 640, height: 480 },
+                video: videoConstraints,
                 audio: false
             });
             webcam.srcObject = webcamStream;
@@ -741,6 +1047,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const seriesName = data.sets.length > 0 ? data.sets[0].theme_name : "乐高系列人仔";
         detailSeriesBadge.textContent = seriesName;
         detailTitle.textContent = minifig.name;
+        
+        // Update Favorite Star state
+        const isFav = preferences.favorites.some(f => f.id === minifig.minifig_num);
+        if (isFav) {
+            favoriteBtn.classList.add('active');
+            favoriteBtn.innerHTML = '<i class="fas fa-star"></i>';
+        } else {
+            favoriteBtn.classList.remove('active');
+            favoriteBtn.innerHTML = '<i class="far fa-star"></i>';
+        }
         
         infoId.textContent = minifig.minifig_num;
         

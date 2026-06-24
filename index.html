@@ -30,9 +30,13 @@
                 <i class="fas fa-sun"></i>
                 <i class="fas fa-moon"></i>
             </button>
-            <a href="#" class="btn-secondary">API 接口</a>
-            <div class="user-avatar" title="个人中心">
+            <!-- Settings Trigger -->
+            <button id="settings-btn" class="icon-btn" aria-label="设置与偏好" title="设置与偏好">
+                <i class="fas fa-cog"></i>
+            </button>
+            <div class="user-avatar" id="avatar-btn" title="个人中心">
                 <i class="fas fa-user-astronaut"></i>
+                <span class="user-status-dot"></span>
             </div>
         </div>
     </header>
@@ -240,7 +244,12 @@
                 </button>
                 <div class="detail-nav-header">
                     <span class="detail-series-badge" id="detail-series-badge">系列</span>
-                    <h2 id="detail-title">人仔名称</h2>
+                    <div class="title-with-fav">
+                        <h2 id="detail-title">人仔名称</h2>
+                        <button type="button" id="favorite-btn" class="fav-btn" title="收藏此人仔">
+                            <i class="far fa-star"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -524,6 +533,89 @@
                     <button type="button" id="btn-manual-next">
                         下一步 <i class="fas fa-arrow-right"></i>
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings and Preferences Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fas fa-sliders-h"></i> 系统设置与偏好</h3>
+                <button class="close-btn" id="close-settings-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <!-- Account Panel -->
+                <div class="settings-group">
+                    <h4><i class="fas fa-user-circle"></i> 云端账户同步</h4>
+                    <div class="account-status-box">
+                        <div id="account-logged-out-view">
+                            <p class="settings-desc">当前为访客模式，登录后可云端同步您的偏好及收藏人仔。</p>
+                            <button type="button" id="btn-show-login" class="btn-primary btn-mini-width">登录 / 注册</button>
+                        </div>
+                        <div id="account-logged-in-view" style="display: none;">
+                            <p class="settings-desc">已成功同步账户：<strong id="logged-username">user</strong></p>
+                            <button type="button" id="btn-do-logout" class="btn-secondary btn-mini-width">退出登录</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Config Panel -->
+                <div class="settings-group">
+                    <h4><i class="fas fa-camera"></i> 拍照识别设备</h4>
+                    <label for="setting-camera-select" class="settings-label">选择输入摄像头：</label>
+                    <select id="setting-camera-select" class="settings-select">
+                        <option value="">正在检测镜头设备...</option>
+                    </select>
+                </div>
+
+                <!-- Toggle Settings -->
+                <div class="settings-group">
+                    <h4><i class="fas fa-cogs"></i> 功能偏好</h4>
+                    <div class="setting-toggle-row">
+                        <span>拼搭拼装音效</span>
+                        <label class="switch-toggle">
+                            <input type="checkbox" id="setting-sound-toggle" checked>
+                            <span class="switch-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- My Favorites Section -->
+                <div class="settings-group no-border">
+                    <h4><i class="fas fa-star"></i> 我的收藏人仔 (<span id="fav-count">0</span>)</h4>
+                    <div class="settings-fav-grid" id="settings-favorites-list">
+                        <p class="empty-fav-text">暂无收藏，快去人仔详情页标星吧！</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login & Register Modal -->
+    <div class="modal-overlay" id="login-modal">
+        <div class="modal-card modal-small">
+            <div class="modal-header">
+                <h3 id="login-modal-title">账号登录</h3>
+                <button class="close-btn" id="close-login-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="login-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="auth-username">用户名</label>
+                        <input type="text" id="auth-username" required placeholder="请输入您的用户名" autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-password">密码</label>
+                        <input type="password" id="auth-password" required placeholder="请输入密码" autocomplete="current-password">
+                    </div>
+                    <div id="login-error-msg" class="auth-error-msg" style="display: none;"></div>
+                    <button type="submit" id="auth-submit-btn" class="btn-primary auth-submit-btn">立即登录</button>
+                </form>
+                <div class="auth-switch-text">
+                    <span id="auth-switch-prompt">还没有账号？</span>
+                    <a href="#" id="login-switch-link">立即注册</a>
                 </div>
             </div>
         </div>

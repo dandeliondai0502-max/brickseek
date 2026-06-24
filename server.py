@@ -5,6 +5,7 @@ import urllib.parse
 import json
 import sqlite3
 import os
+import hashlib
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PORT = int(os.environ.get("PORT", 8000))
@@ -139,6 +140,18 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
 
+    def end_headers(self):
+        # Add Cache-Control headers for static files to optimize page speed
+        parsed_url = urllib.parse.urlparse(self.path)
+        path = parsed_url.path
+        if path.startswith("/api/"):
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+        elif path.endswith((".js", ".css", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2")):
+            self.send_header("Cache-Control", "public, max-age=31536000") # 1 year cache
+        elif path.endswith((".html", "/")) or not "." in path:
+            self.send_header("Cache-Control", "no-cache") # check for updates on HTML/entrypoints
+        super().end_headers()
+
     def do_GET(self):
         parsed_url = urllib.parse.urlparse(self.path)
         path = parsed_url.path
@@ -148,6 +161,93 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_api(path, query_params)
         else:
             super().do_GET()
+
+    def do_POST(self):
+        parsed_url = urllib.parse.urlparse(self.path)
+        path = parsed_url.path
+        if path.startswith("/api/"):
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            try:
+                body = json.loads(post_data.decode('utf-8')) if post_data else {}
+            except Exception:
+                self.send_json_response({"error": "Invalid JSON"}, status=400)
+                return
+            
+            self.handle_api_post(path, body)
+        else:
+            self.send_json_response({"error": "POST not supported for static files"}, status=405)
+
+    def handle_api_post(self, path, body):
+        if not os.path.exists(DB_PATH):
+            self.send_json_response({"error": "Database not found. Please run db_builder.py first."}, status=500)
+            return
+
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            
+            if path == "/api/register":
+                username = body.get("username", "").strip()
+                password = body.get("password", "").strip()
+                if not username or not password:
+                    self.send_json_response({"error": "用户名和密码不能为空！"}, status=400)
+                    conn.close()
+                    return
+                
+                cursor = conn.cursor()
+                cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+                if cursor.fetchone():
+                    self.send_json_response({"error": "用户名已存在！"}, status=400)
+                else:
+                    pwd_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+                    cursor.execute("INSERT INTO users (username, password, preferences) VALUES (?, ?, ?)", 
+                                   (username, pwd_hash, '{}'))
+                    conn.commit()
+                    self.send_json_response({"success": True, "message": "注册成功！"})
+                    
+            elif path == "/api/login":
+                username = body.get("username", "").strip()
+                password = body.get("password", "").strip()
+                if not username or not password:
+                    self.send_json_response({"error": "用户名和密码不能为空！"}, status=400)
+                    conn.close()
+                    return
+                
+                pwd_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+                cursor = conn.cursor()
+                cursor.execute("SELECT preferences FROM users WHERE username = ? AND password = ?", (username, pwd_hash))
+                user = cursor.fetchone()
+                if not user:
+                    self.send_json_response({"error": "用户名或密码错误！"}, status=400)
+                else:
+                    prefs = {}
+                    try:
+                        prefs = json.loads(user["preferences"]) if user["preferences"] else {}
+                    except Exception:
+                        pass
+                    self.send_json_response({"success": True, "username": username, "preferences": prefs})
+                    
+            elif path == "/api/save-preferences":
+                username = body.get("username", "").strip()
+                preferences = body.get("preferences", {})
+                if not username:
+                    self.send_json_response({"error": "未指定用户名！"}, status=400)
+                    conn.close()
+                    return
+                
+                cursor = conn.cursor()
+                prefs_str = json.dumps(preferences, ensure_ascii=False)
+                cursor.execute("UPDATE users SET preferences = ? WHERE username = ?", (prefs_str, username))
+                conn.commit()
+                self.send_json_response({"success": True})
+                
+            else:
+                self.send_json_response({"error": "Endpoint not found"}, status=404)
+                
+            conn.close()
+        except Exception as e:
+            self.send_json_response({"error": str(e)}, status=500)
 
     def handle_api(self, path, params):
         if not os.path.exists(DB_PATH):
@@ -189,9 +289,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             sql_select = """
                 SELECT DISTINCT m.minifig_num, m.name, m.num_parts 
                 FROM minifigs m
-                JOIN inventories i ON m.minifig_num = i.set_num
-                JOIN inventory_parts ip ON i.id = ip.inventory_id
-                JOIN parts p ON ip.part_num = p.part_num
+                CROSS JOIN inventories i ON m.minifig_num = i.set_num
+                CROSS JOIN inventory_parts ip ON i.id = ip.inventory_id
+                CROSS JOIN parts p ON ip.part_num = p.part_num
                 WHERE p.part_cat_id IN (60, 61, 13)
                   AND m.num_parts BETWEEN 3 AND 12
                   AND LOWER(m.name) NOT LIKE '%keychain%'
@@ -276,9 +376,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         sql = """
             SELECT DISTINCT m.minifig_num, m.name, m.num_parts 
             FROM minifigs m
-            JOIN inventories i ON m.minifig_num = i.set_num
-            JOIN inventory_parts ip ON i.id = ip.inventory_id
-            JOIN parts p ON ip.part_num = p.part_num
+            CROSS JOIN inventories i ON m.minifig_num = i.set_num
+            CROSS JOIN inventory_parts ip ON i.id = ip.inventory_id
+            CROSS JOIN parts p ON ip.part_num = p.part_num
             WHERE (m.minifig_num LIKE ? OR m.name LIKE ?) 
               AND p.part_cat_id IN (60, 61)
               AND m.num_parts BETWEEN 3 AND 12
@@ -538,7 +638,27 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
 
+def init_users_db():
+    try:
+        # DB_PATH dir must exist
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            preferences TEXT
+        )""")
+        conn.commit()
+        conn.close()
+        print("[Database] Users table initialized successfully.")
+    except Exception as e:
+        print(f"[Database Error] Failed to initialize users table: {e}")
+
 def main():
+    init_users_db()
     handler = LegoAPIHandler
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", PORT), handler) as httpd:

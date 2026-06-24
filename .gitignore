@@ -1,0 +1,16 @@
+# Ignore Rebrickable source CSV files
+db/downloads/
+db/*.csv.gz
+db/*.csv
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local SQLite database
+db/lego.db
+

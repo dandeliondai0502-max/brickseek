@@ -1487,10 +1487,14 @@ footer {
 /* Responsive queries */
 @media (max-width: 768px) {
     header {
-        padding: 15px 20px;
+        padding: 15px 15px;
+    }
+    .header-left, .header-right {
+        gap: 12px;
     }
     .header-left .nav-link {
-        display: none; /* Hide internal links on mobile for extreme minimalism */
+        display: block;
+        font-size: 0.85rem;
     }
     .header-left .nav-link.active {
         display: block;
@@ -2977,5 +2981,336 @@ footer {
 @media (max-width: 900px) {
     .about-content-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ==========================================================================
+   User Settings, Authorization & Preferences Custom Styles
+   ========================================================================== */
+
+/* User Status Dot indicator on avatar */
+.user-avatar {
+    position: relative;
+    cursor: pointer;
+}
+
+.user-status-dot {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #999; /* Gray when logged out */
+    border: 2px solid var(--bg-card);
+    transition: var(--transition-smooth);
+}
+
+.user-avatar.logged-in .user-status-dot {
+    background-color: #00cc66; /* Green when logged in */
+    box-shadow: 0 0 6px rgba(0, 204, 102, 0.4);
+}
+
+/* Detail title favorite star button */
+.title-with-fav {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.fav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    padding: 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-smooth);
+}
+
+.fav-btn:hover {
+    color: #ffd500;
+    transform: scale(1.15) rotate(15deg);
+    background: rgba(255, 213, 0, 0.1);
+}
+
+.fav-btn.active {
+    color: #ffd500;
+}
+
+.fav-btn.active i {
+    font-weight: 900; /* fas solid star */
+    filter: drop-shadow(0 0 6px rgba(255, 213, 0, 0.5));
+}
+
+/* Settings Modal Specific Groups */
+.settings-group {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+}
+
+.settings-group.no-border {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+.settings-group h4 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.settings-desc {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 12px;
+}
+
+.account-status-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 15px;
+    backdrop-filter: blur(5px);
+}
+
+.light-theme .account-status-box {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.btn-mini-width {
+    width: auto;
+    min-width: 100px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+}
+
+/* Select inputs inside settings */
+.settings-label {
+    display: block;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.settings-select {
+    width: 100%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    outline: none;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.settings-select:focus, .settings-select:hover {
+    border-color: var(--accent-color);
+}
+
+/* Switch sliders */
+.setting-toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.switch-toggle {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+}
+
+.switch-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border-color);
+    transition: .3s;
+    border-radius: 24px;
+}
+
+.switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+.switch-toggle input:checked + .switch-slider {
+    background-color: var(--accent-color);
+}
+
+.switch-toggle input:checked + .switch-slider:before {
+    transform: translateX(24px);
+}
+
+/* Settings favorites grid shelf */
+.settings-fav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.empty-fav-text {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    padding: 20px 0;
+}
+
+.fav-item-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.fav-item-card:hover {
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.fav-item-card img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+    border-radius: 6px;
+}
+
+.fav-item-card span {
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+/* Auth modal forms */
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.auth-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.auth-form label {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.auth-form input {
+    width: 100%;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    outline: none;
+    transition: var(--transition-smooth);
+}
+
+.auth-form input:focus {
+    border-color: var(--accent-color);
+}
+
+.auth-error-msg {
+    color: #ff3333;
+    font-size: 0.82rem;
+    background: rgba(255, 51, 51, 0.08);
+    border: 1px dashed rgba(255, 51, 51, 0.3);
+    padding: 10px;
+    border-radius: 6px;
+}
+
+.auth-submit-btn {
+    margin-top: 8px;
+    padding: 12px;
+}
+
+.auth-switch-text {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.auth-switch-text a {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.auth-switch-text a:hover {
+    text-decoration: underline;
+}
+
+/* Modal sizing adjustments */
+.modal-small {
+    max-width: 380px;
+}
+
+/* Media query for tiny screens */
+@media (max-width: 480px) {
+    .title-with-fav {
+        gap: 8px;
+    }
+    .fav-btn {
+        font-size: 1.3rem;
+    }
+    .settings-fav-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     }
 }
