@@ -552,9 +552,15 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         
         prompt = (
-            "Identify the Lego minifigure in this image. Look for distinctive parts like the head/hair/helmet, torso printing, legs, or accessories.\n"
-            "Provide a brief description of the minifigure in Chinese (within 60 characters).\n"
-            "Provide 3-5 specific English search keywords or character names (e.g. 'vader', 'yoda', 'batman', 'maul', 'clone trooper', 'luke skywalker', 'lloyd', 'harry potter') that can be used to search for this minifigure in our database.\n"
+            "Analyze the Lego minifigure in the image and extract its visual attributes to match a database name.\n"
+            "1. Identify the character name (e.g. 'Darth Vader', 'Luke Skywalker', 'Iron Man', 'Boba Fett').\n"
+            "2. Identify unique features shown in the image, such as:\n"
+            "   - Skin color (e.g., 'Yellow', 'Light Nougat', 'White').\n"
+            "   - Helmet/Hair color and type (e.g., 'Chrome Black', 'Gold Helmet', 'Brown Hair').\n"
+            "   - Specific suit/armor printing details (e.g., 'Imperial Inspection', 'Quantum Suit', 'Oni Mask', 'Printed Arms').\n"
+            "   - Key accessories (e.g., 'Cape', 'Lightsaber', 'Pauldrons', 'Visor').\n"
+            "3. Output 5-8 specific keywords in English. The first 1-2 keywords must be the character name. The other keywords must be the specific distinguishing features (e.g., 'chrome', 'nougat', 'printed legs').\n"
+            "4. Provide a brief description of the minifigure in Chinese (within 60 characters) describing who it is and its key visual features.\n"
             "Return the output STRICTLY in JSON format matching this schema:\n"
             "{\n"
             "  \"description\": \"Chinese description here\",\n"
