@@ -3307,8 +3307,68 @@ footer {
     max-width: 380px;
 }
 
-/* Media query for tiny screens */
+/* Media query for tiny screens / mobile devices */
 @media (max-width: 480px) {
+    /* Header layout */
+    header {
+        padding: 10px 12px !important;
+    }
+    .header-left, .header-right {
+        gap: 6px !important;
+    }
+    .header-left .nav-link {
+        font-size: 0.8rem !important;
+        padding: 4px 0 !important;
+    }
+    .icon-btn {
+        width: 34px !important;
+        height: 34px !important;
+        border-radius: 8px !important;
+        font-size: 0.9rem !important;
+    }
+    .user-avatar {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 0.9rem !important;
+    }
+    #search-shortcut {
+        display: none !important;
+    }
+
+    /* Autocomplete Search suggestions */
+    .sug-name {
+        max-width: 62vw !important;
+        font-size: 0.85rem !important;
+    }
+    .sug-id {
+        font-size: 0.7rem !important;
+    }
+
+    /* Modal dialogs */
+    .modal-card {
+        width: 94% !important;
+        max-height: 92vh !important;
+        margin: 10px auto !important;
+    }
+    .modal-header {
+        padding: 14px 16px !important;
+    }
+    .modal-header h3 {
+        font-size: 1.05rem !important;
+    }
+    .modal-body {
+        padding: 16px 18px !important;
+        min-height: auto !important;
+    }
+    .settings-group {
+        padding-bottom: 15px !important;
+        margin-bottom: 15px !important;
+    }
+    .settings-group h4 {
+        font-size: 0.95rem !important;
+    }
+
+    /* Settings favorites grid */
     .title-with-fav {
         gap: 8px;
     }
@@ -3316,7 +3376,203 @@ footer {
         font-size: 1.3rem;
     }
     .settings-fav-grid {
-        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)) !important;
+    }
+
+    /* Best Match Result Card (Center vertical layout on mobile) */
+    .result-card {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        gap: 12px !important;
+        padding: 12px !important;
+    }
+    .result-image-box {
+        margin-right: 0 !important;
+        margin-bottom: 4px !important;
+        width: 130px !important;
+        height: 130px !important;
+    }
+    .result-info {
+        width: 100% !important;
+        align-items: center !important;
+    }
+    .card-actions {
+        width: 100% !important;
+        justify-content: center !important;
+        gap: 8px !important;
+    }
+    .btn-card-primary, .btn-card-secondary {
+        padding: 6px 12px !important;
+        font-size: 0.75rem !important;
+        flex: 1 !important;
+        text-align: center !important;
+    }
+
+    /* Minifigure Gallery Filters and Grid */
+    .gallery-header {
+        gap: 12px !important;
+    }
+    .gallery-title-box h2, .about-title-box h2 {
+        font-size: 1.5rem !important;
+    }
+    .gallery-title-box p, .about-title-box p {
+        font-size: 0.85rem !important;
+    }
+    .gallery-filter-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        padding: 12px 16px !important;
+        border-radius: 14px !important;
+    }
+    .filter-group {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+    .filter-group select {
+        flex: 1 !important;
+        max-width: 65% !important;
+        padding: 6px 12px !important;
+        font-size: 0.8rem !important;
+    }
+    .filter-group label {
+        font-size: 0.8rem !important;
+    }
+    .gallery-quick-search {
+        width: 100% !important;
+    }
+    .gallery-quick-search input {
+        padding: 6px 34px 6px 12px !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* Gallery Grid Card Columns */
+    .gallery-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+    .gallery-card {
+        padding: 10px !important;
+        gap: 8px !important;
+        border-radius: 12px !important;
+    }
+    .gallery-card-name {
+        font-size: 0.82rem !important;
+    }
+    .gallery-card-id {
+        font-size: 0.65rem !important;
+    }
+    .gallery-card-theme {
+        font-size: 0.58rem !important;
+        padding: 2px 4px !important;
+    }
+    .gallery-card-parts {
+        font-size: 0.7rem !important;
+    }
+
+    /* 3D Exploded Detail View Page */
+    .detail-nav {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+        height: auto !important;
+        min-height: auto !important;
+        margin-bottom: 12px !important;
+    }
+    .detail-nav-header {
+        width: 100% !important;
+    }
+    #detail-title {
+        font-size: 1.35rem !important;
+    }
+    .assembly-card {
+        padding: 12px !important;
+        min-height: 400px !important;
+    }
+    .lego-full-figure {
+        width: 190px !important;
+        height: 250px !important;
+    }
+    .lego-figure-canvas::after {
+        width: 160px !important;
+    }
+    
+    /* Exploded stage inside Detail Page */
+    .lego-figure-canvas.exploded {
+        gap: 12px !important;
+        padding: 12px !important;
+    }
+    .lego-figure-canvas.exploded .lego-part-layer,
+    .lego-figure-canvas.exploded .lego-svg-holder {
+        width: 72px !important;
+        height: 72px !important;
+    }
+    .lego-svg-holder i {
+        font-size: 1.4rem !important;
+    }
+    .assembly-footer {
+        padding-top: 10px !important;
+        font-size: 0.68rem !important;
+    }
+
+    /* Detail Table and Sidebar info */
+    .glass-subcard {
+        padding: 14px !important;
+        border-radius: 14px !important;
+    }
+    .detail-table th, .detail-table td {
+        padding: 8px 4px !important;
+        font-size: 0.8rem !important;
+    }
+    
+    /* Sets Section */
+    .sets-section h3 {
+        font-size: 1.1rem !important;
+        margin-bottom: 12px !important;
+    }
+    .sets-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+    .set-card {
+        padding: 12px !important;
+        border-radius: 14px !important;
+    }
+    .set-img-box {
+        width: 70px !important;
+        height: 70px !important;
+    }
+
+    /* Instruction Manual Modal adaptation */
+    .manual-book-container {
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+        aspect-ratio: auto !important;
+        border-width: 2px !important;
+    }
+    .manual-page {
+        padding: 12px 14px !important;
+        font-size: 0.8rem !important;
+    }
+    .manual-page-divider {
+        display: none !important;
+    }
+    .manual-illustration {
+        min-height: 160px !important;
+        margin-bottom: 8px !important;
+    }
+    .manual-step-header {
+        margin-bottom: 8px !important;
+        padding-bottom: 4px !important;
+    }
+    .manual-step-badge {
+        font-size: 0.95rem !important;
+        padding: 1px 6px !important;
+    }
+    .manual-step-part-icon {
+        font-size: 1.2rem !important;
     }
 }
 
