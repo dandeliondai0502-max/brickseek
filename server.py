@@ -146,8 +146,10 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         path = parsed_url.path
         if path.startswith("/api/"):
             self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
-        elif path.endswith((".js", ".css", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2")):
-            self.send_header("Cache-Control", "public, max-age=31536000") # 1 year cache
+        elif path.endswith((".js", ".css")):
+            self.send_header("Cache-Control", "no-cache") # always revalidate so code updates propagate instantly
+        elif path.endswith((".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2")):
+            self.send_header("Cache-Control", "public, max-age=86400") # 1 day cache for binary assets
         elif path.endswith((".html", "/")) or not "." in path:
             self.send_header("Cache-Control", "no-cache") # check for updates on HTML/entrypoints
         super().end_headers()
