@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnDoLogout = document.getElementById('btn-do-logout');
     const settingCameraSelect = document.getElementById('setting-camera-select');
     const settingSoundToggle = document.getElementById('setting-sound-toggle');
+    const settingGeminiKey = document.getElementById('setting-gemini-key');
     const settingsFavoritesList = document.getElementById('settings-favorites-list');
     const favCountSpan = document.getElementById('fav-count');
     const loggedUsernameSpan = document.getElementById('logged-username');
@@ -138,7 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
         soundEnabled: true,
         cameraId: "",
         favorites: [], // [{"id": "fig-002816", "name": "Killow"}]
-        theme: "dark"
+        theme: "dark",
+        geminiApiKey: ""
     };
 
     // Load local storage preferences as fallback
@@ -489,6 +491,9 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadCameraDevices();
         renderSettingsFavorites();
         updateAccountUI();
+        if (settingGeminiKey) {
+            settingGeminiKey.value = preferences.geminiApiKey || '';
+        }
     };
 
     const closeSettingsModal = () => {
@@ -512,6 +517,13 @@ document.addEventListener('DOMContentLoaded', () => {
         preferences.soundEnabled = settingSoundToggle.checked;
         savePreferences();
     });
+
+    if (settingGeminiKey) {
+        settingGeminiKey.addEventListener('input', () => {
+            preferences.geminiApiKey = settingGeminiKey.value.trim();
+            savePreferences();
+        });
+    }
 
     // Auth & Login Modal Triggers & Events
     const openLoginModal = () => {
@@ -716,7 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
             previewImage.src = event.target.result;
             previewImage.onload = () => {
                 const hexColor = getAverageColorFromImage(previewImage);
-                startScanning(hexColor, filenameQuery);
+                startScanning(hexColor, filenameQuery, event.target.result);
                 previewImage.onload = null;
             };
         };
@@ -772,7 +784,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         previewImage.onload = () => {
             const hexColor = getAverageColorFromImage(previewImage);
-            startScanning(hexColor, '');
+            startScanning(hexColor, '', dataUrl);
             previewImage.onload = null;
         };
     });
@@ -810,7 +822,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let scanResults = [];
-    async function startScanning(color, query) {
+    let scanAiDescription = '';
+    async function startScanning(color, query, base64Image) {
         dropZone.style.display = 'none';
         cameraViewport.style.display = 'none';
         scanPreviewContainer.style.display = 'flex';
@@ -820,18 +833,58 @@ document.addEventListener('DOMContentLoaded', () => {
         progressBarFill.style.width = '0%';
         statusPercent.textContent = '0%';
         scanLogs.innerHTML = '';
+        scanAiDescription = '';
+        
+        const aiBox = document.getElementById('ai-analysis-box');
+        if (aiBox) aiBox.style.display = 'none';
         
         addLog('⚡ 正在初始化图像特征矩阵分析引擎...', 'highlight');
         
         // Fetch matching figures instantly in the background!
         scanResults = [];
-        try {
-            const res = await fetch(`/api/scan?color=${color}&query=${encodeURIComponent(query)}`);
-            if (res.ok) {
-                scanResults = await res.json();
+        let isAiSuccessful = false;
+        
+        if (base64Image) {
+            addLog('🔍 正在将图像发送至 AI 智能视觉分析引擎...', 'highlight');
+            try {
+                const res = await fetch('/api/scan-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image: base64Image,
+                        color: color,
+                        api_key: preferences.geminiApiKey || ""
+                    })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.results && data.results.length > 0) {
+                        scanResults = data.results;
+                        scanAiDescription = data.description || '';
+                        isAiSuccessful = true;
+                    }
+                } else {
+                    const errData = await res.json().catch(() => ({}));
+                    const errMsg = errData.message || 'API 调用失败';
+                    addLog(`⚠️ AI 智能识别暂不可用 (${errMsg})。正在切换为传统算法...`, 'warning');
+                }
+            } catch (e) {
+                console.error("AI Scan fetch error:", e);
+                addLog('⚠️ AI 智能识别连接超时。正在切换为传统算法...', 'warning');
             }
-        } catch (e) {
-            console.error("Scan fetch error:", e);
+        }
+        
+        // Fallback if AI not successful or not attempted
+        if (!isAiSuccessful) {
+            try {
+                const res = await fetch(`/api/scan?color=${color}&query=${encodeURIComponent(query)}`);
+                if (res.ok) {
+                    scanResults = await res.json();
+                }
+            } catch (e) {
+                console.error("Scan fetch error:", e);
+            }
         }
         
         // If fetch fails or returns empty, fallback to default popular figures
@@ -888,14 +941,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const logsSchedule = [
             { threshold: 10, text: '🔍 图像解析成功，正在进行边缘轮廓拟合...', type: '' },
-            { threshold: 22, text: `🤖 检测到乐高人仔经典骨架，初步判定为：${characterType}`, type: 'success' },
+            { threshold: 22, text: isAiSuccessful ? `🤖 AI 视觉大模型已确认角色特征，初步匹配为：${characterType}` : `🤖 检测到乐高人仔经典骨架，初步判定为：${characterType}`, type: 'success' },
             { threshold: 30, text: '🎯 [定位] 头部配件匹配。启动脸部印刷扫描...', type: '' },
             { threshold: 45, text: `🏷️ 头部特征匹配度高：${detail1}`, type: 'highlight' },
             { threshold: 55, text: '🎯 [定位] 躯干印花检测。分析胸部和手臂色彩...', type: '' },
             { threshold: 70, text: `🏷️ 躯干印花符合：${detail2}`, type: 'highlight' },
             { threshold: 82, text: '🎯 [定位] 腿部轮廓检测已完成...', type: '' },
-            { threshold: 90, text: '📦 正在检索离线 SQLite 数据库 16,985 份人仔百科库...', type: '' },
-            { threshold: 98, text: `✅ 比对完毕，${bestMatch.name} 匹配精确率 99.4%`, type: 'success' }
+            { threshold: 90, text: isAiSuccessful ? '📦 AI 分析完成。正在调取 SQLite 对应特征编号进行双向校准...' : '📦 正在检索离线 SQLite 数据库 16,985 份人仔百科库...', type: '' },
+            { threshold: 98, text: isAiSuccessful ? `✅ AI 识别完毕，${bestMatch.name} 比对成功！` : `✅ 比对完毕，${bestMatch.name} 匹配精确率 99.4%`, type: 'success' }
         ];
 
         scanInterval = setInterval(() => {
@@ -933,6 +986,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function showScanResults() {
         scanPreviewContainer.style.display = 'none';
         scanResultContainer.style.display = 'flex';
+        
+        const aiBox = document.getElementById('ai-analysis-box');
+        const aiText = document.getElementById('ai-analysis-text');
+        if (aiBox && aiText) {
+            if (scanAiDescription) {
+                aiText.textContent = scanAiDescription;
+                aiBox.style.display = 'block';
+            } else {
+                aiBox.style.display = 'none';
+            }
+        }
         
         const resultCardsContainer = document.querySelector('.result-cards');
         resultCardsContainer.innerHTML = '';

@@ -431,6 +431,14 @@
                         </div>
                     </div>
                     
+                    <!-- AI Visual Analysis Box -->
+                    <div class="ai-analysis-box" id="ai-analysis-box" style="display: none;">
+                        <div class="ai-analysis-title">
+                            <i class="fas fa-magic animate-pulse"></i> AI 智能视觉分析报告
+                        </div>
+                        <p class="ai-analysis-text" id="ai-analysis-text"></p>
+                    </div>
+                    
                     <div class="result-cards">
                         <!-- Card 1 (Best Match) -->
                         <div class="result-card best-match" data-minifig-num="fig-000581" style="cursor: pointer;">
@@ -568,6 +576,16 @@
                     <select id="setting-camera-select" class="settings-select">
                         <option value="">正在检测镜头设备...</option>
                     </select>
+                </div>
+
+                <!-- AI Config Panel -->
+                <div class="settings-group">
+                    <h4><i class="fas fa-brain"></i> AI 智能识别设置</h4>
+                    <label for="setting-gemini-key" class="settings-label">Gemini API Key：</label>
+                    <input type="password" id="setting-gemini-key" class="settings-input" placeholder="留空则使用系统默认 Key">
+                    <p class="settings-desc" style="margin-top: 6px; font-size: 0.75rem;">
+                        智能识别需要 API Key。可在 <a href="https://aistudio.google.com/" target="_blank" style="color: var(--accent-color); text-decoration: underline;">Google AI Studio</a> 免费获取。
+                    </p>
                 </div>
 
                 <!-- Toggle Settings -->

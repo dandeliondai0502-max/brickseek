@@ -244,6 +244,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 conn.commit()
                 self.send_json_response({"success": True})
                 
+            elif path == "/api/scan-image":
+                self.api_scan_image(conn, body)
+                
             else:
                 self.send_json_response({"error": "Endpoint not found"}, status=404)
                 
@@ -506,6 +509,204 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         # Take top 3
         top_matches = [m[1] for m in matches[:3]]
         self.send_json_response(top_matches)
+
+    def api_scan_image(self, conn, body):
+        import urllib.request
+        import urllib.error
+        
+        base64_image = body.get("image", "").strip()
+        target_color = body.get("color", "ffffff").strip().lower()
+        api_key = body.get("api_key", "").strip()
+        
+        # 1. Resolve Gemini API Key
+        if not api_key:
+            api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+            
+        if not api_key:
+            self.send_json_response({
+                "error": "API_KEY_MISSING",
+                "message": "未配置 Gemini API Key。请在设置中配置您的 Key，或联系管理员配置服务器环境变量。"
+            }, status=400)
+            return
+            
+        if not base64_image:
+            self.send_json_response({
+                "error": "INVALID_IMAGE",
+                "message": "无有效的图像数据。"
+            }, status=400)
+            return
+
+        # 2. Extract mime type and raw base64 data
+        mime_type = "image/jpeg"
+        image_data = base64_image
+        if "," in base64_image:
+            header, image_data = base64_image.split(",", 1)
+            if "image/png" in header:
+                mime_type = "image/png"
+            elif "image/webp" in header:
+                mime_type = "image/webp"
+            elif "image/gif" in header:
+                mime_type = "image/gif"
+                
+        # 3. Call Gemini API
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        
+        prompt = (
+            "Identify the Lego minifigure in this image. Look for distinctive parts like the head/hair/helmet, torso printing, legs, or accessories.\n"
+            "Provide a brief description of the minifigure in Chinese (within 60 characters).\n"
+            "Provide 3-5 specific English search keywords or character names (e.g. 'vader', 'yoda', 'batman', 'maul', 'clone trooper', 'luke skywalker', 'lloyd', 'harry potter') that can be used to search for this minifigure in our database.\n"
+            "Return the output STRICTLY in JSON format matching this schema:\n"
+            "{\n"
+            "  \"description\": \"Chinese description here\",\n"
+            "  \"keywords\": [\"keyword1\", \"keyword2\", ...]\n"
+            "}"
+        )
+        
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"text": prompt},
+                    {
+                        "inlineData": {
+                            "mimeType": mime_type,
+                            "data": image_data
+                        }
+                    }
+                ]
+            }],
+            "generationConfig": {
+                "responseMimeType": "application/json"
+            }
+        }
+        
+        try:
+            req = urllib.request.Request(
+                gemini_url,
+                data=json.dumps(payload).encode('utf-8'),
+                headers={'Content-Type': 'application/json'},
+                method='POST'
+            )
+            with urllib.request.urlopen(req, timeout=20) as response:
+                res_body = json.loads(response.read().decode('utf-8'))
+                
+            # Parse text response from Gemini
+            text_response = res_body["candidates"][0]["content"]["parts"][0]["text"].strip()
+            
+            # Clean markdown JSON wrapping if present
+            if text_response.startswith("```json"):
+                text_response = text_response[7:]
+            if text_response.endswith("```"):
+                text_response = text_response[:-3]
+            text_response = text_response.strip()
+            
+            ai_data = json.loads(text_response)
+            ai_desc = ai_data.get("description", "智能分析成功")
+            keywords = ai_data.get("keywords", [])
+            
+        except urllib.error.HTTPError as e:
+            err_content = e.read().decode('utf-8')
+            try:
+                err_json = json.loads(err_content)
+                err_msg = err_json.get("error", {}).get("message", "Gemini API error")
+            except:
+                err_msg = f"HTTP Error {e.code}"
+            self.send_json_response({
+                "error": "GEMINI_ERROR",
+                "message": f"Gemini API 调用异常: {err_msg}"
+            }, status=500)
+            return
+        except Exception as e:
+            self.send_json_response({
+                "error": "SERVER_ERROR",
+                "message": f"处理图像或调用 AI 时出错: {str(e)}"
+            }, status=500)
+            return
+
+        # 4. Search and score minifigures based on keywords and color distance
+        cursor = conn.cursor()
+        
+        # Clean keywords
+        keywords = [k.lower().strip() for k in keywords if k.strip()]
+        
+        # Fetch all candidate minifigures
+        sql = """
+            SELECT m.minifig_num, m.name AS minifig_name, m.num_parts, c.rgb
+            FROM minifigs m
+            JOIN inventories i ON m.minifig_num = i.set_num
+            JOIN inventory_parts ip ON i.id = ip.inventory_id
+            JOIN colors c ON ip.color_id = c.id
+            WHERE m.num_parts BETWEEN 3 AND 12
+              AND m.minifig_num LIKE 'fig-%'
+              AND LOWER(m.name) NOT LIKE '%keychain%'
+              AND LOWER(m.name) NOT LIKE '%magnet%'
+              AND LOWER(m.name) NOT LIKE '%watch%'
+              AND LOWER(m.name) NOT LIKE '%clock%'
+              AND LOWER(m.name) NOT LIKE '%book%'
+              AND LOWER(m.name) NOT LIKE '%sticker%'
+              AND LOWER(m.name) NOT LIKE '%card%'
+              AND LOWER(m.name) NOT LIKE '%pen%'
+              AND LOWER(m.name) NOT LIKE '%torch%'
+        """
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        
+        minifigs = {}
+        for row in rows:
+            num = row["minifig_num"]
+            if num not in minifigs:
+                minifigs[num] = {
+                    "minifig_num": num,
+                    "name": translate_to_zh(row["minifig_name"]),
+                    "num_parts": row["num_parts"],
+                    "colors": [],
+                    "img_url": f"https://cdn.rebrickable.com/media/sets/{num}.jpg"
+                }
+            rgb = row["rgb"]
+            if rgb:
+                minifigs[num]["colors"].append(rgb.lower())
+                
+        # Parse target RGB
+        try:
+            tr = int(target_color[0:2], 16)
+            tg = int(target_color[2:4], 16)
+            tb = int(target_color[4:6], 16)
+        except:
+            tr, tg, tb = 255, 255, 255
+            
+        matches = []
+        for num, fig in minifigs.items():
+            name_lower = fig["name"].lower()
+            num_lower = fig["minifig_num"].lower()
+            
+            # Score keyword matches
+            query_score = 0
+            for kw in keywords:
+                if kw in name_lower or kw in num_lower:
+                    query_score += 1000000
+                    
+            # Color matching score
+            min_color_dist = 3 * (255**2)
+            for color_hex in fig["colors"]:
+                try:
+                    cr = int(color_hex[0:2], 16)
+                    cg = int(color_hex[2:4], 16)
+                    cb = int(color_hex[4:6], 16)
+                    dist = (tr - cr)**2 + (tg - cg)**2 + (tb - cb)**2
+                    if dist < min_color_dist:
+                        min_color_dist = dist
+                except:
+                    continue
+                    
+            total_dist = min_color_dist - query_score
+            matches.append((total_dist, fig))
+            
+        matches.sort(key=lambda x: x[0])
+        top_matches = [m[1] for m in matches[:3]]
+        
+        self.send_json_response({
+            "description": ai_desc,
+            "results": top_matches
+        })
 
     def api_minifig_details(self, conn, params):
         minifig_id = params.get("id", [""])[0].strip()
