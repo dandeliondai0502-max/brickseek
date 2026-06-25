@@ -385,7 +385,9 @@
                         <button type="button" class="btn-shutter" id="shutter-btn" title="拍照">
                             <div class="shutter-inner"></div>
                         </button>
-                        <div class="spacer"></div>
+                        <button type="button" class="btn-control-secondary" id="switch-camera-btn" title="切换摄像头">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -578,15 +580,7 @@
                     </select>
                 </div>
 
-                <!-- AI Config Panel -->
-                <div class="settings-group">
-                    <h4><i class="fas fa-brain"></i> AI 智能识别设置</h4>
-                    <label for="setting-gemini-key" class="settings-label">Gemini API Key：</label>
-                    <input type="password" id="setting-gemini-key" class="settings-input" placeholder="留空则使用系统默认 Key">
-                    <p class="settings-desc" style="margin-top: 6px; font-size: 0.75rem;">
-                        智能识别需要 API Key。可在 <a href="https://aistudio.google.com/" target="_blank" style="color: var(--accent-color); text-decoration: underline;">Google AI Studio</a> 免费获取。
-                    </p>
-                </div>
+
 
                 <!-- Toggle Settings -->
                 <div class="settings-group">

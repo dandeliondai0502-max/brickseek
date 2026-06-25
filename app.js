@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnDoLogout = document.getElementById('btn-do-logout');
     const settingCameraSelect = document.getElementById('setting-camera-select');
     const settingSoundToggle = document.getElementById('setting-sound-toggle');
-    const settingGeminiKey = document.getElementById('setting-gemini-key');
+    const switchCameraBtn = document.getElementById('switch-camera-btn');
     const settingsFavoritesList = document.getElementById('settings-favorites-list');
     const favCountSpan = document.getElementById('fav-count');
     const loggedUsernameSpan = document.getElementById('logged-username');
@@ -132,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPartsList = []; // Stores the parts list of the currently displayed minifigure
     let currentManualSteps = [];
     let currentManualPageIdx = 0;
+    let availableVideoDevices = [];
 
     // --- State & Preferences ---
     let currentUser = localStorage.getItem('currentUser') || null;
@@ -202,6 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(d => d.kind === 'videoinput');
+            availableVideoDevices = videoDevices;
             
             settingCameraSelect.innerHTML = '';
             if (videoDevices.length === 0) {
@@ -491,9 +493,6 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadCameraDevices();
         renderSettingsFavorites();
         updateAccountUI();
-        if (settingGeminiKey) {
-            settingGeminiKey.value = preferences.geminiApiKey || '';
-        }
     };
 
     const closeSettingsModal = () => {
@@ -518,12 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
         savePreferences();
     });
 
-    if (settingGeminiKey) {
-        settingGeminiKey.addEventListener('input', () => {
-            preferences.geminiApiKey = settingGeminiKey.value.trim();
-            savePreferences();
-        });
-    }
+    // Removed settingsGeminiKey input listener
 
     // Auth & Login Modal Triggers & Events
     const openLoginModal = () => {
@@ -739,6 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
     activateCameraBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         try {
+            await loadCameraDevices();
             let videoConstraints = { width: 640, height: 480 };
             if (preferences.cameraId) {
                 videoConstraints.deviceId = { ideal: preferences.cameraId };
@@ -764,6 +759,55 @@ document.addEventListener('DOMContentLoaded', () => {
         cameraViewport.style.display = 'none';
         dropZone.style.display = 'block';
     });
+
+    if (switchCameraBtn) {
+        switchCameraBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (availableVideoDevices.length <= 1) {
+                alert('仅检测到一个摄像头，无法切换。');
+                return;
+            }
+            
+            let currentIndex = availableVideoDevices.findIndex(d => d.deviceId === preferences.cameraId);
+            if (currentIndex === -1) {
+                currentIndex = 0;
+            }
+            
+            const nextIndex = (currentIndex + 1) % availableVideoDevices.length;
+            preferences.cameraId = availableVideoDevices[nextIndex].deviceId;
+            savePreferences();
+            
+            if (settingCameraSelect) {
+                settingCameraSelect.value = preferences.cameraId;
+            }
+            
+            stopWebcam();
+            
+            try {
+                let videoConstraints = { 
+                    width: 640, 
+                    height: 480,
+                    deviceId: { exact: preferences.cameraId }
+                };
+                webcamStream = await navigator.mediaDevices.getUserMedia({
+                    video: videoConstraints,
+                    audio: false
+                });
+                webcam.srcObject = webcamStream;
+            } catch (err) {
+                console.error('切换摄像头失败:', err);
+                try {
+                    webcamStream = await navigator.mediaDevices.getUserMedia({
+                        video: { width: 640, height: 480, facingMode: 'environment' },
+                        audio: false
+                    });
+                    webcam.srcObject = webcamStream;
+                } catch (fallbackErr) {
+                    alert('摄像头切换失败，请尝试重新打开识别。');
+                }
+            }
+        });
+    }
 
     shutterBtn.addEventListener('click', () => {
         if (!webcamStream) return;
@@ -853,7 +897,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({
                         image: base64Image,
                         color: color,
-                        api_key: preferences.geminiApiKey || ""
+                        api_key: ""
                     })
                 });
                 
