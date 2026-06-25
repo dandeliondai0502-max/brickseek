@@ -1594,6 +1594,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Click on complete assembled minifigure to explode it
+    const legoFullFigure = document.getElementById('lego-full-figure');
+    if (legoFullFigure) {
+        legoFullFigure.addEventListener('click', (e) => {
+            e.stopPropagation();
+            btnExplode.click();
+        });
+    }
+
     // Reset selection when clicking on the assembly stage background
     legoAssemblyStage.addEventListener('click', () => {
         legoAssemblyStage.classList.remove('part-filtering');

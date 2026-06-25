@@ -1625,7 +1625,7 @@ footer {
     justify-content: space-between;
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
-    height: 600px;
+    min-height: 600px;
     position: relative;
     overflow: hidden;
 }
@@ -1711,6 +1711,7 @@ footer {
     align-items: center;
     transition: opacity 0.5s cubic-bezier(0.25, 0.8, 0.25, 1.1), transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1.1), visibility 0.5s;
     z-index: 15;
+    cursor: pointer;
 }
 
 .lego-full-figure img {
@@ -1909,7 +1910,7 @@ footer {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    height: 600px;
+    min-height: 600px;
 }
 
 .glass-subcard {
@@ -2075,6 +2076,7 @@ footer {
     flex-direction: column;
     gap: 10px;
     padding-right: 4px;
+    max-height: 320px;
 }
 
 /* Custom Premium Scrollbar for Shared Results */
@@ -3333,6 +3335,10 @@ footer {
     }
     #search-shortcut {
         display: none !important;
+    }
+
+    .weapons-grid {
+        grid-template-columns: 1fr !important;
     }
 
     /* Autocomplete Search suggestions */
