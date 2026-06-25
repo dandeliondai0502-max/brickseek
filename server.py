@@ -549,7 +549,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 mime_type = "image/gif"
                 
         # 3. Call Gemini API
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         
         prompt = (
             "Analyze the Lego minifigure in the image and extract its visual attributes to match a database name.\n"
