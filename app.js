@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span>${item.id}</span>
             `;
             card.addEventListener('click', () => {
-                settingsModal.classList.remove('active');
+                settingsModal.classList.remove('open');
                 showDetailPage(item.id);
             });
             settingsFavoritesList.appendChild(card);
@@ -485,14 +485,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Settings Modal Triggers & Events
     const openSettingsModal = async () => {
-        settingsModal.classList.add('active');
+        settingsModal.classList.add('open');
         await loadCameraDevices();
         renderSettingsFavorites();
         updateAccountUI();
     };
 
     const closeSettingsModal = () => {
-        settingsModal.classList.remove('active');
+        settingsModal.classList.remove('open');
     };
 
     settingsBtn.addEventListener('click', openSettingsModal);
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auth & Login Modal Triggers & Events
     const openLoginModal = () => {
-        loginModal.classList.add('active');
+        loginModal.classList.add('open');
         loginErrorMsg.style.display = 'none';
         loginErrorMsg.textContent = '';
         authUsernameInput.value = '';
@@ -524,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const closeLoginModal = () => {
-        loginModal.classList.remove('active');
+        loginModal.classList.remove('open');
     };
 
     let isLoginMode = true;
