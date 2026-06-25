@@ -1205,6 +1205,94 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Reset shared sidebar list
         resetSharedPartsSidebar();
+
+        // Render compatible weapons
+        renderWeapons(data.weapons);
+    }
+
+    function renderWeapons(weapons) {
+        const weaponsCard = document.getElementById('detail-weapons-card');
+        const weaponsGrid = document.getElementById('detail-weapons-grid');
+        const weaponsCount = document.getElementById('weapons-count-badge');
+        
+        if (!weaponsCard || !weaponsGrid || !weaponsCount) return;
+        
+        if (!weapons || weapons.length === 0) {
+            weaponsCard.style.display = 'none';
+            return;
+        }
+        
+        weaponsCard.style.display = 'block';
+        weaponsCount.textContent = weapons.length;
+        weaponsGrid.innerHTML = '';
+        
+        weapons.forEach(wp => {
+            const card = document.createElement('div');
+            card.className = 'weapon-item-card';
+            card.style.cssText = `
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                padding: 8px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+                transition: var(--transition-smooth);
+            `;
+            
+            card.addEventListener('mouseenter', () => {
+                card.style.borderColor = 'var(--accent-color)';
+                card.style.background = 'rgba(255, 255, 255, 0.05)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.borderColor = 'var(--border-color)';
+                card.style.background = 'rgba(255, 255, 255, 0.02)';
+            });
+            
+            const imgHTML = wp.img_url
+                ? `<img src="${wp.img_url}" alt="${wp.part_name}" style="width: 40px; height: 40px; object-fit: contain; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 2px;">`
+                : `<div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); border-radius: 8px;"><i class="fas fa-shield-alt" style="color: var(--text-muted); font-size: 1.2rem;"></i></div>`;
+                
+            let displayName = wp.part_name;
+            const bracketMatch = wp.part_name.match(/(.+?)\s*\[(.+?)\]$/);
+            if (bracketMatch) {
+                displayName = bracketMatch[1].trim();
+            }
+            
+            card.innerHTML = `
+                ${imgHTML}
+                <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+                    <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${displayName}">${displayName}</div>
+                    <div style="font-size: 0.65rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                        <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #${wp.color_rgb || 'ccc'}; border: 1px solid rgba(255,255,255,0.2);"></span>
+                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60px;">${wp.color_name}</span>
+                    </div>
+                </div>
+            `;
+            
+            card.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Find all part layers, de-highlight them
+                document.querySelectorAll('.lego-part-layer').forEach(l => l.classList.remove('selected-part'));
+                
+                // Set shared parts header label
+                const selectedPartLabel = document.getElementById('selected-part-name');
+                if (selectedPartLabel) {
+                    selectedPartLabel.innerHTML = `
+                        <div class="part-badge-label">选中的道具/武器</div>
+                        <div class="part-badge-title">${displayName}</div>
+                        <div class="part-badge-meta">零件 ID: <code>${wp.part_num}</code> &nbsp;|&nbsp; 颜色: <code>${wp.color_name}</code></div>
+                    `;
+                    selectedPartLabel.classList.add('active');
+                }
+                
+                // Fetch shared characters for this weapon
+                fetchSharedCharacters(wp.part_num, wp.color_id);
+            });
+            
+            weaponsGrid.appendChild(card);
+        });
     }
 
 

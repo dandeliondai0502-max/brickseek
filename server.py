@@ -781,10 +781,40 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             row_dict["theme_name"] = translate_to_zh(row_dict["theme_name"])
             sets_list.append(row_dict)
 
+        # Get compatible weapons list (from co-occurring sets)
+        sql_weapons = """
+            SELECT DISTINCT ip.part_num, ip.color_id, p.name AS part_name, c.name AS color_name, c.rgb AS color_rgb, ip.img_url, p.part_cat_id
+            FROM inventory_minifigs im
+            JOIN inventories i_set ON im.inventory_id = i_set.id
+            JOIN inventory_parts ip ON i_set.id = ip.inventory_id
+            JOIN parts p ON ip.part_num = p.part_num
+            JOIN colors c ON ip.color_id = c.id
+            WHERE LOWER(im.minifig_num) = ? 
+              AND (p.part_cat_id = 73 OR p.name LIKE '%Weapon%' OR p.name LIKE '%Sword%' OR p.name LIKE '%Blaster%' OR p.name LIKE '%Lightsaber%' OR p.name LIKE '%Shield%' OR p.name LIKE '%Bow%' OR p.name LIKE '%Dagger%' OR p.name LIKE '%Axe%' OR p.name LIKE '%Spear%' OR p.name LIKE '%Gun%' OR p.name LIKE '%Pistol%' OR p.name LIKE '%Rifle%')
+              AND LOWER(p.name) NOT LIKE '%tile%'
+              AND LOWER(p.name) NOT LIKE '%book%'
+              AND LOWER(p.name) NOT LIKE '%sticker%'
+              AND LOWER(p.name) NOT LIKE '%magnet%'
+              AND LOWER(p.name) NOT LIKE '%keychain%'
+              AND LOWER(p.name) NOT LIKE '%keyring%'
+              AND LOWER(p.name) NOT LIKE '%poster%'
+              AND LOWER(p.name) NOT LIKE '%card%'
+              AND LOWER(p.name) NOT LIKE '%wear%'
+            LIMIT 12
+        """
+        cursor.execute(sql_weapons, (minifig_num.lower(),))
+        weapons_list = []
+        for row in cursor.fetchall():
+            row_dict = dict(row)
+            row_dict["part_name"] = translate_to_zh(row_dict["part_name"])
+            row_dict["color_name"] = translate_to_zh(row_dict["color_name"])
+            weapons_list.append(row_dict)
+
         self.send_json_response({
             "minifig": minifig_data,
             "parts": parts_list,
-            "sets": sets_list
+            "sets": sets_list,
+            "weapons": weapons_list
         })
 
     def api_shared_part(self, conn, params):
