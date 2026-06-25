@@ -196,12 +196,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadCameraDevices() {
         try {
-            // First check media devices support
             if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
                 settingCameraSelect.innerHTML = '<option value="">浏览器不支持镜头检测</option>';
                 return;
             }
-            const devices = await navigator.mediaDevices.enumerateDevices();
+            
+            let devices = await navigator.mediaDevices.enumerateDevices();
+            let hasLabels = devices.some(d => d.label);
+            
+            // If labels are empty (usually before permission is granted), trigger a brief media stream to request permission
+            if (!hasLabels) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    stream.getTracks().forEach(track => track.stop()); // Stop immediately
+                    devices = await navigator.mediaDevices.enumerateDevices(); // Query again
+                } catch (e) {
+                    console.warn("请求媒体权限被拒绝或取消:", e);
+                }
+            }
+            
             const videoDevices = devices.filter(d => d.kind === 'videoinput');
             availableVideoDevices = videoDevices;
             
