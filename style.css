@@ -101,7 +101,7 @@ header {
     justify-content: space-between;
     align-items: center;
     padding: 20px 40px;
-    z-index: 10;
+    z-index: 12;
     background: transparent;
 }
 
@@ -228,7 +228,7 @@ main {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 5;
+    z-index: 10;
     padding: 20px;
 }
 
@@ -610,7 +610,7 @@ footer {
     background: transparent;
     font-size: 0.85rem;
     color: var(--text-muted);
-    z-index: 10;
+    z-index: 2;
 }
 
 .footer-links {
@@ -2467,7 +2467,7 @@ footer {
     top: calc(100% + 8px);
     left: 0;
     width: 100%;
-    background: var(--bg-card);
+    background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 18px;
     box-shadow: 0 12px 30px var(--shadow-color);
@@ -2533,6 +2533,53 @@ footer {
     font-family: var(--font-outfit);
     color: var(--accent-color);
     font-weight: 700;
+}
+
+/* Weapon/Item Cards */
+.weapon-item-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.weapon-item-card:hover {
+    border-color: var(--accent-color) !important;
+    background: var(--bg-card-hover) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.weapon-item-img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    padding: 2px;
+}
+
+.light-theme .weapon-item-img {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.weapon-item-placeholder {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+}
+
+.light-theme .weapon-item-placeholder {
+    background: rgba(0, 0, 0, 0.03);
 }
 
 /* Homepage Database Entry Link Button */
@@ -3348,6 +3395,9 @@ footer {
     }
 
     /* Autocomplete Search suggestions */
+    .search-suggestions {
+        max-height: 200px !important;
+    }
     .sug-name {
         max-width: 62vw !important;
         font-size: 0.85rem !important;

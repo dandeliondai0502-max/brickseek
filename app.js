@@ -1302,30 +1302,10 @@ document.addEventListener('DOMContentLoaded', () => {
         weapons.forEach(wp => {
             const card = document.createElement('div');
             card.className = 'weapon-item-card';
-            card.style.cssText = `
-                background: rgba(255, 255, 255, 0.02);
-                border: 1px solid var(--border-color);
-                border-radius: 12px;
-                padding: 8px;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                cursor: pointer;
-                transition: var(--transition-smooth);
-            `;
-            
-            card.addEventListener('mouseenter', () => {
-                card.style.borderColor = 'var(--accent-color)';
-                card.style.background = 'rgba(255, 255, 255, 0.05)';
-            });
-            card.addEventListener('mouseleave', () => {
-                card.style.borderColor = 'var(--border-color)';
-                card.style.background = 'rgba(255, 255, 255, 0.02)';
-            });
             
             const imgHTML = wp.img_url
-                ? `<img src="${wp.img_url}" alt="${wp.part_name}" loading="lazy" decoding="async" style="width: 40px; height: 40px; object-fit: contain; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 2px;">`
-                : `<div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); border-radius: 8px;"><i class="fas fa-shield-alt" style="color: var(--text-muted); font-size: 1.2rem;"></i></div>`;
+                ? `<img src="${wp.img_url}" alt="${wp.part_name}" loading="lazy" decoding="async" class="weapon-item-img">`
+                : `<div class="weapon-item-placeholder"><i class="fas fa-shield-alt" style="color: var(--text-muted); font-size: 1.2rem;"></i></div>`;
                 
             let displayName = wp.part_name;
             const bracketMatch = wp.part_name.match(/(.+?)\s*\[(.+?)\]$/);
