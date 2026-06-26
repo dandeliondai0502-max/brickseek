@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const infoId = document.getElementById('info-id');
     const infoYear = document.getElementById('info-year');
     const infoRarity = document.getElementById('info-rarity');
+    const infoParts = document.getElementById('info-parts');
     const detailSetsGrid = document.getElementById('detail-sets-grid');
     
     // Instruction Manual Modal
@@ -1278,6 +1279,9 @@ document.addEventListener('DOMContentLoaded', () => {
             rarityClass = "rarity-legendary";
         }
         infoRarity.innerHTML = `<span class="${rarityClass}">${rarityText}</span>`;
+        if (infoParts) {
+            infoParts.textContent = `${data.parts.length} 个零部件`;
+        }
 
         // Render assembly components
         renderAssemblyComponents(data.parts, minifig.minifig_num);

@@ -421,31 +421,32 @@ main {
 
 /* Search Submit Button */
 .search-submit-btn {
-    background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
-    border: none;
+    background: rgba(0, 123, 255, 0.08);
+    border: 1px solid rgba(0, 123, 255, 0.2);
     border-radius: 20px;
-    color: #ffffff;
-    padding: 8px 16px;
-    font-size: 0.85rem;
-    font-weight: 600;
+    color: var(--accent-color);
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 6px;
     transition: var(--transition-smooth);
     margin-left: 8px;
-    box-shadow: 0 4px 12px var(--accent-glow);
-    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .search-submit-btn:hover {
-    transform: translateY(-1px) scale(1.02);
-    box-shadow: 0 6px 16px var(--accent-glow);
-    filter: brightness(1.1);
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--accent-glow);
 }
 
 .search-submit-btn:active {
-    transform: translateY(0) scale(0.98);
+    transform: translateY(0);
 }
 
 /* Vertical Divider in Search Bar */
@@ -3424,15 +3425,27 @@ footer {
     }
 
     .search-submit-btn {
+        background: transparent !important;
+        border: none !important;
+        color: var(--text-muted) !important;
         padding: 0 !important;
-        width: 36px !important;
-        height: 36px !important;
+        width: 38px !important;
+        height: 38px !important;
         border-radius: 50% !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
         margin-left: 4px !important;
-        font-size: 0.95rem !important;
+        font-size: 1.1rem !important;
+        box-shadow: none !important;
+        flex-shrink: 0 !important;
+    }
+
+    .search-submit-btn:hover {
+        color: var(--accent-color) !important;
+        transform: scale(1.1) !important;
+        background: transparent !important;
+        box-shadow: none !important;
     }
 
     .weapons-grid {
@@ -3704,12 +3717,14 @@ footer {
         min-height: 280px !important;
         height: auto !important;
         padding: 20px 0 !important;
+        overflow: visible !important;
     }
     .lego-figure-canvas.exploded {
         min-height: 220px !important;
         height: auto !important;
         padding: 15px 5px !important;
         gap: 15px !important;
+        overflow: visible !important;
     }
 
     /* Fix: Bubble tooltip label alignment & centering on mobile device screen */
