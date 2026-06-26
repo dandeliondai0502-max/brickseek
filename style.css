@@ -419,6 +419,35 @@ main {
     color: var(--text-primary);
 }
 
+/* Search Submit Button */
+.search-submit-btn {
+    background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
+    border: none;
+    border-radius: 20px;
+    color: #ffffff;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-smooth);
+    margin-left: 8px;
+    box-shadow: 0 4px 12px var(--accent-glow);
+    white-space: nowrap;
+}
+
+.search-submit-btn:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 6px 16px var(--accent-glow);
+    filter: brightness(1.1);
+}
+
+.search-submit-btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
 /* Vertical Divider in Search Bar */
 .search-divider {
     width: 1px;
@@ -3390,6 +3419,22 @@ footer {
         display: none !important;
     }
 
+    .search-submit-btn span {
+        display: none !important;
+    }
+
+    .search-submit-btn {
+        padding: 0 !important;
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        margin-left: 4px !important;
+        font-size: 0.95rem !important;
+    }
+
     .weapons-grid {
         grid-template-columns: 1fr !important;
     }
@@ -3576,6 +3621,10 @@ footer {
     .assembly-footer {
         padding-top: 10px !important;
         font-size: 0.68rem !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 6px !important;
+        text-align: center !important;
     }
 
     /* Detail Table and Sidebar info */

@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearBtn = document.getElementById('clear-btn');
     const searchBoxWrapper = document.querySelector('.search-box-wrapper');
     const cameraTrigger = document.getElementById('camera-trigger');
+    const searchSubmitBtn = document.getElementById('search-submit-btn');
 
     // Settings & Auth DOM Elements
     const settingsBtn = document.getElementById('settings-btn');
@@ -361,6 +362,14 @@ document.addEventListener('DOMContentLoaded', () => {
         suggestionsContainer.innerHTML = '';
         searchInput.focus();
     });
+
+    if (searchSubmitBtn) {
+        searchSubmitBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            suggestionsContainer.classList.remove('active');
+            performTextSearch();
+        });
+    }
 
     // Global keyboard shortcut: '/' key to focus search box when not typing in any input
     document.addEventListener('keydown', (e) => {

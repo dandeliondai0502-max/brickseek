@@ -502,12 +502,36 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         translated_query = translate_query(query)
         cursor = conn.cursor()
         
-        # Search query strictly excluding gear, keychains, clocks, magnets, books, stickers, etc.
-        # Must have standard torso (60) or legs (61) and have a reasonable part count (3-12 parts)
+        like_query = f"%{translated_query}%"
+        
+        # Step 1: Find parts matching the query (limit to 200 parts to prevent parameter list overflow)
+        cursor.execute("SELECT part_num FROM parts WHERE name LIKE ? OR part_num LIKE ? LIMIT 200", (like_query, like_query))
+        parts = [r[0] for r in cursor.fetchall()]
+        
+        sets = []
+        if parts:
+            placeholders = ",".join(["?"] * len(parts))
+            cursor.execute(f"""
+                SELECT DISTINCT i.set_num
+                FROM inventories i
+                JOIN inventory_parts ip ON i.id = ip.inventory_id
+                WHERE ip.part_num IN ({placeholders})
+                LIMIT 500
+            """, parts)
+            sets = [r[0] for r in cursor.fetchall()]
+            
+        # Step 2: Query minifigs matching either minifig attributes or containing matching parts
+        args = [like_query, like_query]
+        set_clause = ""
+        if sets:
+            placeholders_set = ",".join(["?"] * len(sets))
+            set_clause = f"OR m.minifig_num IN ({placeholders_set})"
+            args.extend(sets)
+            
         sql = f"""
             SELECT m.minifig_num, m.name, m.num_parts 
             FROM minifigs m
-            WHERE (m.minifig_num LIKE ? OR m.name LIKE ?) 
+            WHERE (m.minifig_num LIKE ? OR m.name LIKE ? {set_clause}) 
               AND m.num_parts BETWEEN 3 AND 12
               {MINIFIG_EXCLUSION_SQL}
               AND EXISTS (
@@ -516,14 +540,13 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                   JOIN inventory_parts ip ON i.id = ip.inventory_id
                   JOIN parts p ON ip.part_num = p.part_num
                   WHERE i.set_num = m.minifig_num
-                    AND p.part_cat_id IN (60, 61)
+                    AND p.part_cat_id IN (60, 61, 13)
                   LIMIT 1
               )
             ORDER BY m.num_parts DESC 
             LIMIT 15
         """
-        like_query = f"%{translated_query}%"
-        cursor.execute(sql, (like_query, like_query))
+        cursor.execute(sql, args)
         rows = cursor.fetchall()
         
         results = []
