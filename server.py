@@ -515,7 +515,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 SELECT DISTINCT i.set_num
                 FROM inventories i
                 JOIN inventory_parts ip ON i.id = ip.inventory_id
-                WHERE ip.part_num IN ({placeholders})
+                WHERE ip.part_num IN ({placeholders}) AND i.set_num LIKE 'fig-%'
                 LIMIT 500
             """, parts)
             sets = [r[0] for r in cursor.fetchall()]
