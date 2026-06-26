@@ -619,17 +619,6 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         target_color = body.get("color", "ffffff").strip().lower()
         api_key = body.get("api_key", "").strip()
         
-        # 1. Resolve Gemini API Key
-        if not api_key:
-            api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-            
-        if not api_key:
-            self.send_json_response({
-                "error": "API_KEY_MISSING",
-                "message": "未配置 Gemini API Key。请在设置中配置您的 Key，或联系管理员配置服务器环境变量。"
-            }, status=400)
-            return
-            
         if not base64_image:
             self.send_json_response({
                 "error": "INVALID_IMAGE",
@@ -768,6 +757,13 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             print(f"Brickognize API call failed or timed out (error: {str(e)}). Falling back to Gemini...")
             
         # 3. Call Gemini API
+        if not api_key:
+            self.send_json_response({
+                "error": "API_KEY_MISSING",
+                "message": "Brickognize 匹配未果，且服务器未配置 Gemini API 密钥以进行 AI 备选分析。"
+            }, status=400)
+            return
+            
         gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         
         prompt = (
