@@ -2207,4 +2207,29 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         openAboutView("legal-privacy");
     });
+
+    // --- 9. Home Page Quick Entrances & Hot Searches ---
+    document.querySelectorAll('.hot-tag-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const val = btn.getAttribute('data-search');
+            searchInput.value = val;
+            searchInput.dispatchEvent(new Event('input'));
+            performTextSearch();
+        });
+    });
+
+    const quickCardGallery = document.getElementById('quick-card-gallery');
+    const quickCardFavorites = document.getElementById('quick-card-favorites');
+
+    if (quickCardGallery) {
+        quickCardGallery.addEventListener('click', () => {
+            navGalleryBtn.click();
+        });
+    }
+
+    if (quickCardFavorites) {
+        quickCardFavorites.addEventListener('click', () => {
+            settingsBtn.click();
+        });
+    }
 });
