@@ -331,12 +331,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 200);
     });
 
+    // Debounce for search suggestions to avoid duplicate heavy backend requests
+    let searchDebounceTimeout = null;
     searchInput.addEventListener('input', () => {
         const query = searchInput.value.trim();
+        clearTimeout(searchDebounceTimeout);
         if (query.length > 0) {
             searchBoxWrapper.classList.add('has-text');
             clearBtn.classList.add('visible');
-            fetchSuggestions(query);
+            searchDebounceTimeout = setTimeout(() => {
+                fetchSuggestions(query);
+            }, 200);
         } else {
             searchBoxWrapper.classList.remove('has-text');
             clearBtn.classList.remove('visible');

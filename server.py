@@ -118,14 +118,16 @@ def translate_query(q):
             q_lower = q_lower.replace(zh, en)
     return q_lower
 
+# Pre-sort translation keys by length descending to match longest phrases first
+SORTED_TRANSLATION_KEYS = sorted(EN_TO_ZH_MAP.keys(), key=len, reverse=True)
+
 def translate_to_zh(name_en):
     if not name_en:
         return ""
     name_lower = name_en.lower()
     translated = name_en
-    sorted_keys = sorted(EN_TO_ZH_MAP.keys(), key=len, reverse=True)
     replaced = False
-    for key in sorted_keys:
+    for key in SORTED_TRANSLATION_KEYS:
         if key in name_lower:
             start_idx = name_lower.find(key)
             original_chunk = name_en[start_idx:start_idx+len(key)]
@@ -459,7 +461,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             if num not in minifigs:
                 minifigs[num] = {
                     "minifig_num": num,
-                    "name": translate_to_zh(row["minifig_name"]),
+                    "name": row["minifig_name"], # Keep original English name for matching
                     "num_parts": row["num_parts"],
                     "colors": [],
                     "img_url": f"https://cdn.rebrickable.com/media/sets/{num}.jpg"
@@ -506,8 +508,12 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         # Sort by distance
         matches.sort(key=lambda x: x[0])
         
-        # Take top 3
-        top_matches = [m[1] for m in matches[:3]]
+        # Take top 3 and translate their names
+        top_matches = []
+        for m in matches[:3]:
+            fig = m[1]
+            fig["name"] = translate_to_zh(fig["name"])
+            top_matches.append(fig)
         self.send_json_response(top_matches)
 
     def api_scan_image(self, conn, body):
@@ -662,7 +668,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             if num not in minifigs:
                 minifigs[num] = {
                     "minifig_num": num,
-                    "name": translate_to_zh(row["minifig_name"]),
+                    "name": row["minifig_name"], # Keep original English name for matching
                     "num_parts": row["num_parts"],
                     "colors": [],
                     "img_url": f"https://cdn.rebrickable.com/media/sets/{num}.jpg"
@@ -707,7 +713,13 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             matches.append((total_dist, fig))
             
         matches.sort(key=lambda x: x[0])
-        top_matches = [m[1] for m in matches[:3]]
+        
+        # Take top 3 and translate their names
+        top_matches = []
+        for m in matches[:3]:
+            fig = m[1]
+            fig["name"] = translate_to_zh(fig["name"])
+            top_matches.append(fig)
         
         self.send_json_response({
             "description": ai_desc,
