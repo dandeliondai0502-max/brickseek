@@ -1646,6 +1646,79 @@ document.addEventListener('DOMContentLoaded', () => {
         searchContainer.style.display = 'flex';
     });
 
+    // --- 7.5 Interactive Swipe Right on Detail Page to Go Back ---
+    let detailTouchStartX = 0;
+    let detailTouchStartY = 0;
+    let isSwipingBack = false;
+    let hasDecidedSwipeDirection = false;
+
+    detailContainer.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        detailTouchStartX = touch.clientX;
+        detailTouchStartY = touch.clientY;
+        isSwipingBack = false;
+        hasDecidedSwipeDirection = false;
+        
+        // Only trigger if starting near left edge (within 80px)
+        if (detailTouchStartX < 80) {
+            detailContainer.style.transition = 'none';
+        }
+    }, { passive: true });
+
+    detailContainer.addEventListener('touchmove', (e) => {
+        if (detailTouchStartX >= 80) return;
+        
+        const touch = e.touches[0];
+        const diffX = touch.clientX - detailTouchStartX;
+        const diffY = touch.clientY - detailTouchStartY;
+        
+        if (!hasDecidedSwipeDirection) {
+            // Decide direction on first movement of > 10px
+            if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
+                hasDecidedSwipeDirection = true;
+                if (diffX > 0 && Math.abs(diffX) > Math.abs(diffY)) {
+                    isSwipingBack = true;
+                }
+            }
+        }
+        
+        if (isSwipingBack && diffX > 0) {
+            // Prevent default scroll when actively swiping back
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+            // Translate the detail container to the right
+            detailContainer.style.transform = `translate3d(${diffX}px, 0, 0)`;
+        }
+    }, { passive: false });
+
+    detailContainer.addEventListener('touchend', (e) => {
+        if (!isSwipingBack) return;
+        
+        const touch = e.changedTouches[0];
+        const diffX = touch.clientX - detailTouchStartX;
+        
+        detailContainer.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)';
+        
+        if (diffX > 120) {
+            // Swiped far enough, complete the exit animation
+            detailContainer.style.transform = `translate3d(100%, 0, 0)`;
+            setTimeout(() => {
+                backToSearchBtn.click();
+                detailContainer.style.transform = '';
+                detailContainer.style.transition = '';
+            }, 250);
+        } else {
+            // Cancel swipe, return to origin
+            detailContainer.style.transform = `translate3d(0, 0, 0)`;
+            setTimeout(() => {
+                detailContainer.style.transform = '';
+                detailContainer.style.transition = '';
+            }, 250);
+        }
+        isSwipingBack = false;
+    }, { passive: true });
+
     // --- 8. Assembly Explode/Assemble Buttons ---
     btnExplode.addEventListener('click', () => {
         legoAssemblyStage.classList.add('exploded');
