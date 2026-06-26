@@ -1876,6 +1876,12 @@ footer {
     background: rgba(255, 255, 255, 0.06);
 }
 
+.lego-part-layer.selected-part .part-label-tag {
+    opacity: 1;
+    transform: translateX(0);
+    visibility: visible;
+}
+
 .lego-figure-canvas.part-filtering .lego-part-layer:not(.selected-part) {
     opacity: 0.35;
 }
@@ -3579,6 +3585,71 @@ footer {
     }
     .manual-step-part-icon {
         font-size: 1.2rem !important;
+    }
+
+    /* Fix: Allow name wrapping on mobile for details page */
+    #detail-title {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+    }
+
+    /* Fix: Prevent multi-part styling issues and clipping on mobile stage */
+    .assembly-card {
+        min-height: 380px !important;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 12px !important;
+    }
+    .lego-figure-canvas {
+        min-height: 280px !important;
+        height: auto !important;
+        padding: 20px 0 !important;
+    }
+    .lego-figure-canvas.exploded {
+        min-height: 220px !important;
+        height: auto !important;
+        padding: 15px 5px !important;
+        gap: 15px !important;
+    }
+
+    /* Fix: Bubble tooltip label alignment & centering on mobile device screen */
+    .lego-part-layer.selected-part .part-label-tag,
+    .lego-part-layer:hover .part-label-tag {
+        opacity: 1 !important;
+        transform: translate(-50%, 0) !important;
+        visibility: visible !important;
+    }
+    .part-label-tag {
+        left: 50% !important;
+        top: 105% !important;
+        transform: translate(-50%, 10px) !important;
+        pointer-events: none !important;
+        z-index: 9999 !important;
+        font-size: 0.62rem !important;
+        padding: 3px 8px !important;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.4) !important;
+        transition: opacity 0.3s ease, transform 0.3s ease !important;
+    }
+    .part-label-tag::before {
+        border-width: 5px !important;
+        border-color: transparent transparent var(--border-color) transparent !important;
+        right: auto !important;
+        left: 50% !important;
+        top: auto !important;
+        bottom: 100% !important;
+        transform: translateX(-50%) !important;
+    }
+
+    /* Fix: Compact Google Search-style mobile typography for secondary search results */
+    .result-card-mini h6 {
+        font-size: 0.85rem !important;
+    }
+    .result-card-mini .fig-id {
+        font-size: 0.65rem !important;
+    }
+    .result-card-mini .fig-meta {
+        font-size: 0.72rem !important;
     }
 }
 
