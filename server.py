@@ -201,9 +201,12 @@ def fuzzy_match_minifig(conn, name_en):
     name_clean = name_en.lower().replace("-", " ").replace(",", " ")
     words = [w.strip() for w in re.split(r'\s+', name_clean) if w.strip()]
     
-    # Extract core name: everything before the first hyphen or comma
-    core_parts = re.split(r'[-–,]', name_en)
+    # Extract core name: split only by ' - ' (hyphen with spaces) or ','
+    core_parts = re.split(r'\s+[-–]\s+|,', name_en)
     core_name = core_parts[0].strip().lower()
+    
+    # Remove parentheses and their contents from core name, e.g. "Luke Skywalker (Tatooine)" -> "Luke Skywalker"
+    core_name = re.sub(r'\(.*?\)', '', core_name).strip()
     
     core_words = [w for w in re.split(r'\s+', core_name) if w]
     if len(core_words) > 3:
@@ -227,10 +230,14 @@ def fuzzy_match_minifig(conn, name_en):
     cursor = conn.cursor()
     sql = "SELECT minifig_num, name, num_parts FROM minifigs WHERE 1=1"
     params = []
+    
     for cw in core_words[:2]:
-        if len(cw) > 2:
+        # Replace non-alphanumeric with '%' for SQL wildcard match (e.g. spider-man -> spider%man)
+        cleaned_cw = re.sub(r'[^a-zA-Z0-9]', '%', cw)
+        cleaned_cw = re.sub(r'%+', '%', cleaned_cw)
+        if len(cleaned_cw.replace('%', '')) > 1:
             sql += " AND name LIKE ?"
-            params.append(f"%{cw}%")
+            params.append(f"%{cleaned_cw}%")
             
     if not params:
         sql += " AND name LIKE ?"
@@ -246,10 +253,17 @@ def fuzzy_match_minifig(conn, name_en):
         cand_name = row["name"].lower()
         score = 0
         for desc in descriptors:
-            if desc in cand_name:
+            # strip special characters from desc
+            desc_clean = re.sub(r'[^a-zA-Z0-9]', '', desc)
+            if not desc_clean:
+                continue
+            if desc_clean in cand_name.replace("-", "").replace(" ", ""):
                 score += 1
                 
-        if core_query in cand_name:
+        # Slight boost if core query matches closely
+        cand_clean = cand_name.replace("-", "").replace(" ", "")
+        core_clean = core_query.replace("-", "").replace(" ", "")
+        if core_clean in cand_clean:
             score += 0.5
             
         if score > best_score:
@@ -663,7 +677,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 data=body_bytes,
                 headers={
                     'Content-Type': f'multipart/form-data; boundary={boundary}',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                 },
                 method='POST'
             )
@@ -678,7 +693,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             cursor = conn.cursor()
             
             for item in brick_items:
-                if item.get("type") == "fig":
+                itype = str(item.get("type", "")).strip().lower()
+                if itype in ("fig", "minifig") or item.get("id", "").startswith("fig-"):
                     candidates = set()
                     candidates.add(item.get("id", "").strip().lower())
                     
@@ -688,7 +704,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         # 1. Parse BrickLink ID (M parameter)
                         if "bricklink.com/" in url and ("?M=" in url or "&M=" in url or "?m=" in url or "&m=" in url):
                             import re
-                            match = re.search(r'[?&][Mm]=([^&]+)', url)
+                            match = re.search(r'[?&][Mm]=([^&#]+)', url)
                             if match:
                                 candidates.add(match.group(1).strip().lower())
                         # 2. Parse Rebrickable ID
@@ -719,7 +735,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     # If not found directly, do a fuzzy name match
                     if not found_direct and item.get("name"):
                         matched_row, match_score = fuzzy_match_minifig(conn, item["name"])
-                        if matched_row and match_score >= 1.5:
+                        if matched_row and match_score >= 0.5:
                             matched_figs.append({
                                 "minifig_num": matched_row["minifig_num"],
                                 "name": matched_row["name"],
@@ -758,10 +774,13 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             
         # 3. Call Gemini API
         if not api_key:
+            print("Gemini API key is missing. Falling back to traditional color distance search...")
+            params = {"color": [target_color], "query": [""]}
+            color_matches = self.api_scan(conn, params)
             self.send_json_response({
-                "error": "API_KEY_MISSING",
-                "message": "Brickognize 匹配未果，且服务器未配置 Gemini API 密钥以进行 AI 备选分析。"
-            }, status=400)
+                "description": "⚠️ 图像未能通过 Brickognize 引擎精确匹配，已为您推荐颜色最相近的经典人仔。",
+                "results": color_matches
+            })
             return
             
         gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
@@ -824,23 +843,14 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             ai_desc = ai_data.get("description", "智能分析成功")
             keywords = ai_data.get("keywords", [])
             
-        except urllib.error.HTTPError as e:
-            err_content = e.read().decode('utf-8')
-            try:
-                err_json = json.loads(err_content)
-                err_msg = err_json.get("error", {}).get("message", "Gemini API error")
-            except:
-                err_msg = f"HTTP Error {e.code}"
-            self.send_json_response({
-                "error": "GEMINI_ERROR",
-                "message": f"Gemini API 调用异常: {err_msg}"
-            }, status=500)
-            return
         except Exception as e:
+            print(f"Gemini API call failed (error: {str(e)}). Falling back to traditional color distance search...")
+            params = {"color": [target_color], "query": [""]}
+            color_matches = self.api_scan(conn, params)
             self.send_json_response({
-                "error": "SERVER_ERROR",
-                "message": f"处理图像或调用 AI 时出错: {str(e)}"
-            }, status=500)
+                "description": "⚠️ 图像识别大模型暂时不可用，已为您推荐颜色最相近的经典人仔。",
+                "results": color_matches
+            })
             return
 
         # 4. Search and score minifigures based on keywords and color distance

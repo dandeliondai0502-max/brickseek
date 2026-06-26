@@ -133,6 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentManualSteps = [];
     let currentManualPageIdx = 0;
     let availableVideoDevices = [];
+    const detailCache = new Map();
+    const searchCache = new Map();
+    let suggestionsAbortController = null;
 
     // --- State & Preferences ---
     let currentUser = localStorage.getItem('currentUser') || null;
@@ -263,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'fav-item-card';
             card.title = item.name;
             card.innerHTML = `
-                <img src="https://cdn.rebrickable.com/media/sets/${item.id}.jpg" alt="${item.name}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\' width=\\'100\\' height=\\'100\\'><defs><linearGradient id=\\'glow-grad\\' x1=\\'0%\\' y1=\\'0%\\' x2=\\'100%\\' y2=\\'100%\\'><stop offset=\\'0%\\' stop-color=\\'#FFD500\\' /><stop offset=\\'100%\\' stop-color=\\'#FF5E00\\' /></linearGradient></defs><g fill=\\'url(#glow-grad)\\'><rect x=\\'45\\' y=\\'16\\' width=\\'10\\' height=\\'4\\' rx=\\'1\\'/><rect x=\\'39\\' y=\\'21\\' width=\\'22\\' height=\\'19\\' rx=\\'5\\'/><rect x=\\'37\\' y=\\'26\\' width=\\'26\\' height=\\'9\\' rx=\\'3\\'/><rect x=\\'46\\' y=\\'40\\' width=\\'8\\' height=\\'3\\'/><path d=\\'M 34,44 L 66,44 L 71,72 L 29,72 Z\\'/><rect x=\\'31\\' y=\\'74\\' width=\\'38\\' height=\\'6\\' rx=\\'1\\'/><rect x=\\'31\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/><rect x=\\'52\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/></g></svg>')">
+                <img src="https://cdn.rebrickable.com/media/sets/${item.id}.jpg" alt="${item.name}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\' width=\\'100\\' height=\\'100\\'><defs><linearGradient id=\\'glow-grad\\' x1=\\'0%\\' y1=\\'0%\\' x2=\\'100%\\' y2=\\'100%\\'><stop offset=\\'0%\\' stop-color=\\'#FFD500\\' /><stop offset=\\'100%\\' stop-color=\\'#FF5E00\\' /></linearGradient></defs><g fill=\\'url(#glow-grad)\\'><rect x=\\'45\\' y=\\'16\\' width=\\'10\\' height=\\'4\\' rx=\\'1\\'/><rect x=\\'39\\' y=\\'21\\' width=\\'22\\' height=\\'19\\' rx=\\'5\\'/><rect x=\\'37\\' y=\\'26\\' width=\\'26\\' height=\\'9\\' rx=\\'3\\'/><rect x=\\'46\\' y=\\'40\\' width=\\'8\\' height=\\'3\\'/><path d=\\'M 34,44 L 66,44 L 71,72 L 29,72 Z\\'/><rect x=\\'31\\' y=\\'74\\' width=\\'38\\' height=\\'6\\' rx=\\'1\\'/><rect x=\\'31\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/><rect x=\\'52\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/></g></svg>')">
                 <span>${item.id}</span>
             `;
             card.addEventListener('click', () => {
@@ -377,12 +380,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch Suggestions from real backend API
     async function fetchSuggestions(query) {
         try {
-            const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+            const cacheKey = query.toLowerCase();
+            if (searchCache.has(cacheKey)) {
+                renderSuggestions(searchCache.get(cacheKey));
+                return;
+            }
+            if (suggestionsAbortController) {
+                suggestionsAbortController.abort();
+            }
+            suggestionsAbortController = new AbortController();
+            const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+                signal: suggestionsAbortController.signal
+            });
             if (!res.ok) return;
             const data = await res.json();
-            
+            searchCache.set(cacheKey, data);
             renderSuggestions(data);
         } catch (e) {
+            if (e.name === 'AbortError') return;
             console.error("Suggestions fetch error:", e);
         }
     }
@@ -469,9 +484,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         try {
-            const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-            if (!res.ok) return;
-            const data = await res.json();
+            const cacheKey = query.toLowerCase();
+            let data = searchCache.get(cacheKey);
+            if (!data) {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                if (!res.ok) return;
+                data = await res.json();
+                searchCache.set(cacheKey, data);
+            }
             
             if (data.length > 0) {
                 // If there is an exact or first match, open it directly!
@@ -717,6 +737,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function compressImage(dataUrl, maxDim = 640, quality = 0.85) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = Math.round((height * maxDim) / width);
+                        width = maxDim;
+                    } else {
+                        width = Math.round((width * maxDim) / height);
+                        height = maxDim;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = () => {
+                resolve(dataUrl);
+            };
+            img.src = dataUrl;
+        });
+    }
+
     function handleUploadedFile(file) {
         if (!file.type.startsWith('image/')) {
             alert('请上传有效的图像文件！');
@@ -736,11 +785,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const reader = new FileReader();
-        reader.onload = (event) => {
-            previewImage.src = event.target.result;
+        reader.onload = async (event) => {
+            const compressedDataUrl = await compressImage(event.target.result);
+            previewImage.src = compressedDataUrl;
             previewImage.onload = () => {
                 const hexColor = getAverageColorFromImage(previewImage);
-                startScanning(hexColor, filenameQuery, event.target.result);
+                startScanning(hexColor, filenameQuery, compressedDataUrl);
                 previewImage.onload = null;
             };
         };
@@ -830,15 +880,28 @@ document.addEventListener('DOMContentLoaded', () => {
     shutterBtn.addEventListener('click', () => {
         if (!webcamStream) return;
         
-        const width = webcam.videoWidth || 640;
-        const height = webcam.videoHeight || 480;
+        let width = webcam.videoWidth || 640;
+        let height = webcam.videoHeight || 480;
+        
+        // Resize to max 640px while maintaining aspect ratio
+        const maxDim = 640;
+        if (width > maxDim || height > maxDim) {
+            if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+            } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+            }
+        }
+        
         cameraCanvas.width = width;
         cameraCanvas.height = height;
         
         const ctx = cameraCanvas.getContext('2d');
         ctx.drawImage(webcam, 0, 0, width, height);
         
-        const dataUrl = cameraCanvas.toDataURL('image/jpeg');
+        const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.85);
         previewImage.src = dataUrl;
         
         stopWebcam();
@@ -1087,7 +1150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bestCard.innerHTML = `
             <div class="badge-best">最佳匹配 99.4%</div>
             <div class="result-image-box">
-                <img id="match-img-1" src="${best.img_url}" alt="${best.name}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%2313171f%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22rgba(0,123,255,0.1)%22/></svg>'">
+                <img id="match-img-1" src="${best.img_url}" alt="${best.name}" decoding="async" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%2313171f%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22rgba(0,123,255,0.1)%22/></svg>'">
             </div>
             <div class="result-info">
                 <span class="fig-id">编号：${best.minifig_num.toUpperCase()}</span>
@@ -1122,7 +1185,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 miniCard.style.cursor = 'pointer';
                 miniCard.innerHTML = `
                     <div class="mini-percent">${percent} 相似</div>
-                    <img id="match-img-${index + 2}" src="${item.img_url}" alt="${item.name}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%2313171f%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22rgba(0,123,255,0.1)%22/></svg>'">
+                    <img id="match-img-${index + 2}" src="${item.img_url}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%2313171f%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22rgba(0,123,255,0.1)%22/></svg>'">
                     <div class="mini-info">
                         <span class="fig-id">编号：${item.minifig_num.toUpperCase()}</span>
                         <h6>${item.name}</h6>
@@ -1145,12 +1208,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 7. Encyclopedia Detail View (Real API Integration) ---
     async function showDetailPage(id) {
         try {
+            if (detailCache.has(id)) {
+                renderMinifigDetails(detailCache.get(id), id);
+                return;
+            }
             const res = await fetch(`/api/minifig?id=${encodeURIComponent(id)}`);
             if (!res.ok) {
                 alert("未找到该人仔，可能数据库正在同步。");
                 return;
             }
             const data = await res.json();
+            detailCache.set(id, data);
             renderMinifigDetails(data, id);
         } catch (e) {
             console.error("Fetch minifig details error:", e);
@@ -1256,7 +1324,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             const imgHTML = wp.img_url
-                ? `<img src="${wp.img_url}" alt="${wp.part_name}" style="width: 40px; height: 40px; object-fit: contain; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 2px;">`
+                ? `<img src="${wp.img_url}" alt="${wp.part_name}" loading="lazy" decoding="async" style="width: 40px; height: 40px; object-fit: contain; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 2px;">`
                 : `<div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); border-radius: 8px;"><i class="fas fa-shield-alt" style="color: var(--text-muted); font-size: 1.2rem;"></i></div>`;
                 
             let displayName = wp.part_name;
@@ -1475,7 +1543,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const holder = document.createElement('div');
             holder.className = 'lego-svg-holder';
             if (part.img_url) {
-                holder.innerHTML = `<img src="${part.img_url}" alt="${part.part_name}">`;
+                holder.innerHTML = `<img src="${part.img_url}" alt="${part.part_name}" loading="lazy" decoding="async">`;
             } else {
                 holder.innerHTML = `<i class="fas fa-puzzle-piece" style="font-size: 1.8rem; color: var(--text-muted);"></i>`;
             }
@@ -1541,7 +1609,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Set image rendering (Real URL if available, else box placeholder)
             const imgHTML = set.img_url 
-                ? `<img src="${set.img_url}" alt="${set.set_name}" style="max-width: 90%; max-height: 90%; object-fit: contain;">`
+                ? `<img src="${set.img_url}" alt="${set.set_name}" loading="lazy" decoding="async" style="max-width: 90%; max-height: 90%; object-fit: contain;">`
                 : `<svg viewBox="0 0 100 100" width="80" height="80"><rect width="100" height="100" fill="var(--bg-secondary)" rx="10" stroke="var(--border-color)"/><rect x="15" y="15" width="70" height="70" fill="var(--accent-glow)" rx="6"/><text x="50" y="55" font-family="var(--font-outfit)" font-size="12" font-weight="bold" fill="var(--accent-color)" text-anchor="middle">SET</text></svg>`;
 
             card.innerHTML = `
@@ -1658,7 +1726,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Thumbnail image: use item.img_url if available, else generic avatar
             const imgHTML = item.img_url
-                ? `<img src="${item.img_url}" alt="${item.name}" style="width: 48px; height: 48px; object-fit: contain;">`
+                ? `<img src="${item.img_url}" alt="${item.name}" loading="lazy" decoding="async" style="width: 48px; height: 48px; object-fit: contain;">`
                 : `<svg viewBox="0 0 100 100" width="48" height="48"><rect width="100" height="100" fill="var(--bg-secondary)" rx="6"/><circle cx="50" cy="50" r="30" fill="var(--accent-glow)"/></svg>`;
 
             card.innerHTML = `
@@ -1700,7 +1768,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Part Graphic Renderers
         const getPartGraphic = (part, placeholderSVG) => {
             if (part && part.img_url) {
-                return `<img src="${part.img_url}" alt="${part.part_name}" class="manual-build-graphic" style="max-height: 70%; max-width: 70%; object-fit: contain;">`;
+                return `<img src="${part.img_url}" alt="${part.part_name}" class="manual-build-graphic" loading="lazy" decoding="async" style="max-height: 70%; max-width: 70%; object-fit: contain;">`;
             }
             return placeholderSVG;
         };
@@ -1898,7 +1966,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             card.innerHTML = `
                 <div class="gallery-card-img">
-                    <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\' width=\\'100\\' height=\\'100\\'><defs><linearGradient id=\\'glow-grad\\' x1=\\'0%\\' y1=\\'0%\\' x2=\\'100%\\' y2=\\'100%\\'><stop offset=\\'0%\\' stop-color=\\'#FFD500\\' /><stop offset=\\'100%\\' stop-color=\\'#FF5E00\\' /></linearGradient></defs><g fill=\\'url(#glow-grad)\\'><rect x=\\'45\\' y=\\'16\\' width=\\'10\\' height=\\'4\\' rx=\\'-1\\'/><rect x=\\'39\\' y=\\'21\\' width=\\'22\\' height=\\'19\\' rx=\\'5\\'/><rect x=\\'37\\' y=\\'26\\' width=\\'26\\' height=\\'9\\' rx=\\'3\\'/><rect x=\\'46\\' y=\\'40\\' width=\\'8\\' height=\\'3\\'/><path d=\\'M 34,44 L 66,44 L 71,72 L 29,72 Z\\'/><rect x=\\'31\\' y=\\'74\\' width=\\'38\\' height=\\'6\\' rx=\\'1\\'/><rect x=\\'31\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/><rect x=\\'52\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/></g></svg>')">
+                    <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\' width=\\'100\\' height=\\'100\\'><defs><linearGradient id=\\'glow-grad\\' x1=\\'0%\\' y1=\\'0%\\' x2=\\'100%\\' y2=\\'100%\\'><stop offset=\\'0%\\' stop-color=\\'#FFD500\\' /><stop offset=\\'100%\\' stop-color=\\'#FF5E00\\' /></linearGradient></defs><g fill=\\'url(#glow-grad)\\'><rect x=\\'45\\' y=\\'16\\' width=\\'10\\' height=\\'4\\' rx=\\'-1\\'/><rect x=\\'39\\' y=\\'21\\' width=\\'22\\' height=\\'19\\' rx=\\'5\\'/><rect x=\\'37\\' y=\\'26\\' width=\\'26\\' height=\\'9\\' rx=\\'3\\'/><rect x=\\'46\\' y=\\'40\\' width=\\'8\\' height=\\'3\\'/><path d=\\'M 34,44 L 66,44 L 71,72 L 29,72 Z\\'/><rect x=\\'31\\' y=\\'74\\' width=\\'38\\' height=\\'6\\' rx=\\'1\\'/><rect x=\\'31\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/><rect x=\\'52\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/></g></svg>')">
                 </div>
                 <div class="gallery-card-info">
                     <div class="gallery-card-meta">
