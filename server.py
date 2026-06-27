@@ -238,6 +238,29 @@ EN_TO_ZH_MAP = {
     "endgame": "终局之战"
 }
 
+MINIFIG_ID_MAP = {
+    "fig-016875": "sw1483", # Gingerbread Darth Vader
+    "fig-000516": "sw0527", # Darth Vader with Scarred Cheek
+    "fig-000581": "sw0218", # Chrome Black Darth Vader
+    "fig-001106": "sw0599", # Santa Darth Vader
+    "fig-001783": "sw0816", # Darth Vader - Light Nougat Head
+    "fig-003660": "sw0117", # Light-Up Lightsaber Darth Vader
+    "fig-011203": "sw1060", # Darth Vader with Medal
+    "fig-010547": "sw1121", # Festive Red Sweater Darth Vader
+    "fig-013054": "sw1224", # Sunset Vest Darth Vader
+    "fig-014190": "sw1304", # Darth Vader - Two-Piece Helmet
+    "fig-011126": "sw1117", # Darth Vader - Plain Arms
+    "fig-010304": "sw1095"  # Darth Vader - Printed Arms
+}
+
+REVERSE_MINIFIG_MAP = {v: k for k, v in MINIFIG_ID_MAP.items()}
+
+def resolve_minifig_id(m_id):
+    if not m_id:
+        return m_id
+    m_id_lower = m_id.lower().strip()
+    return REVERSE_MINIFIG_MAP.get(m_id_lower, m_id)
+
 def translate_query(q):
     q_lower = q.lower()
     for zh, en in TRANSLATION_MAP.items():
@@ -260,7 +283,9 @@ def translate_to_zh(name_en):
             translated = re.sub(pattern, EN_TO_ZH_MAP[key], translated, flags=re.IGNORECASE)
             replaced = True
     if replaced:
-        return f"{translated} [{name_en}]"
+        if translated.lower() == name_en.lower():
+            return name_en
+        return translated
     return name_en
 
 def fuzzy_match_minifig(conn, name_en):
@@ -558,6 +583,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             cursor.execute(sql_theme, (row_dict["minifig_num"],))
             theme_row = cursor.fetchone()
             row_dict["theme_name"] = translate_to_zh(theme_row["name"]) if theme_row else "收藏系列"
+            row_dict["official_id"] = MINIFIG_ID_MAP.get(row_dict["minifig_num"], row_dict["minifig_num"])
             results.append(row_dict)
             
         return results
@@ -567,9 +593,21 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         if not query:
             return []
 
-        translated_query = translate_query(query)
+        mapped_id = resolve_minifig_id(query)
         cursor = conn.cursor()
-        
+
+        if mapped_id != query:
+            cursor.execute("SELECT minifig_num, name, num_parts FROM minifigs WHERE minifig_num = ?", (mapped_id,))
+            rows = cursor.fetchall()
+            results = []
+            for row in rows:
+                row_dict = dict(row)
+                row_dict["name"] = translate_to_zh(row_dict["name"])
+                row_dict["official_id"] = MINIFIG_ID_MAP.get(row_dict["minifig_num"], row_dict["minifig_num"])
+                results.append(row_dict)
+            return results
+
+        translated_query = translate_query(query)
         like_query = f"%{translated_query}%"
         
         # Step 1: Find parts matching the query (limit to 200 parts to prevent parameter list overflow)
@@ -621,6 +659,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         for row in rows:
             row_dict = dict(row)
             row_dict["name"] = translate_to_zh(row_dict["name"])
+            row_dict["official_id"] = MINIFIG_ID_MAP.get(row_dict["minifig_num"], row_dict["minifig_num"])
             results.append(row_dict)
             
         return results
@@ -662,7 +701,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             
             # Query keyword matching score
             query_score = 0
-            if query and (query in name_lower or query in num_lower):
+            official_id = MINIFIG_ID_MAP.get(num_lower, num_lower)
+            if query and (query in name_lower or query in num_lower or query in official_id):
                 query_score = 1000000  # huge boost
                 
             # Color matching score
@@ -690,6 +730,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         for m in matches[:3]:
             fig = m[1]
             fig["name"] = translate_to_zh(fig["name"])
+            fig["official_id"] = MINIFIG_ID_MAP.get(fig["minifig_num"], fig["minifig_num"])
             top_matches.append(fig)
         return top_matches
 
@@ -811,7 +852,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     for cand in candidates:
                         if not cand:
                             continue
-                        cursor.execute("SELECT minifig_num, name, num_parts FROM minifigs WHERE LOWER(minifig_num) = ?", (cand,))
+                        resolved_cand = resolve_minifig_id(cand)
+                        cursor.execute("SELECT minifig_num, name, num_parts FROM minifigs WHERE LOWER(minifig_num) = ?", (resolved_cand,))
                         row = cursor.fetchone()
                         if row:
                             matched_figs.append({
@@ -819,7 +861,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                                 "name": row["name"],
                                 "num_parts": row["num_parts"],
                                 "img_url": f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
-                                "score": item.get("score", 0.9)
+                                "score": item.get("score", 0.9),
+                                "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
                             })
                             found_direct = True
                             
@@ -832,7 +875,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                                 "name": matched_row["name"],
                                 "num_parts": matched_row["num_parts"],
                                 "img_url": f"https://cdn.rebrickable.com/media/sets/{matched_row['minifig_num']}.jpg",
-                                "score": item.get("score", 0.9)
+                                "score": item.get("score", 0.9),
+                                "official_id": MINIFIG_ID_MAP.get(matched_row["minifig_num"], matched_row["minifig_num"])
                             })
                             
             if matched_figs:
@@ -1043,14 +1087,15 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
 
         cursor = conn.cursor()
         
+        minifig_id = resolve_minifig_id(minifig_id)
+        norm_id = minifig_id.lower()
+        norm_id_suffix = f"{norm_id}-1" if "-" not in norm_id else norm_id
+
         sql_minifig = """
             SELECT minifig_num, name, num_parts 
             FROM minifigs 
             WHERE minifig_num = ? OR minifig_num = ?
         """
-        norm_id = minifig_id.lower()
-        norm_id_suffix = f"{norm_id}-1" if "-" not in norm_id else norm_id
-        
         cursor.execute(sql_minifig, (norm_id, norm_id_suffix))
         minifig_row = cursor.fetchone()
         
@@ -1061,6 +1106,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         minifig_data = dict(minifig_row)
         minifig_data["name"] = translate_to_zh(minifig_data["name"])
         minifig_num = minifig_data["minifig_num"]
+        minifig_data["official_id"] = MINIFIG_ID_MAP.get(minifig_num, minifig_num)
 
         # Get parts list
         cursor.execute("SELECT id FROM inventories WHERE set_num = ?", (minifig_num,))
@@ -1072,7 +1118,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             
             sql_parts = """
                 SELECT ip.part_num, ip.color_id, ip.quantity, p.name AS part_name, 
-                       c.name AS color_name, c.rgb AS color_rgb, ip.img_url, p.part_cat_id
+                       c.name AS color_name, c.rgb AS color_rgb, ip.img_url, p.part_cat_id,
+                       (SELECT element_id FROM elements WHERE part_num = ip.part_num AND color_id = ip.color_id LIMIT 1) AS element_id
                 FROM inventory_parts ip
                 JOIN parts p ON ip.part_num = p.part_num
                 JOIN colors c ON ip.color_id = c.id
@@ -1187,6 +1234,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         for row in rows:
             row_dict = dict(row)
             row_dict["name"] = translate_to_zh(row_dict["name"])
+            row_dict["official_id"] = MINIFIG_ID_MAP.get(row_dict["minifig_num"], row_dict["minifig_num"])
             results.append(row_dict)
             
         return results

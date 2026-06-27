@@ -18,7 +18,8 @@ CSV_FILES = {
     "inventories.csv.gz": "https://cdn.rebrickable.com/media/downloads/inventories.csv.gz",
     "inventory_minifigs.csv.gz": "https://cdn.rebrickable.com/media/downloads/inventory_minifigs.csv.gz",
     "inventory_parts.csv.gz": "https://cdn.rebrickable.com/media/downloads/inventory_parts.csv.gz",
-    "parts.csv.gz": "https://cdn.rebrickable.com/media/downloads/parts.csv.gz"
+    "parts.csv.gz": "https://cdn.rebrickable.com/media/downloads/parts.csv.gz",
+    "elements.csv.gz": "https://cdn.rebrickable.com/media/downloads/elements.csv.gz"
 }
 
 def setup_db(conn):
@@ -96,6 +97,14 @@ def setup_db(conn):
         part_material_id INTEGER
     )""")
     
+    # 9. Elements (official LEGO Element IDs)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS elements (
+        element_id TEXT PRIMARY KEY,
+        part_num TEXT,
+        color_id INTEGER
+    )""")
+    
     conn.commit()
 
 def download_file(filename, url):
@@ -166,6 +175,7 @@ def create_indexes(conn):
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_inv_parts_part ON inventory_parts(part_num)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_inv_minifigs_num ON inventory_minifigs(minifig_num)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_inv_minifigs_id ON inventory_minifigs(inventory_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_elements_part_color ON elements(part_num, color_id)")
     
     conn.commit()
     print(f"[Index] Completed in {time.time() - start_time:.2f} seconds.")
@@ -194,7 +204,8 @@ def main():
         ("inventories.csv.gz", CSV_FILES["inventories.csv.gz"], "inventories", 3),
         ("inventory_minifigs.csv.gz", CSV_FILES["inventory_minifigs.csv.gz"], "inventory_minifigs", 3),
         ("inventory_parts.csv.gz", CSV_FILES["inventory_parts.csv.gz"], "inventory_parts", 6),
-        ("parts.csv.gz", CSV_FILES["parts.csv.gz"], "parts", 4)
+        ("parts.csv.gz", CSV_FILES["parts.csv.gz"], "parts", 4),
+        ("elements.csv.gz", CSV_FILES["elements.csv.gz"], "elements", 3)
     ]
     
     total_start = time.time()

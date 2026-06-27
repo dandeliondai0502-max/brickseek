@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BrickSeek 产品功能介绍</title>
+  <style>
+    :root {
+      --bg: #080a0f;
+      --surface: rgba(20, 24, 33, 0.78);
+      --surface-strong: rgba(24, 29, 40, 0.92);
+      --line: rgba(255, 255, 255, 0.1);
+      --text: #f5f6f8;
+      --muted: #93a0b4;
+      --blue: #007bff;
+      --blue-soft: rgba(0, 123, 255, 0.18);
+      --yellow: #ffd500;
+      --green: #2ec4b6;
+      --shadow: rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(0, 123, 255, 0.22), transparent 34rem),
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        var(--bg);
+      background-size: auto, 48px 48px, 48px 48px;
+      color: var(--text);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      line-height: 1.55;
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 56px 28px 72px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 0.88fr 1.12fr;
+      gap: 36px;
+      align-items: center;
+      min-height: 540px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--yellow);
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--yellow);
+      box-shadow: 0 0 18px rgba(255, 213, 0, 0.65);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(42px, 6vw, 78px);
+      line-height: 0.98;
+      letter-spacing: -1px;
+    }
+
+    .brand-blue {
+      color: var(--blue);
+    }
+
+    .lead {
+      margin: 22px 0 0;
+      color: #c8d2e1;
+      font-size: 18px;
+      max-width: 560px;
+    }
+
+    .meta-line {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+    }
+
+    .meta-pill {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(20, 24, 33, 0.62);
+      border-radius: 999px;
+      padding: 7px 11px;
+      color: #cbd5e1;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .hero-points {
+      display: grid;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .hero-point {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      color: #d7deea;
+      font-size: 15px;
+    }
+
+    .point-icon {
+      width: 28px;
+      height: 28px;
+      flex: 0 0 28px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      background: var(--blue-soft);
+      border: 1px solid rgba(0, 123, 255, 0.26);
+      color: #7dbcff;
+      font-weight: 900;
+    }
+
+    .hero-shot,
+    .image-frame {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 22px;
+      padding: 10px;
+      box-shadow: 0 24px 60px var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .hero-shot img,
+    .image-frame img {
+      display: block;
+      width: 100%;
+      border-radius: 14px;
+    }
+
+    .section {
+      margin-top: 76px;
+    }
+
+    .section-header {
+      max-width: 760px;
+      margin-bottom: 26px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.1;
+      letter-spacing: -0.4px;
+    }
+
+    .section-header p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .feature-card {
+      min-height: 190px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(20, 24, 33, 0.82), rgba(16, 19, 27, 0.68));
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.26);
+    }
+
+    .feature-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      color: var(--yellow);
+      background: rgba(255, 213, 0, 0.09);
+      border: 1px solid rgba(255, 213, 0, 0.2);
+      font-weight: 900;
+      margin-bottom: 16px;
+    }
+
+    .feature-card h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .feature-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1.02fr 0.98fr;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .copy-panel {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 22px;
+      padding: 30px;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .copy-panel h3 {
+      margin: 0 0 14px;
+      font-size: 28px;
+      line-height: 1.15;
+    }
+
+    .copy-panel p {
+      color: #c4cede;
+      margin: 0 0 20px;
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .list li {
+      display: flex;
+      gap: 10px;
+      color: #dce4ef;
+      font-size: 15px;
+    }
+
+    .check {
+      color: var(--green);
+      font-weight: 900;
+    }
+
+    .mobile-strip {
+      display: grid;
+      grid-template-columns: 0.82fr 1.18fr;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .phone-frame {
+      max-width: 360px;
+      margin: 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      padding: 10px;
+      background: linear-gradient(180deg, rgba(20, 24, 33, 0.96), rgba(7, 9, 13, 0.94));
+      box-shadow: 0 26px 58px rgba(0, 0, 0, 0.55);
+    }
+
+    .phone-frame img {
+      display: block;
+      width: 100%;
+      border-radius: 24px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 28px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px;
+      background: rgba(20, 24, 33, 0.62);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+      line-height: 1;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .closing {
+      margin-top: 76px;
+      border: 1px solid rgba(0, 123, 255, 0.24);
+      background: linear-gradient(135deg, rgba(0, 123, 255, 0.18), rgba(255, 213, 0, 0.08));
+      border-radius: 24px;
+      padding: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .closing h2 {
+      font-size: 34px;
+    }
+
+    .closing p {
+      margin: 10px 0 0;
+      color: #d8e1ef;
+      max-width: 700px;
+    }
+
+    .badge {
+      flex: 0 0 auto;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      padding: 12px 18px;
+      color: var(--yellow);
+      background: rgba(255, 213, 0, 0.08);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 900px) {
+      .page {
+        padding: 32px 16px 48px;
+      }
+
+      .hero,
+      .split,
+      .mobile-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .feature-grid,
+      .stats {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .closing {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @media print {
+      body {
+        background: #0a0c10;
+      }
+
+      .page {
+        padding: 24px;
+      }
+
+      .section,
+      .closing {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">LEGO MINIFIGURE RADAR</div>
+        <h1>Brick<span class="brand-blue">Seek</span><br>乐高人仔雷达</h1>
+        <p class="lead">面向乐高收藏者、门店顾问和玩家社群的智能人仔检索与图鉴系统。新版首页整合搜索、拍照识别、热门推荐和快速入口，让客户从第一屏就能理解产品价值。</p>
+        <div class="meta-line">
+          <span class="meta-pill">当前演示版 v2.8</span>
+          <span class="meta-pill">桌面 / 手机自适应</span>
+          <span class="meta-pill">客户展示资料</span>
+        </div>
+        <div class="hero-points">
+          <div class="hero-point"><span class="point-icon">1</span><span>输入名称、编号、系列或角色特征，即可快速定位人仔。</span></div>
+          <div class="hero-point"><span class="point-icon">2</span><span>拍照识别与热门推荐并列呈现，降低客户首次使用门槛。</span></div>
+          <div class="hero-point"><span class="point-icon">3</span><span>图鉴、收藏、详情和零件分析串成完整查询链路。</span></div>
+        </div>
+      </div>
+      <div class="hero-shot">
+        <img src="assets/client-intro/01-home-search.png" alt="BrickSeek 雷达搜索首页截图">
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h2>核心功能一屏看懂</h2>
+        <p>BrickSeek 将人仔识别、资料查询、收藏探索和零件分析整合到同一个轻量网页中，适合客户演示、门店查询和爱好者自助使用。</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="feature-icon">⌕</div>
+          <h3>雷达搜索</h3>
+          <p>支持中文关键词、英文名称、编号和系列搜索，首页即可直接检索。</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">▣</div>
+          <h3>人仔图鉴</h3>
+          <p>集中浏览全量人仔资料，可按系列筛选、按零件数量或编号排序。</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">◉</div>
+          <h3>拍照识别</h3>
+          <p>通过上传图片或调用摄像头，辅助客户确认手中人仔身份。</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon">★</div>
+          <h3>收藏入口</h3>
+          <p>首页提供我的收藏入口，方便后续扩展个人清单和客户偏好。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section split">
+      <div class="image-frame">
+        <img src="assets/client-intro/02-gallery.png" alt="BrickSeek 人仔图鉴截图">
+      </div>
+      <div class="copy-panel">
+        <h3>图鉴浏览适合客户现场挑选</h3>
+        <p>图鉴页适合作为客户浏览入口：不需要知道具体编号，也可以按系列、关键词和零件数量逐步筛选，找到感兴趣的人仔。</p>
+        <ul class="list">
+          <li><span class="check">✓</span><span>系列筛选：星战、忍者、哈利波特、超级英雄等主题。</span></li>
+          <li><span class="check">✓</span><span>快速搜索：在图鉴中按名称或编号二次检索。</span></li>
+          <li><span class="check">✓</span><span>卡片展示：图片、编号、系列、核心部件数量一目了然。</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section split">
+      <div class="copy-panel">
+        <h3>从单个人仔延伸到零件与套装</h3>
+        <p>详情页不仅告诉客户“这是谁”，还展示“由哪些零件组成、来自哪些套装、可搭配哪些道具”。这让识别结果可以继续转化为收藏、补件和交易咨询。</p>
+        <ul class="list">
+          <li><span class="check">✓</span><span>交互式组装器：支持拆解/组装查看核心构成。</span></li>
+          <li><span class="check">✓</span><span>基础档案：编号、年份、稀有度和零件数量。</span></li>
+          <li><span class="check">✓</span><span>共享零件分析：点击部件后查看同款零件关联的人仔。</span></li>
+        </ul>
+      </div>
+      <div class="image-frame">
+        <img src="assets/client-intro/03-detail.png" alt="BrickSeek 人仔详情页截图">
+      </div>
+    </section>
+
+    <section class="section mobile-strip">
+      <div class="phone-frame">
+        <img src="assets/client-intro/04-mobile-home.png" alt="BrickSeek 手机端首页截图">
+      </div>
+      <div>
+        <div class="section-header">
+          <h2>手机端也能顺手使用</h2>
+          <p>移动端采用两行搜索模块：第一行输入与搜索，第二行独立拍照识别；下方保留热门推荐和快速入口，适合门店、展会和移动场景。</p>
+        </div>
+        <div class="stats">
+          <div class="stat"><strong>84,921</strong><span>索引状态显示的人仔数据规模</span></div>
+          <div class="stat"><strong>6</strong><span>核心入口：搜索、拍照、热门、图鉴、收藏、详情</span></div>
+          <div class="stat"><strong>秒级</strong><span>常用搜索与详情读取体验</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing">
+      <div>
+        <h2>适合展示，也适合继续扩展</h2>
+        <p>BrickSeek 已具备客户可感知的产品形态：搜索入口清晰、图鉴浏览完整、手机端顺手、详情信息丰富，后续可以继续接入估价、收藏同步、门店库存或交易咨询流程。</p>
+      </div>
+      <div class="badge">CLIENT DEMO READY</div>
+    </section>
+  </main>
+</body>
+</html>
