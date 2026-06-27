@@ -199,6 +199,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Helper to get LEGO official Design ID from a part number
+    function getLegoDesignId(partNum) {
+        if (!partNum) return '';
+        const match = partNum.match(/^(\d+)/);
+        if (match) {
+            return match[1];
+        }
+        return partNum;
+    }
+
+    // Helper to make character names concise
+    function cleanConciseName(name) {
+        if (!name) return '';
+        let clean = name.replace(/\s*\[[A-Za-z0-9\s,'.#-]+\]/g, '');
+        const hasChinese = /[\u4e00-\u9fa5]/.test(name);
+        if (hasChinese) {
+            let parts = name.split(',');
+            let filteredParts = parts.map(p => p.trim()).filter(p => {
+                return /[\u4e00-\u9fa5]/.test(p);
+            });
+            if (filteredParts.length > 0) {
+                clean = filteredParts.join(', ');
+            } else {
+                clean = parts[0].trim();
+            }
+        }
+        clean = clean.replace(/\s*\[[^\]]+\]/g, '').trim();
+        clean = clean.replace(/[,;]\s*$/, '').trim();
+        return clean;
+    }
+
     async function loadCameraDevices() {
         try {
             if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
@@ -424,7 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const div = document.createElement('div');
             div.className = 'suggestion-item';
             div.innerHTML = `
-                <span class="sug-name">${item.name}</span>
+                <span class="sug-name">${cleanConciseName(item.name)}</span>
                 <span class="sug-id">${item.minifig_num}</span>
             `;
             
@@ -1164,7 +1195,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="result-info">
                 <span class="fig-id">编号：${best.minifig_num.toUpperCase()}</span>
-                <h5 class="fig-name">${best.name}</h5>
+                <h5 class="fig-name">${cleanConciseName(best.name)}</h5>
                 <p class="fig-meta"><strong>零件数量：</strong> ${best.num_parts} 个核心部件</p>
                 <p class="fig-meta"><strong>稀有级别：</strong> <span class="${getRarityClass(best.num_parts)}">${getRarityText(best.num_parts)}</span></p>
                 <div class="card-actions">
@@ -1198,7 +1229,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <img id="match-img-${index + 2}" src="${item.img_url}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%2313171f%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22rgba(0,123,255,0.1)%22/></svg>'">
                     <div class="mini-info">
                         <span class="fig-id">编号：${item.minifig_num.toUpperCase()}</span>
-                        <h6>${item.name}</h6>
+                        <h6>${cleanConciseName(item.name)}</h6>
                         <p class="fig-meta">${item.num_parts} 个零件</p>
                     </div>
                 `;
@@ -1250,7 +1281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Try to fetch series/theme from the first set theme name, or fallback
         const seriesName = data.sets.length > 0 ? data.sets[0].theme_name : "乐高系列人仔";
         detailSeriesBadge.textContent = seriesName;
-        detailTitle.textContent = minifig.name;
+        detailTitle.textContent = cleanConciseName(minifig.name);
         
         // Update Favorite Star state
         const isFav = preferences.favorites.some(f => f.id === minifig.minifig_num);
@@ -1262,7 +1293,8 @@ document.addEventListener('DOMContentLoaded', () => {
             favoriteBtn.innerHTML = '<i class="far fa-star"></i>';
         }
         
-        infoId.textContent = minifig.minifig_num;
+        const isOfficial = !minifig.minifig_num.startsWith('fig-');
+        infoId.innerHTML = `<code>${minifig.minifig_num.toUpperCase()}</code> <span style="font-size:0.72rem; color:var(--text-muted); font-weight:normal; margin-left:6px;">(${isOfficial ? '乐高官方编号' : '雷达系统编号'})</span>`;
         
         // Year calculation
         const year = data.sets.length > 0 ? Math.min(...data.sets.map(s => s.year)) : "历史典藏";
@@ -1320,11 +1352,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `<img src="${wp.img_url}" alt="${wp.part_name}" loading="lazy" decoding="async" class="weapon-item-img">`
                 : `<div class="weapon-item-placeholder"><i class="fas fa-shield-alt" style="color: var(--text-muted); font-size: 1.2rem;"></i></div>`;
                 
-            let displayName = wp.part_name;
-            const bracketMatch = wp.part_name.match(/(.+?)\s*\[(.+?)\]$/);
-            if (bracketMatch) {
-                displayName = bracketMatch[1].trim();
-            }
+            let displayName = cleanConciseName(wp.part_name);
             
             card.innerHTML = `
                 ${imgHTML}
@@ -1342,13 +1370,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Find all part layers, de-highlight them
                 document.querySelectorAll('.lego-part-layer').forEach(l => l.classList.remove('selected-part'));
                 
+                const designId = getLegoDesignId(wp.part_num);
+                let idMeta = `乐高官方设计号: <code>${designId}</code>`;
+                if (designId !== wp.part_num) {
+                    idMeta += ` &nbsp;|&nbsp; 系统 ID: <code>${wp.part_num}</code>`;
+                }
+
                 // Set shared parts header label
                 const selectedPartLabel = document.getElementById('selected-part-name');
                 if (selectedPartLabel) {
                     selectedPartLabel.innerHTML = `
                         <div class="part-badge-label">选中的道具/武器</div>
                         <div class="part-badge-title">${displayName}</div>
-                        <div class="part-badge-meta">零件 ID: <code>${wp.part_num}</code> &nbsp;|&nbsp; 颜色: <code>${wp.color_name}</code></div>
+                        <div class="part-badge-meta">${idMeta} &nbsp;|&nbsp; 颜色: <code>${wp.color_name}</code></div>
                     `;
                     selectedPartLabel.classList.add('active');
                 }
@@ -1524,12 +1558,9 @@ document.addEventListener('DOMContentLoaded', () => {
             labelTag.className = 'part-label-tag';
             
             // Format name nicely
-            let displayName = part.part_name;
-            const bracketMatch = part.part_name.match(/(.+?)\s*\[(.+?)\]$/);
-            if (bracketMatch) {
-                displayName = bracketMatch[1].trim();
-            }
-            labelTag.textContent = displayName;
+            let displayName = cleanConciseName(part.part_name);
+            const designId = getLegoDesignId(part.part_num);
+            labelTag.textContent = `${displayName} (${designId})`;
             layer.appendChild(labelTag);
             
             // SVG / Image Holder bubble
@@ -1552,19 +1583,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 layer.classList.add('selected-part');
                 
                 // Highlight label with ID/Number
-                let displayName = part.part_name;
-                let originalName = '';
-                const bracketMatch = part.part_name.match(/(.+?)\s*\[(.+?)\]$/);
-                if (bracketMatch) {
-                    displayName = bracketMatch[1].trim();
-                    originalName = bracketMatch[2].trim();
+                const clickDesignId = getLegoDesignId(part.part_num);
+                let idMeta = `乐高官方设计号: <code>${clickDesignId}</code>`;
+                if (clickDesignId !== part.part_num) {
+                    idMeta += ` &nbsp;|&nbsp; 系统 ID: <code>${part.part_num}</code>`;
                 }
 
                 selectedPartLabel.innerHTML = `
                     <div class="part-badge-label">当前选中的零件</div>
-                    <div class="part-badge-title">${displayName}</div>
-                    ${originalName ? `<div class="part-badge-original">${originalName}</div>` : ''}
-                    <div class="part-badge-meta">零件 ID: <code>${part.part_num}</code> &nbsp;|&nbsp; 颜色 ID: <code>${part.color_id}</code></div>
+                    <div class="part-badge-title">${cleanConciseName(part.part_name)}</div>
+                    <div class="part-badge-meta">${idMeta} &nbsp;|&nbsp; 颜色 ID: <code>${part.color_id}</code></div>
                 `;
                 selectedPartLabel.classList.add('active');
 
@@ -2039,7 +2067,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="gallery-card-id">${item.minifig_num.toUpperCase()}</span>
                         <span class="gallery-card-theme">${item.theme_name}</span>
                     </div>
-                    <h4 class="gallery-card-name" title="${item.name}">${item.name}</h4>
+                    <h4 class="gallery-card-name" title="${item.name}">${cleanConciseName(item.name)}</h4>
                     <span class="gallery-card-parts"><i class="fas fa-puzzle-piece"></i> ${item.num_parts} 核心部件</span>
                 </div>
             `;

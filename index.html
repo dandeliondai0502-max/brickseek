@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BrickFinder 乐高人仔雷达 - 极简搜索</title>
-    <link rel="stylesheet" href="style.css?v=3.0">
+    <link rel="stylesheet" href="style.css?v=3.1">
     <!-- FontAwesome is decorative; load it asynchronously so the first screen is not blocked by the CDN. -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -336,6 +336,34 @@
 
                 <!-- Right: Information & Shared Parts Panel -->
                 <div class="info-sidebar">
+                    <!-- Shared Parts Explorer Card -->
+                    <div class="glass-subcard shared-parts-card">
+                        <div class="shared-parts-header">
+                            <h4><i class="fas fa-project-diagram"></i> 共享零件分析</h4>
+                            <span class="current-selected-part" id="selected-part-name">当前零件: 点击上方人仔部件</span>
+                        </div>
+                        
+                        <div class="shared-results" id="shared-list-results">
+                            <div class="empty-shared-state">
+                                <div class="icon-wrapper">
+                                    <i class="fas fa-hand-point-left animate-pulse"></i>
+                                </div>
+                                <p>点击左侧人仔拼装区域的任意部件，即可透视查看与此角色共享该零件的其他乐高人仔！</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Compatible Weapons Card -->
+                    <div class="glass-subcard detail-weapons-card" id="detail-weapons-card" style="display: none;">
+                        <div class="weapons-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="margin: 0;"><i class="fas fa-shield-alt" style="color: var(--accent-color); margin-right: 8px;"></i> 角色适配武器与道具</h4>
+                            <span class="weapons-count-badge" id="weapons-count-badge" style="background: var(--accent-glow); color: var(--accent-color); font-size: 0.72rem; padding: 2px 8px; border-radius: 20px; font-weight: 700;">0</span>
+                        </div>
+                        <div class="weapons-grid" id="detail-weapons-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-height: 190px; overflow-y: auto; padding-right: 4px;">
+                            <!-- Dynamic weapons cards -->
+                        </div>
+                    </div>
+
                     <!-- General Details Card -->
                     <div class="glass-subcard detail-summary-card">
                         <h4>人仔基本档案</h4>
@@ -359,34 +387,6 @@
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
-
-                    <!-- Compatible Weapons Card -->
-                    <div class="glass-subcard detail-weapons-card" id="detail-weapons-card" style="display: none;">
-                        <div class="weapons-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                            <h4 style="margin: 0;"><i class="fas fa-shield-alt" style="color: var(--accent-color); margin-right: 8px;"></i> 角色适配武器与道具</h4>
-                            <span class="weapons-count-badge" id="weapons-count-badge" style="background: var(--accent-glow); color: var(--accent-color); font-size: 0.72rem; padding: 2px 8px; border-radius: 20px; font-weight: 700;">0</span>
-                        </div>
-                        <div class="weapons-grid" id="detail-weapons-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-height: 190px; overflow-y: auto; padding-right: 4px;">
-                            <!-- Dynamic weapons cards -->
-                        </div>
-                    </div>
-
-                    <!-- Shared Parts Explorer Card -->
-                    <div class="glass-subcard shared-parts-card">
-                        <div class="shared-parts-header">
-                            <h4><i class="fas fa-project-diagram"></i> 共享零件分析</h4>
-                            <span class="current-selected-part" id="selected-part-name">当前零件: 点击上方人仔部件</span>
-                        </div>
-                        
-                        <div class="shared-results" id="shared-list-results">
-                            <div class="empty-shared-state">
-                                <div class="icon-wrapper">
-                                    <i class="fas fa-hand-point-left animate-pulse"></i>
-                                </div>
-                                <p>点击左侧人仔拼装区域的任意部件，即可透视查看与此角色共享该零件的其他乐高人仔！</p>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -697,6 +697,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=3.0" defer></script>
+    <script src="app.js?v=3.1" defer></script>
 </body>
 </html>
