@@ -1862,14 +1862,14 @@ footer {
     align-content: center !important;
     gap: 12px !important;
     padding: 16px !important;
-    max-width: 180px !important;
+    max-width: 300px !important;
     margin: 0 auto !important;
 }
 
 .lego-figure-canvas.exploded .lego-part-layer {
     position: relative !important;
-    flex: 0 0 calc(50% - 6px) !important;
-    width: calc(50% - 6px) !important;
+    flex: 0 0 calc(25% - 9px) !important;
+    width: calc(25% - 9px) !important;
     height: 56px !important;
     opacity: 1 !important;
     visibility: visible !important;
@@ -3622,17 +3622,17 @@ footer {
     
     /* Exploded stage inside Detail Page */
     .lego-figure-canvas.exploded {
-        min-height: 180px !important;
+        min-height: 120px !important;
         height: auto !important;
         padding: 10px 0 !important;
         gap: 10px !important;
         overflow: visible !important;
-        max-width: 150px !important;
+        max-width: 250px !important;
         margin: 0 auto !important;
     }
     .lego-figure-canvas.exploded .lego-part-layer {
-        flex: 0 0 calc(50% - 5px) !important;
-        width: calc(50% - 5px) !important;
+        flex: 0 0 calc(25% - 7.5px) !important;
+        width: calc(25% - 7.5px) !important;
         height: 48px !important;
     }
     .lego-figure-canvas.exploded .lego-svg-holder {
@@ -4237,16 +4237,16 @@ footer {
     }
 
     .lego-figure-canvas.exploded {
-        max-width: 150px !important;
+        max-width: 250px !important;
         margin: 0 auto !important;
-        min-height: 180px !important;
+        min-height: 120px !important;
         padding: 10px 0 !important;
         gap: 10px !important;
     }
 
     .lego-figure-canvas.exploded .lego-part-layer {
-        flex: 0 0 calc(50% - 5px) !important;
-        width: calc(50% - 5px) !important;
+        flex: 0 0 calc(25% - 7.5px) !important;
+        width: calc(25% - 7.5px) !important;
         min-height: 48px !important;
         height: 48px !important;
     }
