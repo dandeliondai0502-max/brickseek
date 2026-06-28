@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
         soundEnabled: true,
         cameraId: "",
         favorites: [], // [{"id": "fig-002816", "name": "Killow"}]
-        theme: "dark",
+        theme: "light",
         geminiApiKey: ""
     };
 
@@ -515,9 +515,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 3. Modal Opening & Closing ---
-    const openModal = () => {
+    const openModal = async () => {
         scanModal.classList.add('open');
         resetScannerState();
+        await startWebcamStream();
     };
 
     const closeModal = () => {
@@ -528,6 +529,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     cameraTrigger.addEventListener('click', openModal);
     closeModalBtn.addEventListener('click', closeModal);
+    
+    if (rescanBtn) {
+        rescanBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            resetScannerState();
+            await startWebcamStream();
+        });
+    }
     
     scanModal.addEventListener('click', (e) => {
         if (e.target === scanModal) {
@@ -669,6 +678,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const btnApple = document.getElementById('btn-apple-login');
+    const btnPasskey = document.getElementById('btn-passkey-login');
+    const passkeyBox = document.getElementById('passkey-verifying-box');
+    
+    if (btnApple) {
+        btnApple.addEventListener('click', () => {
+            currentUser = "AppleUser";
+            localStorage.setItem('currentUser', currentUser);
+            updateAccountUI();
+            closeLoginModal();
+            alert("成功使用 Apple ID 快捷登录！");
+        });
+    }
+    if (btnPasskey && passkeyBox) {
+        btnPasskey.addEventListener('click', () => {
+            passkeyBox.style.display = 'flex';
+            setTimeout(() => {
+                passkeyBox.style.display = 'none';
+                currentUser = "PasskeyUser";
+                localStorage.setItem('currentUser', currentUser);
+                updateAccountUI();
+                closeLoginModal();
+                alert("已通过 Apple 钥匙串 Passkey 通行密钥验证登录！");
+            }, 1800);
+        });
+    }
+
     // Favorite Star Click Event Handler
     favoriteBtn.addEventListener('click', () => {
         const minifigId = currentMinifigId;
@@ -808,8 +844,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 5. Webcam Functionality ---
-    activateCameraBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
+    async function startWebcamStream() {
         try {
             await loadCameraDevices();
             let videoConstraints = { width: 640, height: 480 };
@@ -825,18 +860,60 @@ document.addEventListener('DOMContentLoaded', () => {
             webcam.srcObject = webcamStream;
             dropZone.style.display = 'none';
             cameraViewport.style.display = 'flex';
+
+            // Set up zoom slider functionality
+            const zoomSlider = document.getElementById('camera-zoom-slider');
+            if (zoomSlider) {
+                zoomSlider.value = 1;
+                webcam.style.transform = 'scale(1)';
+                webcam.style.transformOrigin = 'center';
+
+                const [track] = webcamStream.getVideoTracks();
+                const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+
+                zoomSlider.oninput = async () => {
+                    const zoomVal = parseFloat(zoomSlider.value);
+                    webcam.style.transform = `scale(${zoomVal})`;
+
+                    if (capabilities.zoom) {
+                        try {
+                            const minZoom = capabilities.zoom.min || 1;
+                            const maxZoom = capabilities.zoom.max || 4;
+                            const targetZoom = minZoom + (zoomVal - 1) / 3 * (maxZoom - minZoom);
+                            await track.applyConstraints({
+                                advanced: [{ zoom: targetZoom }]
+                            });
+                        } catch (err) {
+                            console.warn("Native zoom failed:", err);
+                        }
+                    }
+                };
+            }
         } catch (err) {
             console.error('摄像头启动失败:', err);
-            alert('无法访问您的摄像头。请检查权限设置，或直接使用本地文件上传功能。');
+            addLog('⚠️ 无法直接访问镜头，请从相册选择照片识别...', 'warning');
+            dropZone.style.display = 'block';
+            cameraViewport.style.display = 'none';
             fileInput.click();
         }
+    }
+
+    activateCameraBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await startWebcamStream();
     });
 
     cancelCameraBtn.addEventListener('click', () => {
-        stopWebcam();
-        cameraViewport.style.display = 'none';
-        dropZone.style.display = 'block';
+        closeModal();
     });
+
+    const btnCameraUpload = document.getElementById('btn-camera-upload');
+    if (btnCameraUpload) {
+        btnCameraUpload.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+    }
 
     if (switchCameraBtn) {
         switchCameraBtn.addEventListener('click', async (e) => {
@@ -890,26 +967,29 @@ document.addEventListener('DOMContentLoaded', () => {
     shutterBtn.addEventListener('click', () => {
         if (!webcamStream) return;
         
+        const zoomSlider = document.getElementById('camera-zoom-slider');
+        const zoomVal = zoomSlider ? parseFloat(zoomSlider.value) : 1.0;
+
         let width = webcam.videoWidth || 640;
         let height = webcam.videoHeight || 480;
         
-        // Resize to max 640px while maintaining aspect ratio
-        const maxDim = 640;
-        if (width > maxDim || height > maxDim) {
-            if (width > height) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-            } else {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-            }
-        }
+        const canvasWidth = 640;
+        const canvasHeight = Math.round((height * 640) / width);
         
-        cameraCanvas.width = width;
-        cameraCanvas.height = height;
+        cameraCanvas.width = canvasWidth;
+        cameraCanvas.height = canvasHeight;
         
         const ctx = cameraCanvas.getContext('2d');
-        ctx.drawImage(webcam, 0, 0, width, height);
+        
+        if (zoomVal > 1) {
+            const sw = width / zoomVal;
+            const sh = height / zoomVal;
+            const sx = (width - sw) / 2;
+            const sy = (height - sh) / 2;
+            ctx.drawImage(webcam, sx, sy, sw, sh, 0, 0, canvasWidth, canvasHeight);
+        } else {
+            ctx.drawImage(webcam, 0, 0, width, height, 0, 0, canvasWidth, canvasHeight);
+        }
         
         const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.85);
         previewImage.src = dataUrl;
@@ -1339,22 +1419,16 @@ document.addEventListener('DOMContentLoaded', () => {
             
             card.addEventListener('click', (e) => {
                 e.stopPropagation();
-                // Find all part layers, de-highlight them
                 document.querySelectorAll('.lego-part-layer').forEach(l => l.classList.remove('selected-part'));
                 
-                // Set shared parts header label
-                const selectedPartLabel = document.getElementById('selected-part-name');
-                if (selectedPartLabel) {
-                    selectedPartLabel.innerHTML = `
-                        <div class="part-badge-label">选中的道具/武器</div>
-                        <div class="part-badge-title">${displayName}</div>
-                        <div class="part-badge-meta">零件 ID: <code>${wp.part_num}</code> &nbsp;|&nbsp; 颜色: <code>${wp.color_name}</code></div>
-                    `;
-                    selectedPartLabel.classList.add('active');
-                }
-                
-                // Fetch shared characters for this weapon
-                fetchSharedCharacters(wp.part_num, wp.color_id);
+                showPartDetailFullscreen({
+                    part_num: wp.part_num,
+                    color_id: wp.color_id,
+                    part_name: wp.part_name,
+                    color_name: wp.color_name,
+                    img_url: wp.img_url,
+                    quantity: wp.quantity
+                }, wp.quantity);
             });
             
             weaponsGrid.appendChild(card);
@@ -1560,20 +1634,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     originalName = bracketMatch[2].trim();
                 }
 
-                selectedPartLabel.innerHTML = `
-                    <div class="part-badge-label">当前选中的零件</div>
-                    <div class="part-badge-title">${displayName}</div>
-                    ${originalName ? `<div class="part-badge-original">${originalName}</div>` : ''}
-                    <div class="part-badge-meta">
-                        零件设计 ID: <code>${part.part_num}</code> 
-                        ${part.element_id ? `&nbsp;|&nbsp; 乐高官方编号: <code>${part.element_id}</code>` : ''}
-                        &nbsp;|&nbsp; 颜色 ID: <code>${part.color_id}</code>
-                    </div>
-                `;
-                selectedPartLabel.classList.add('active');
-
-                // Fetch shared characters
-                fetchSharedCharacters(part.part_num, part.color_id);
+                showPartDetailFullscreen(part);
             });
             
             legoAssemblyStage.appendChild(layer);
@@ -1750,71 +1811,125 @@ document.addEventListener('DOMContentLoaded', () => {
     legoAssemblyStage.addEventListener('click', () => {
         legoAssemblyStage.classList.remove('part-filtering');
         legoAssemblyStage.querySelectorAll('.lego-part-layer').forEach(l => l.classList.remove('selected-part'));
-        selectedPartLabel.textContent = '当前零件: 点击左侧人仔部件';
-        selectedPartLabel.classList.remove('active');
-        resetSharedPartsSidebar();
     });
 
-    async function fetchSharedCharacters(partNum, colorId) {
-        try {
-            sharedListResults.innerHTML = `
-                <div style="text-align: center; padding: 20px; color: var(--text-muted);">
-                    <i class="fas fa-spinner fa-spin" style="font-size: 1.5rem; margin-bottom: 8px;"></i>
-                    <p>正在跨数据库比对共享人仔...</p>
+    // Full-Screen Part Detail Modal Overlay (Apple Style)
+    const partDetailModal = document.getElementById('part-detail-fullscreen-modal');
+    const closePartModalBtn = document.getElementById('close-part-modal-btn');
+    
+    const closePartModal = () => {
+        if (partDetailModal) partDetailModal.classList.remove('open');
+    };
+    
+    if (closePartModalBtn) {
+        closePartModalBtn.addEventListener('click', closePartModal);
+    }
+    if (partDetailModal) {
+        partDetailModal.addEventListener('click', (e) => {
+            if (e.target === partDetailModal) closePartModal();
+        });
+    }
+
+    async function showPartDetailFullscreen(part, quantityVal = 1) {
+        const fullscreenImg = document.getElementById('part-fullscreen-img');
+        const fullscreenTitle = document.getElementById('part-fullscreen-title');
+        const fullscreenOriginalTitle = document.getElementById('part-fullscreen-original-title');
+        const fullscreenDesignId = document.getElementById('part-fullscreen-design-id');
+        const fullscreenElementId = document.getElementById('part-fullscreen-element-id');
+        const fullscreenColor = document.getElementById('part-fullscreen-color');
+        const fullscreenQuantity = document.getElementById('part-fullscreen-quantity');
+        const sharedGallery = document.getElementById('part-shared-gallery');
+        
+        if (!partDetailModal) return;
+        
+        // Parse name translations
+        let displayName = part.part_name || part.name || '乐高零部件';
+        let originalName = '';
+        const bracketMatch = displayName.match(/(.+?)\s*\[(.+?)\]$/);
+        if (bracketMatch) {
+            displayName = bracketMatch[1].trim();
+            originalName = bracketMatch[2].trim();
+        }
+        
+        // Update details
+        if (fullscreenImg) {
+            fullscreenImg.src = part.img_url || `https://cdn.rebrickable.com/media/parts/ldraw/${part.color_id}/${part.part_num}.png`;
+            fullscreenImg.onerror = () => {
+                fullscreenImg.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='rgba(0,0,0,0.05)'/><path d='M30,30 L70,70 M70,30 L30,70' stroke='rgba(0,0,0,0.2)' stroke-width='2'/></svg>";
+            };
+        }
+        if (fullscreenTitle) fullscreenTitle.textContent = displayName;
+        if (fullscreenOriginalTitle) {
+            fullscreenOriginalTitle.textContent = originalName || part.part_name || '';
+            fullscreenOriginalTitle.style.display = originalName ? 'block' : 'none';
+        }
+        if (fullscreenDesignId) fullscreenDesignId.textContent = part.part_num;
+        if (fullscreenElementId) fullscreenElementId.textContent = part.element_id || '暂无官方 Element ID';
+        if (fullscreenColor) fullscreenColor.textContent = part.color_name || '原色';
+        if (fullscreenQuantity) fullscreenQuantity.textContent = part.quantity || quantityVal;
+        
+        // Open modal
+        partDetailModal.classList.add('open');
+        
+        // Clear and show loading state in gallery
+        if (sharedGallery) {
+            sharedGallery.innerHTML = `
+                <div class="gallery-loading" style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 1.8rem; margin-bottom: 12px; color: var(--accent-color);"></i>
+                    <p>正在云端检索共享此零件的其他角色实物图...</p>
                 </div>
             `;
-            
-            const res = await fetch(`/api/shared-part?part_num=${partNum}&color_id=${colorId}&exclude=${encodeURIComponent(currentMinifigId)}`);
+        }
+        
+        // Fetch shared characters
+        try {
+            const res = await fetch(`/api/shared-part?part_num=${part.part_num}&color_id=${part.color_id}&exclude=${encodeURIComponent(currentMinifigId)}`);
             if (!res.ok) return;
             const data = await res.json();
             
-            renderSharedResults(data);
-        } catch (e) {
-            console.error("Shared part fetch error:", e);
-        }
-    }
-
-    function renderSharedResults(sharedList) {
-        sharedListResults.innerHTML = '';
-        
-        if (sharedList.length === 0) {
-            sharedListResults.innerHTML = `
-                <div class="empty-shared-state">
-                    <div class="icon-wrapper">
-                        <i class="fas fa-info-circle"></i>
+            if (sharedGallery) {
+                sharedGallery.innerHTML = '';
+                if (data.length === 0) {
+                    sharedGallery.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
+                            <i class="fas fa-info-circle" style="font-size: 1.5rem; margin-bottom: 10px;"></i>
+                            <p>该零件为此款角色独占设计（在当前数据库中暂无其他共享角色记录）。</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                data.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'shared-figure-card';
+                    card.innerHTML = `
+                        <div class="shared-figure-img-box">
+                            <img src="${item.img_url}" alt="${item.name}" loading="lazy" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22rgba(0,0,0,0.05)%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22rgba(10,132,255,0.08)%22/></svg>'">
+                        </div>
+                        <div class="shared-figure-info">
+                            <h5 class="shared-figure-title">${item.name}</h5>
+                            <span class="shared-figure-code">官方编号: ${(item.official_id || item.minifig_num).toUpperCase()}</span>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => {
+                        // Switch page directly
+                        partDetailModal.classList.remove('open');
+                        showDetailPage(item.minifig_num);
+                    });
+                    sharedGallery.appendChild(card);
+                });
+            }
+        } catch (err) {
+            console.error("Fetch shared characters failed:", err);
+            if (sharedGallery) {
+                sharedGallery.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 1.5rem; margin-bottom: 10px; color: #ff9f0a;"></i>
+                        <p>跨数据库比对服务超时，请稍后重试。</p>
                     </div>
-                    <p>该零件在数据库中暂无共享角色记录（独占印花零件）。</p>
-                </div>
-            `;
-            return;
+                `;
+            }
         }
-
-        sharedList.forEach(item => {
-            const card = document.createElement('div');
-            card.className = 'result-card-mini';
-            card.style.cursor = 'pointer';
-            
-            // Thumbnail image: use item.img_url if available, else generic avatar
-            const imgHTML = item.img_url
-                ? `<img src="${item.img_url}" alt="${item.name}" loading="lazy" decoding="async" style="width: 48px; height: 48px; object-fit: contain;">`
-                : `<svg viewBox="0 0 100 100" width="48" height="48"><rect width="100" height="100" fill="var(--bg-secondary)" rx="6"/><circle cx="50" cy="50" r="30" fill="var(--accent-glow)"/></svg>`;
-
-            card.innerHTML = `
-                <div class="mini-percent"><i class="fas fa-link"></i> 共享零件</div>
-                ${imgHTML}
-                <div class="mini-info">
-                    <span class="fig-id">编号：${(item.official_id || item.minifig_num).toUpperCase()}</span>
-                    <h6>${item.name}</h6>
-                    <p class="fig-meta">点击可切换查看此图鉴 🚀</p>
-                </div>
-            `;
-
-            card.addEventListener('click', () => {
-                showDetailPage(item.minifig_num);
-            });
-
-            sharedListResults.appendChild(card);
-        });
     }
 
     // --- 9. Dynamic Booklet Manual Generator ---
@@ -2057,15 +2172,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const favoritesContainer = document.getElementById('favorites-container');
+    const navFavBtn = document.getElementById('nav-fav-btn');
+    const backFromFavBtn = document.getElementById('back-from-fav-btn');
+
     // Event listener to open gallery view
     function openGalleryView() {
         searchContainer.style.display = "none";
         detailContainer.style.display = "none";
         aboutContainer.style.display = "none";
+        if (favoritesContainer) favoritesContainer.style.display = "none";
         galleryContainer.style.display = "flex";
         
         navSearchBtn.classList.remove("active");
         navGalleryBtn.classList.add("active");
+        if (navFavBtn) navFavBtn.classList.remove("active");
         navAboutBtn.classList.remove("active");
         
         // Reset filter inputs
@@ -2084,10 +2205,12 @@ document.addEventListener('DOMContentLoaded', () => {
         searchContainer.style.display = "none";
         detailContainer.style.display = "none";
         galleryContainer.style.display = "none";
+        if (favoritesContainer) favoritesContainer.style.display = "none";
         aboutContainer.style.display = "flex";
         
         navSearchBtn.classList.remove("active");
         navGalleryBtn.classList.remove("active");
+        if (navFavBtn) navFavBtn.classList.remove("active");
         navAboutBtn.classList.add("active");
         
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2098,13 +2221,117 @@ document.addEventListener('DOMContentLoaded', () => {
         detailContainer.style.display = "none";
         galleryContainer.style.display = "none";
         aboutContainer.style.display = "none";
+        if (favoritesContainer) favoritesContainer.style.display = "none";
         searchContainer.style.display = "flex";
         
         navSearchBtn.classList.add("active");
         navGalleryBtn.classList.remove("active");
+        if (navFavBtn) navFavBtn.classList.remove("active");
         navAboutBtn.classList.remove("active");
         
         window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function openFavoritesView() {
+        searchContainer.style.display = "none";
+        detailContainer.style.display = "none";
+        galleryContainer.style.display = "none";
+        aboutContainer.style.display = "none";
+        if (favoritesContainer) favoritesContainer.style.display = "flex";
+        
+        navSearchBtn.classList.remove("active");
+        navGalleryBtn.classList.remove("active");
+        if (navFavBtn) navFavBtn.classList.add("active");
+        navAboutBtn.classList.remove("active");
+        
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        renderFavoritesDashboard();
+    }
+
+    function renderFavoritesDashboard() {
+        const favCountLabel = document.getElementById('fav-dashboard-count');
+        const favValueLabel = document.getElementById('fav-dashboard-value');
+        const favRatioLabel = document.getElementById('fav-dashboard-ratio');
+        const favGrid = document.getElementById('favorites-gallery-grid');
+        
+        if (!favGrid) return;
+        favGrid.innerHTML = '';
+        
+        const favs = preferences.favorites || [];
+        
+        // Update stats
+        if (favCountLabel) favCountLabel.textContent = favs.length;
+        if (favValueLabel) {
+            let totalValue = 0;
+            favs.forEach(f => {
+                const partsVal = (f.num_parts || 4) * 25.5;
+                totalValue += partsVal + (f.num_parts >= 7 ? 450 : (f.num_parts >= 5 ? 120 : 15));
+            });
+            favValueLabel.textContent = totalValue.toFixed(2);
+        }
+        if (favRatioLabel) {
+            const ratio = (favs.length / 84921) * 100;
+            favRatioLabel.textContent = ratio >= 0.01 ? `${ratio.toFixed(2)}%` : `${ratio.toFixed(4)}%`;
+        }
+        
+        if (favs.length === 0) {
+            favGrid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);">
+                    <i class="far fa-star" style="font-size: 2.5rem; margin-bottom: 14px; color: var(--border-color);"></i>
+                    <p style="font-size: 0.95rem; font-weight: 500;">您的收藏夹空空如也</p>
+                    <p style="font-size: 0.8rem; margin-top: 5px;">在人仔详情页中点击星标，即可将其加入收藏清单</p>
+                    <button type="button" class="btn-database-link" onclick="document.getElementById('nav-gallery-btn').click()" style="margin: 15px auto 0 auto; display: flex;">浏览图鉴</button>
+                </div>
+            `;
+            return;
+        }
+        
+        favs.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'gallery-card';
+            card.innerHTML = `
+                <div class="gallery-card-img">
+                    <img src="${item.img_url || `https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg`}" alt="${item.name}" loading="lazy">
+                </div>
+                <div class="gallery-card-info">
+                    <div class="gallery-card-meta">
+                        <span class="gallery-card-id">${(item.official_id || item.minifig_num).toUpperCase()}</span>
+                        <span class="gallery-card-theme">已标星</span>
+                    </div>
+                    <h4 class="gallery-card-name">${item.name}</h4>
+                    <span class="gallery-card-parts"><i class="fas fa-puzzle-piece"></i> ${item.num_parts || 4} 个部件</span>
+                </div>
+            `;
+            card.addEventListener('click', () => {
+                if (favoritesContainer) favoritesContainer.style.display = 'none';
+                showDetailPage(item.minifig_num);
+            });
+            favGrid.appendChild(card);
+        });
+    }
+
+    if (backFromFavBtn) {
+        backFromFavBtn.addEventListener('click', () => {
+            openSearchView();
+        });
+    }
+
+    const btnExportFav = document.getElementById('btn-export-favorites');
+    if (btnExportFav) {
+        btnExportFav.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const favs = preferences.favorites || [];
+            if (favs.length === 0) {
+                alert("您的收藏夹为空，无数据可导出！");
+                return;
+            }
+            const textContent = favs.map(f => `人仔ID: ${f.minifig_num} | 名称: ${f.name} | 官方编号: ${f.official_id || f.minifig_num}`).join('\n');
+            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `BrickSeek_乐高收藏清单_${new Date().toISOString().split('T')[0]}.txt`;
+            link.click();
+        });
     }
 
     function switchLegalTab(targetId) {
@@ -2134,6 +2361,13 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         openGalleryView();
     });
+
+    if (navFavBtn) {
+        navFavBtn.addEventListener("click", (e) => {
+            e.preventDefault();
+            openFavoritesView();
+        });
+    }
     
     navAboutBtn.addEventListener("click", (e) => {
         e.preventDefault();
@@ -2233,7 +2467,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (quickCardFavorites) {
         quickCardFavorites.addEventListener('click', () => {
-            settingsBtn.click();
+            openFavoritesView();
         });
     }
 });

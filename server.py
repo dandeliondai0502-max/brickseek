@@ -760,11 +760,17 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
     def api_scan_image(self, conn, body):
         import urllib.request
         import urllib.error
+        import base64
+        import uuid
+        import io
+        from PIL import Image
         
         base64_image = body.get("image", "").strip()
         target_color = body.get("color", "ffffff").strip().lower()
         api_key = body.get("api_key", "").strip()
-        
+        if not api_key:
+            api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+            
         if not base64_image:
             self.send_json_response({
                 "error": "INVALID_IMAGE",
@@ -772,7 +778,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             }, status=400)
             return
 
-        # 2. Extract mime type and raw base64 data
+        # Extract mime type and raw base64 data
         mime_type = "image/jpeg"
         image_data = base64_image
         if "," in base64_image:
@@ -783,63 +789,54 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 mime_type = "image/webp"
             elif "image/gif" in header:
                 mime_type = "image/gif"
-                
-        # Try calling Brickognize first
-        try:
-            import base64
-            import uuid
-            
-            raw_image_bytes = base64.b64decode(image_data)
-            boundary = f"Boundary-{uuid.uuid4().hex}"
-            
-            # Construct multipart form-data body
-            body_parts = []
-            body_parts.append(f"--{boundary}".encode('utf-8'))
-            body_parts.append(f'Content-Disposition: form-data; name="query_image"; filename="image.jpg"'.encode('utf-8'))
-            body_parts.append(f'Content-Type: {mime_type}'.encode('utf-8'))
-            body_parts.append(b'')
-            body_parts.append(raw_image_bytes)
-            body_parts.append(f"--{boundary}--".encode('utf-8'))
-            body_parts.append(b'')
-            body_bytes = b'\r\n'.join(body_parts)
-            
-            brickognize_url = "https://api.brickognize.com/predict/"
-            req = urllib.request.Request(
-                brickognize_url,
-                data=body_bytes,
-                headers={
-                    'Content-Type': f'multipart/form-data; boundary={boundary}',
-                    'Accept': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                },
-                method='POST'
-            )
-            
-            print("Calling Brickognize predict API...")
-            # Set a moderate timeout (6 seconds) to prevent hanging
-            with urllib.request.urlopen(req, timeout=6) as response:
-                res_body = json.loads(response.read().decode('utf-8'))
-                
-            brick_items = res_body.get("items", [])
+
+        # Helper function to call Brickognize Predict API
+        def call_brickognize(img_b64, m_type):
+            try:
+                raw_bytes = base64.b64decode(img_b64)
+                bound = f"Boundary-{uuid.uuid4().hex}"
+                body_parts = [
+                    f"--{bound}".encode('utf-8'),
+                    f'Content-Disposition: form-data; name="query_image"; filename="image.jpg"'.encode('utf-8'),
+                    f'Content-Type: {m_type}'.encode('utf-8'),
+                    b'',
+                    raw_bytes,
+                    f"--{bound}--".encode('utf-8'),
+                    b''
+                ]
+                req_bytes = b'\r\n'.join(body_parts)
+                req = urllib.request.Request(
+                    "https://api.brickognize.com/predict/",
+                    data=req_bytes,
+                    headers={
+                        'Content-Type': f'multipart/form-data; boundary={bound}',
+                        'Accept': 'application/json',
+                        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    },
+                    method='POST'
+                )
+                with urllib.request.urlopen(req, timeout=8) as response:
+                    res = json.loads(response.read().decode('utf-8'))
+                return res.get("items", [])
+            except Exception as ex:
+                print(f"Brickognize API call failed: {ex}")
+                return []
+
+        # Helper to lookup candidates in database
+        def lookup_candidates(brick_items):
             matched_figs = []
             cursor = conn.cursor()
-            
             for item in brick_items:
                 itype = str(item.get("type", "")).strip().lower()
                 if itype in ("fig", "minifig") or item.get("id", "").startswith("fig-"):
-                    candidates = set()
-                    candidates.add(item.get("id", "").strip().lower())
-                    
-                    # Also extract from external sites
+                    candidates = {item.get("id", "").strip().lower()}
                     for ext in item.get("external_sites", []):
                         url = ext.get("url", "")
-                        # 1. Parse BrickLink ID (M parameter)
                         if "bricklink.com/" in url and ("?M=" in url or "&M=" in url or "?m=" in url or "&m=" in url):
                             import re
                             match = re.search(r'[?&][Mm]=([^&#]+)', url)
                             if match:
                                 candidates.add(match.group(1).strip().lower())
-                        # 2. Parse Rebrickable ID
                         if "rebrickable.com/minifigs/" in url:
                             parts = url.split("minifigs/")
                             if len(parts) > 1:
@@ -847,7 +844,6 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                                 if sub:
                                     candidates.add(sub.strip().lower())
                                     
-                    # Query candidates in our local database
                     found_direct = False
                     for cand in candidates:
                         if not cand:
@@ -866,7 +862,6 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                             })
                             found_direct = True
                             
-                    # If not found directly, do a fuzzy name match
                     if not found_direct and item.get("name"):
                         matched_row, match_score = fuzzy_match_minifig(conn, item["name"])
                         if matched_row and match_score >= 0.5:
@@ -878,206 +873,202 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                                 "score": item.get("score", 0.9),
                                 "official_id": MINIFIG_ID_MAP.get(matched_row["minifig_num"], matched_row["minifig_num"])
                             })
-                            
-            if matched_figs:
-                # Deduplicate matches
-                seen = set()
-                unique_matches = []
-                for fig in matched_figs:
-                    if fig["minifig_num"] not in seen:
-                        seen.add(fig["minifig_num"])
-                        unique_matches.append(fig)
-                        
-                # Sort unique matches by score descending
-                unique_matches.sort(key=lambda x: x.get("score", 0), reverse=True)
-                top_matches = unique_matches[:3]
-                
-                # Translate names for top matches
-                for fig in top_matches:
-                    fig["name"] = translate_to_zh(fig["name"])
-                    
-                self.send_json_response({
-                    "description": f"已通过 Brickognize 智能引擎精准比对，匹配置信度 {(top_matches[0]['score']*100):.1f}%",
-                    "results": top_matches
-                })
-                print(f"Brickognize successfully identified minifigure: {[f['minifig_num'] for f in top_matches]}")
-                return
-                
-            print("Brickognize succeeded but returned no matching minifigures in local database. Falling back to Gemini...")
-        except Exception as e:
-            print(f"Brickognize API call failed or timed out (error: {str(e)}). Falling back to Gemini...")
-            
-        # 3. Call Gemini API
-        if not api_key:
-            print("Gemini API key is missing. Falling back to traditional color distance search...")
-            params = {"color": [target_color], "query": [""]}
-            color_matches = self.api_scan(conn, params)
-            self.send_json_response({
-                "description": "⚠️ 图像未能通过 Brickognize 引擎精确匹配，已为您推荐颜色最相近的经典人仔。",
-                "results": color_matches
-            })
-            return
-            
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            return matched_figs
+
+        # STEP 1: Attempt standard Brickognize scanning on original image
+        brick_items = call_brickognize(image_data, mime_type)
+        first_round_matches = lookup_candidates(brick_items)
         
-        prompt = (
-            "Analyze the Lego minifigure in the image and extract its visual attributes to match a database name.\n"
-            "1. Identify the character name (e.g. 'Darth Vader', 'Luke Skywalker', 'Iron Man', 'Boba Fett').\n"
-            "2. Identify unique features shown in the image, such as:\n"
-            "   - Skin color (e.g., 'Yellow', 'Light Nougat', 'White').\n"
-            "   - Helmet/Hair color and type (e.g., 'Chrome Black', 'Gold Helmet', 'Brown Hair').\n"
-            "   - Specific suit/armor printing details (e.g., 'Imperial Inspection', 'Quantum Suit', 'Oni Mask', 'Printed Arms').\n"
-            "   - Key accessories (e.g., 'Cape', 'Lightsaber', 'Pauldrons', 'Visor').\n"
-            "3. Output 5-8 specific keywords in English. The first 1-2 keywords must be the character name. The other keywords must be the specific distinguishing features (e.g., 'chrome', 'nougat', 'printed legs').\n"
-            "4. Provide a brief description of the minifigure in Chinese (within 60 characters) describing who it is and its key visual features.\n"
-            "Return the output STRICTLY in JSON format matching this schema:\n"
-            "{\n"
-            "  \"description\": \"Chinese description here\",\n"
-            "  \"keywords\": [\"keyword1\", \"keyword2\", ...]\n"
-            "}"
-        )
-        
-        payload = {
-            "contents": [{
-                "parts": [
-                    {"text": prompt},
-                    {
-                        "inlineData": {
-                            "mimeType": mime_type,
-                            "data": image_data
-                        }
-                    }
-                ]
-            }],
-            "generationConfig": {
-                "responseMimeType": "application/json"
-            }
-        }
-        
-        try:
-            req = urllib.request.Request(
-                gemini_url,
-                data=json.dumps(payload).encode('utf-8'),
-                headers={'Content-Type': 'application/json'},
-                method='POST'
+        has_high_confidence = False
+        if first_round_matches:
+            first_round_matches.sort(key=lambda x: x.get("score", 0), reverse=True)
+            if first_round_matches[0].get("score", 0) >= 0.85:
+                has_high_confidence = True
+
+        # STEP 2: If low confidence or no matches, use Gemini to detect bounding box, crop & retry!
+        cropped_image_data = None
+        gemini_box = None
+        gemini_keywords = []
+        ai_desc = ""
+
+        if not has_high_confidence and api_key:
+            print("Confidence is low or no matches found. Initiating Gemini crop & retry sequence...")
+            # We call Gemini to find the bounding box
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            prompt = (
+                "Analyze the Lego minifigure (or Lego part) in this image. We need to crop it to improve matching.\n"
+                "1. Detect the bounding box of the main LEGO minifigure (or prominent LEGO part/piece). Return coordinates as [ymin, xmin, ymax, xmax] normalized on a 0-1000 scale.\n"
+                "2. Provide 3-6 English keywords describing its visual attributes (e.g. torso prints, helmet color, legs).\n"
+                "3. Provide a brief description of the minifigure in Chinese (within 60 characters) describing who/what it is.\n"
+                "Return STRICTLY JSON format:\n"
+                "{\n"
+                "  \"box\": [ymin, xmin, ymax, xmax],\n"
+                "  \"keywords\": [\"keyword1\", \"keyword2\", ...],\n"
+                "  \"description\": \"Chinese description\"\n"
+                "}"
             )
-            with urllib.request.urlopen(req, timeout=20) as response:
-                res_body = json.loads(response.read().decode('utf-8'))
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {"text": prompt},
+                        {"inlineData": {"mimeType": mime_type, "data": image_data}}
+                    ]
+                }],
+                "generationConfig": {"responseMimeType": "application/json"}
+            }
+            try:
+                req = urllib.request.Request(
+                    gemini_url,
+                    data=json.dumps(payload).encode('utf-8'),
+                    headers={'Content-Type': 'application/json'},
+                    method='POST'
+                )
+                with urllib.request.urlopen(req, timeout=15) as response:
+                    res_body = json.loads(response.read().decode('utf-8'))
                 
-            # Parse text response from Gemini
-            text_response = res_body["candidates"][0]["content"]["parts"][0]["text"].strip()
-            
-            # Clean markdown JSON wrapping if present
-            if text_response.startswith("```json"):
-                text_response = text_response[7:]
-            if text_response.endswith("```"):
-                text_response = text_response[:-3]
-            text_response = text_response.strip()
-            
-            ai_data = json.loads(text_response)
-            ai_desc = ai_data.get("description", "智能分析成功")
-            keywords = ai_data.get("keywords", [])
-            
-        except Exception as e:
-            print(f"Gemini API call failed (error: {str(e)}). Falling back to traditional color distance search...")
-            params = {"color": [target_color], "query": [""]}
-            color_matches = self.api_scan(conn, params)
+                text_resp = res_body["candidates"][0]["content"]["parts"][0]["text"].strip()
+                if text_resp.startswith("```json"):
+                    text_resp = text_resp[7:]
+                if text_resp.endswith("```"):
+                    text_resp = text_resp[:-3]
+                text_resp = text_resp.strip()
+                
+                ai_data = json.loads(text_resp)
+                gemini_box = ai_data.get("box")
+                gemini_keywords = ai_data.get("keywords", [])
+                ai_desc = ai_data.get("description", "")
+                
+                if gemini_box and len(gemini_box) == 4:
+                    # Perform image crop using Pillow
+                    try:
+                        raw_bytes = base64.b64decode(image_data)
+                        img = Image.open(io.BytesIO(raw_bytes))
+                        width, height = img.size
+                        ymin, xmin, ymax, xmax = gemini_box
+                        
+                        # Convert to absolute pixels
+                        left = int(xmin * width / 1000.0)
+                        top = int(ymin * height / 1000.0)
+                        right = int(xmax * width / 1000.0)
+                        bottom = int(ymax * height / 1000.0)
+                        
+                        # Apply 15% padding
+                        w_pad = int((right - left) * 0.15)
+                        h_pad = int((bottom - top) * 0.15)
+                        
+                        left = max(0, left - w_pad)
+                        top = max(0, top - h_pad)
+                        right = min(width, right + w_pad)
+                        bottom = min(height, bottom + h_pad)
+                        
+                        if right > left and bottom > top:
+                            cropped_img = img.crop((left, top, right, bottom))
+                            # Resize 1.5x for higher detail matching resolution
+                            cropped_img = cropped_img.resize(
+                                (int((right - left) * 1.5), int((bottom - top) * 1.5)), 
+                                Image.Resampling.LANCZOS
+                            )
+                            buffered = io.BytesIO()
+                            cropped_img.save(buffered, format="JPEG", quality=85)
+                            cropped_image_data = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                            print("Successfully cropped and zoomed image using Gemini coordinates.")
+                    except Exception as crop_err:
+                        print(f"PIL Image cropping failed: {crop_err}")
+            except Exception as gemini_err:
+                print(f"Gemini coordinate extraction failed: {gemini_err}")
+
+        # STEP 3: If we have a cropped image, perform a second-round Brickognize match
+        second_round_matches = []
+        if cropped_image_data:
+            brick_items_retry = call_brickognize(cropped_image_data, "image/jpeg")
+            second_round_matches = lookup_candidates(brick_items_retry)
+            if second_round_matches:
+                print(f"Second-round match succeeded! Found {len(second_round_matches)} candidate figures.")
+
+        # Combine results from both rounds
+        all_matches = []
+        seen = set()
+        
+        # Prioritize second-round cropped matches, as they are cleaner
+        for fig in (second_round_matches + first_round_matches):
+            if fig["minifig_num"] not in seen:
+                seen.add(fig["minifig_num"])
+                all_matches.append(fig)
+
+        # STEP 4: Call Gemini for final visual confirmation and Chinese report if we have matches but no AI description
+        if all_matches and api_key and not ai_desc:
+            try:
+                gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+                best_match_name = all_matches[0]["name"]
+                prompt = (
+                    f"We matched this LEGO image with candidate character: '{best_match_name}'.\n"
+                    "Provide a brief description of the minifigure in Chinese (within 60 characters) describing who it is and its key visual features.\n"
+                    "Return STRICTLY JSON format:\n"
+                    "{\n"
+                    "  \"description\": \"Chinese description\"\n"
+                    "}"
+                )
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt},
+                            {"inlineData": {"mimeType": mime_type, "data": image_data}}
+                        ]
+                    }],
+                    "generationConfig": {"responseMimeType": "application/json"}
+                }
+                req = urllib.request.Request(
+                    gemini_url,
+                    data=json.dumps(payload).encode('utf-8'),
+                    headers={'Content-Type': 'application/json'},
+                    method='POST'
+                )
+                with urllib.request.urlopen(req, timeout=8) as response:
+                    res_body = json.loads(response.read().decode('utf-8'))
+                
+                text_resp = res_body["candidates"][0]["content"]["parts"][0]["text"].strip()
+                if text_resp.startswith("```json"):
+                    text_resp = text_resp[7:]
+                if text_resp.endswith("```"):
+                    text_resp = text_resp[:-3]
+                text_resp = text_resp.strip()
+                
+                ai_desc = json.loads(text_resp).get("description", "")
+            except Exception as desc_err:
+                print(f"Gemini confirmation report failed: {desc_err}")
+
+        # Translate names for top matches
+        top_matches = all_matches[:3]
+        for fig in top_matches:
+            fig["name"] = translate_to_zh(fig["name"])
+
+        # If any matches are found, return them!
+        if top_matches:
+            if not ai_desc:
+                ai_desc = f"已通过双通道智能影像识别，匹配置信度 {(top_matches[0].get('score', 0.9)*100):.1f}%"
+                if second_round_matches:
+                    ai_desc += "（触发 Gemini 精细裁切识别）"
             self.send_json_response({
-                "description": "⚠️ 图像识别大模型暂时不可用，已为您推荐颜色最相近的经典人仔。",
-                "results": color_matches
+                "description": ai_desc,
+                "results": top_matches
             })
             return
 
-        # 4. Search and score minifigures based on keywords and color distance
-        cursor = conn.cursor()
+        # STEP 5: Graceful Fallback if still no matches found
+        print("Dual-pipeline returned no matches in database. Falling back to traditional color distance match...")
+        params = {"color": [target_color], "query": [""]}
+        color_matches = self.api_scan(conn, params)
         
-        # Clean keywords
-        keywords = [k.lower().strip() for k in keywords if k.strip()]
-        
-        # Fetch all candidate minifigures
-        sql = """
-            SELECT m.minifig_num, m.name AS minifig_name, m.num_parts, c.rgb
-            FROM minifigs m
-            JOIN inventories i ON m.minifig_num = i.set_num
-            JOIN inventory_parts ip ON i.id = ip.inventory_id
-            JOIN colors c ON ip.color_id = c.id
-            WHERE m.num_parts BETWEEN 3 AND 12
-              AND m.minifig_num LIKE 'fig-%'
-              AND LOWER(m.name) NOT LIKE '%keychain%'
-              AND LOWER(m.name) NOT LIKE '%magnet%'
-              AND LOWER(m.name) NOT LIKE '%watch%'
-              AND LOWER(m.name) NOT LIKE '%clock%'
-              AND LOWER(m.name) NOT LIKE '%book%'
-              AND LOWER(m.name) NOT LIKE '%sticker%'
-              AND LOWER(m.name) NOT LIKE '%card%'
-              AND LOWER(m.name) NOT LIKE '%pen%'
-              AND LOWER(m.name) NOT LIKE '%torch%'
-        """
-        rows = self.get_scan_candidate_rows(conn)
-        
-        minifigs = {}
-        for row in rows:
-            num = row["minifig_num"]
-            if num not in minifigs:
-                minifigs[num] = {
-                    "minifig_num": num,
-                    "name": row["minifig_name"], # Keep original English name for matching
-                    "num_parts": row["num_parts"],
-                    "colors": [],
-                    "img_url": f"https://cdn.rebrickable.com/media/sets/{num}.jpg"
-                }
-            rgb = row["rgb"]
-            if rgb:
-                minifigs[num]["colors"].append(rgb.lower())
-                
-        # Parse target RGB
-        try:
-            tr = int(target_color[0:2], 16)
-            tg = int(target_color[2:4], 16)
-            tb = int(target_color[4:6], 16)
-        except:
-            tr, tg, tb = 255, 255, 255
-            
-        matches = []
-        for num, fig in minifigs.items():
-            name_lower = fig["name"].lower()
-            num_lower = fig["minifig_num"].lower()
-            
-            # Score keyword matches
-            query_score = 0
-            for kw in keywords:
-                if kw in name_lower or kw in num_lower:
-                    query_score += 1000000
-                    
-            # Color matching score
-            min_color_dist = 3 * (255**2)
-            for color_hex in fig["colors"]:
-                try:
-                    cr = int(color_hex[0:2], 16)
-                    cg = int(color_hex[2:4], 16)
-                    cb = int(color_hex[4:6], 16)
-                    dist = (tr - cr)**2 + (tg - cg)**2 + (tb - cb)**2
-                    if dist < min_color_dist:
-                        min_color_dist = dist
-                except:
-                    continue
-                    
-            total_dist = min_color_dist - query_score
-            matches.append((total_dist, fig))
-            
-        matches.sort(key=lambda x: x[0])
-        
-        # Take top 3 and translate their names
-        top_matches = []
-        for m in matches[:3]:
-            fig = m[1]
-            fig["name"] = translate_to_zh(fig["name"])
-            top_matches.append(fig)
-        
-        return {
-            "description": ai_desc,
-            "results": top_matches
-        }
+        # Extract keywords to construct an AI-fallback description if keywords exist
+        if gemini_keywords:
+            fallback_desc = f"⚠️ 图像未能精准匹配，为您推荐与视觉特征 {' '.join(gemini_keywords[:3])} 及主色相近的经典人仔。"
+        else:
+            fallback_desc = "⚠️ 图像未能精准匹配，已为您推荐主颜色最相近的经典乐高人仔。"
+
+        self.send_json_response({
+            "description": fallback_desc,
+            "results": color_matches
+        })
 
     def api_minifig_details(self, conn, params):
         minifig_id = params.get("id", [""])[0].strip()

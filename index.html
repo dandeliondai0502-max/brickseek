@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BrickFinder 乐高人仔雷达 - 极简搜索</title>
-    <link rel="stylesheet" href="style.css?v=3.2">
+    <link rel="stylesheet" href="style.css?v=3.3">
     <!-- FontAwesome is decorative; load it asynchronously so the first screen is not blocked by the CDN. -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
 </head>
-<body class="dark-theme">
+<body class="light-theme">
     <!-- Background Grid Effect -->
     <div class="bg-grid"></div>
     <div class="bg-glow"></div>
@@ -18,8 +18,9 @@
     <!-- Header Navigation -->
     <header>
         <div class="header-left">
-            <a href="#" class="nav-link active" id="nav-search-btn">雷达搜索</a>
+            <a href="#" class="nav-link" id="nav-search-btn">雷达搜索</a>
             <a href="#" class="nav-link" id="nav-gallery-btn">人仔图鉴</a>
+            <a href="#" class="nav-link" id="nav-fav-btn">我的收藏</a>
             <a href="#" class="nav-link" id="nav-about-btn">关于</a>
         </div>
         <div class="header-right">
@@ -217,14 +218,14 @@
         </div>
 
         <!-- About & Legal Page Container -->
-        <div class="about-container" id="about-container" style="display: none;">
-            <div class="about-header">
+        <div class="about-container" id="about-container" style="display: none; width: 100%; max-width: 1000px; flex-direction: column; gap: 30px;">
+            <div class="gallery-header">
                 <button type="button" class="btn-back" id="back-from-about-btn">
                     <i class="fas fa-arrow-left"></i> 返回搜索
                 </button>
-                <div class="about-title-box">
-                    <h2><i class="fas fa-info-circle"></i> 关于 BrickSeek</h2>
-                    <p>了解人仔雷达探测系统的技术构想、服务条款与隐私保障</p>
+                <div class="gallery-title-box">
+                    <h2><i class="fas fa-info-circle"></i> 关于人仔雷达</h2>
+                    <p>了解系统技术、核心算法、服务条款与隐私保障声明</p>
                 </div>
             </div>
 
@@ -232,59 +233,109 @@
                 <!-- Left: Tech info & story -->
                 <div class="about-card main-about-card">
                     <div class="about-logo-hero" style="text-align: center; margin-bottom: 20px;">
-                        <i class="fas fa-cubes about-hero-icon" style="font-size: 3rem; color: var(--accent-color); margin-bottom: 10px; display: inline-block;"></i>
-                        <h3 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary);">BrickSeek v1.2</h3>
-                        <span class="version-badge" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: var(--accent-glow); color: var(--accent-color); font-weight: 700;">极客探索版</span>
+                        <i class="fas fa-microchip about-hero-icon" style="font-size: 3rem; color: var(--accent-color); margin-bottom: 10px; display: inline-block;"></i>
+                        <h3 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary);">BrickSeek 智能核心 v2.0</h3>
+                        <span class="version-badge" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 6px; background: rgba(10, 132, 255, 0.1); color: var(--accent-color); font-weight: 700;">苹果美学视觉架构</span>
                     </div>
                     <div class="about-rich-text" style="font-size: 0.92rem; line-height: 1.6; color: var(--text-secondary); display: flex; flex-direction: column; gap: 12px;">
-                        <p><strong>BrickSeek</strong> 是一款为广大乐高爱好者和收藏家打造的极客级乐高人仔探索与百科系统。</p>
-                        <p>我们致力于通过前沿的数字化技术重塑实体积木的拼装乐趣。系统融合了以下核心模块：</p>
+                        <p><strong>BrickSeek 乐高人仔雷达</strong>是由乐高极客社群发起的一款数字化百科探测系统。我们整合了前沿的智能软硬件加速能力：</p>
                         <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
-                            <li><i class="fas fa-palette" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>色彩量化匹配</strong>：实时量化提取照片主色调，进行色彩欧式距离计算识别。</li>
-                            <li><i class="fas fa-database" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>SQLite 百科图谱</strong>：联查人仔与零件共享网络，提供同款零件秒级数据检索。</li>
-                            <li><i class="fas fa-expand-arrows-alt" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>3D 爆炸图装配</strong>：利用 CSS 3D 轴向坐标拉伸发射模拟高保真爆炸图分解与自动组装。</li>
+                            <li><i class="fas fa-camera-retro" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>变焦 WebRTC 采集</strong>：支持原生摄像头缩放与 CSS 视网膜数码变焦，配有经典的乐高标准人仔虚线网格，辅助用户轻松对焦。</li>
+                            <li><i class="fas fa-crop" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>Gemini 双通道裁剪比对</strong>：当首轮匹配度较低或用户只拍了零件局部，AI 视觉大模型会自动标记人仔轮廓坐标，由 Pillow 模块执行实时剪裁放大二次检索，识别率跃升。</li>
+                            <li><i class="fas fa-database" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>图谱关联百科</strong>：后端联查 84,921 款人仔与数十万核心零件关系网，点击任一零件可瞬间获取全图鉴共享人仔的实物画廊。</li>
                         </ul>
-                        <p style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 12px; font-size: 0.85rem; color: var(--text-muted);">本系统所有数据来自 Rebrickable 开放社群数据库，仅作非商业的个人技术学习交流使用。所有乐高相关的商标及版权均属于乐高集团（The LEGO Group）。</p>
+                        <p style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 12px; font-size: 0.85rem; color: var(--text-muted);">免责声明：本系统为非盈利性质的扇子开发项目。所有的乐高积木、人仔及相关设计商标的所有权均归属于乐高集团（The LEGO Group）。本系统不与乐高集团产生官方绑定。</p>
                     </div>
                 </div>
 
                 <!-- Right: Terms & Privacy -->
                 <div class="about-card legal-card" style="display: flex; flex-direction: column; gap: 20px;">
                     <div class="legal-tab-nav" style="display: flex; gap: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-                        <button type="button" class="legal-tab active" data-target="legal-terms" style="background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--text-primary); cursor: pointer; position: relative; padding: 5px 0;">使用条款</button>
-                        <button type="button" class="legal-tab" data-target="legal-privacy" style="background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--text-muted); cursor: pointer; position: relative; padding: 5px 0;">隐私政策</button>
+                        <button type="button" class="legal-tab active" data-target="legal-terms" style="background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--text-primary); cursor: pointer; position: relative; padding: 5px 0;">服务条款 (Terms)</button>
+                        <button type="button" class="legal-tab" data-target="legal-privacy" style="background: none; border: none; font-size: 1rem; font-weight: 700; color: var(--text-muted); cursor: pointer; position: relative; padding: 5px 0;">隐私权声明 (Privacy)</button>
                     </div>
                     
                     <div class="legal-tab-content active" id="legal-terms" style="display: flex; flex-direction: column; gap: 15px; font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary);">
                         <div class="legal-section">
-                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">1. 服务条款的接受</h5>
-                            <p>通过使用 BrickSeek（以下简称“本站”），您即表示同意接受本使用条款的所有条款约束。如果您不同意这些条款，请勿使用本服务。</p>
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">一、非商业性使用限制</h5>
+                            <p>本站提供的乐高说明书、人仔配件清单及估值信息仅供乐高爱好者交流学习。用户不得将本系统的扫描结果或导出的数据用于非法盈利、抄袭复制或商业分发。</p>
                         </div>
                         <div class="legal-section">
-                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">2. 知识产权声明</h5>
-                            <p>本站展示的乐高人仔图像、零件图谱及相关标志（商标）的所有权和版权完全属于乐高集团（The LEGO Group）或其原始持有者。本站与乐高集团不存在任何官方隶属关系。</p>
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">二、数据库著作权说明</h5>
+                            <p>人仔与零件关联图谱均基于 Rebrickable 开源社群许可协议（CC BY 2.0）运行。若原始版权方要求下架特定稀有版权人仔图鉴，请联系我们，我们将在 24 小时内移除相关节点信息。</p>
                         </div>
                         <div class="legal-section">
-                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">3. 个人与非商业用途</h5>
-                            <p>本站提供的信息及步骤仅供您个人非商业目的的学习、观摩参考。严禁用于任何形式的商业销售、转售或盈利活动。</p>
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">三、第三方外链免责</h5>
+                            <p>本系统展示的官方说明书 PDF 下载或拼装信息均链接至乐高官方数据库或外部合作平台。我们不对任何外部网络服务的使用安全性及正确性承担连带担保责任。</p>
                         </div>
                     </div>
 
                     <div class="legal-tab-content" id="legal-privacy" style="display: none; flex-direction: column; gap: 15px; font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary);">
-                        <div class="legal-section">
-                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">1. 个人敏感数据</h5>
-                            <p>BrickSeek 承诺保护个人隐私，我们<strong>不会</strong>收集、上传或存储您的任何个人身份敏感信息（如姓名、地址等）。</p>
+                        <div class="privacy-dashboard-indicator" style="background: rgba(0, 204, 136, 0.05); border: 1px solid rgba(0, 204, 136, 0.15); border-radius: 10px; padding: 12px 15px; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-shield-alt" style="color: #00cc88; font-size: 1.5rem;"></i>
+                            <div>
+                                <strong style="color: var(--text-primary); display: block; font-size: 0.9rem;">100% 极客隐私保障</strong>
+                                <span style="font-size: 0.72rem; color: var(--text-muted);">我们尊重且从不滥用用户的本地摄像头与偏好文件</span>
+                            </div>
                         </div>
                         <div class="legal-section">
-                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">2. 摄像头与拍照识别</h5>
-                            <p>当您使用“拍照识别”功能时，系统请求的摄像头画面仅在您本地设备的浏览器沙箱中用于色块捕捉计算，**绝对不会上传、存储或分发您拍摄的图像数据**。</p>
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">一、沙盒级摄像头权限</h5>
+                            <p>在实时拍照识别模式下，所有的视频画面均直接在您本地浏览器的 WebRTC 沙盒内进行变焦与捕捉。除非您按下拍照快门，否则绝对不会向服务器传输任何一帧视频数据。</p>
                         </div>
                         <div class="legal-section">
-                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">3. 本地存储 (LocalStorage)</h5>
-                            <p>我们仅使用 LocalStorage 记录您的主题配置（深色/浅色模式），数据完全保留在您的本地设备上。</p>
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">二、图像智能识别与缓存说明</h5>
+                            <p>您快门截取的照片上传后会先经 Brickognize 识别，若置信度过低则由 Gemini 进行算法裁剪和再次检测。识别完成后，服务器<strong>会自动、立即且永久销毁</strong>接收到的图像数据，不设任何存储记录。</p>
+                        </div>
+                        <div class="legal-section">
+                            <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">三、收藏与偏好存储</h5>
+                            <p>您的收藏夹列表、首选镜头 ID、主题音效配置等，默认保存在您设备本机的 LocalStorage 内。如果您登录了云端账户，数据将加密同步以供多端同步使用。</p>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- My Favorites / Collection Dashboard Container -->
+        <div class="favorites-container" id="favorites-container" style="display: none; width: 100%; max-width: 1200px; flex-direction: column; gap: 30px; animation: galleryFadeIn 0.5s ease-out;">
+            <div class="gallery-header">
+                <button type="button" class="btn-back" id="back-from-fav-btn">
+                    <i class="fas fa-arrow-left"></i> 返回搜索
+                </button>
+                <div class="gallery-title-box">
+                    <h2><i class="fas fa-star" style="color: #ff9f0a;"></i> 我的收藏与收藏夹</h2>
+                    <p>管理您标星收藏的乐高人仔，查看您的收藏估值与分类统计</p>
+                </div>
+            </div>
+            
+            <div class="fav-stats-dashboard" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; width: 100%;">
+                <div class="fav-stat-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--card-radius); padding: 20px; text-align: center; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 4px var(--shadow-color);">
+                    <span class="stat-label" style="font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">已收藏人仔数量</span>
+                    <strong class="stat-value" id="fav-dashboard-count" style="font-size: 2rem; font-family: var(--font-outfit); font-weight: 800; color: var(--accent-color);">0</strong>
+                    <span class="stat-desc" style="font-size: 0.72rem; color: var(--text-secondary);">核心人物角色</span>
+                </div>
+                <div class="fav-stat-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--card-radius); padding: 20px; text-align: center; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 4px var(--shadow-color);">
+                    <span class="stat-label" style="font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">预估收藏市值</span>
+                    <strong class="stat-value" style="font-size: 2rem; font-family: var(--font-outfit); font-weight: 800; color: #ff9f0a;">¥<span id="fav-dashboard-value">0.00</span></strong>
+                    <span class="stat-desc" style="font-size: 0.72rem; color: var(--text-secondary);">基于 BrickLink 均价估算</span>
+                </div>
+                <div class="fav-stat-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--card-radius); padding: 20px; text-align: center; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 4px var(--shadow-color);">
+                    <span class="stat-label" style="font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">图鉴解锁比例</span>
+                    <strong class="stat-value" id="fav-dashboard-ratio" style="font-size: 2rem; font-family: var(--font-outfit); font-weight: 800; color: #00cc88;">0.05%</strong>
+                    <span class="stat-desc" style="font-size: 0.72rem; color: var(--text-secondary);">占雷达 8.4 万人仔库</span>
+                </div>
+            </div>
+            
+            <div class="gallery-filter-bar">
+                <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">
+                    已标星收藏的人仔图鉴列表：
+                </span>
+                <button type="button" class="btn-database-link" id="btn-export-favorites" style="margin-left: auto;">
+                    <i class="fas fa-file-export"></i> 导出收藏清单
+                </button>
+            </div>
+            
+            <div class="gallery-grid" id="favorites-gallery-grid">
+                <!-- Dynamically filled with favorited figures -->
             </div>
         </div>
 
@@ -330,28 +381,12 @@
 
                     <div class="assembly-footer">
                         <span class="audio-toggle-hint"><i class="fas fa-volume-up"></i> 组装音效已开启</span>
-                        <span class="click-instruction-hint">点击人仔进行拆解，再点击各个部件查看共享角色 👆</span>
+                        <span class="click-instruction-hint">点击人仔进行拆解，再点击各个部件以查看共享角色 👆</span>
                     </div>
                 </div>
 
-                <!-- Right: Information & Shared Parts Panel -->
+                <!-- Right: Information Column -->
                 <div class="info-sidebar">
-                    <!-- Shared Parts Explorer Card -->
-                    <div class="glass-subcard shared-parts-card">
-                        <div class="shared-parts-header">
-                            <h4><i class="fas fa-project-diagram"></i> 共享零件分析</h4>
-                            <span class="current-selected-part" id="selected-part-name">当前零件: 点击上方人仔部件</span>
-                        </div>
-                        
-                        <div class="shared-results" id="shared-list-results">
-                            <div class="empty-shared-state">
-                                <div class="icon-wrapper">
-                                    <i class="fas fa-hand-point-left animate-pulse"></i>
-                                </div>
-                                <p>点击左侧人仔拼装区域的任意部件，即可透视查看与此角色共享该零件的其他乐高人仔！</p>
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- General Details Card -->
                     <div class="glass-subcard detail-summary-card">
@@ -408,10 +443,9 @@
                 <h3><i class="fas fa-qrcode"></i> 人仔雷达扫描仪</h3>
                 <button class="close-btn" id="close-modal-btn"><i class="fas fa-times"></i></button>
             </div>
-            
             <div class="modal-body">
-                <!-- Dropzone state -->
-                <div class="drop-zone" id="drop-zone">
+                <!-- Dropzone state (Hidden by default, starts camera directly) -->
+                <div class="drop-zone" id="drop-zone" style="display: none;">
                     <input type="file" id="file-input" accept="image/*" class="file-input-hidden">
                     <div class="drop-zone-content">
                         <div class="scan-upload-icon-container">
@@ -430,8 +464,8 @@
                     </div>
                 </div>
 
-                <!-- Camera/Video Viewport State -->
-                <div class="camera-viewport" id="camera-viewport" style="display: none;">
+                <!-- Camera/Video Viewport State (Directly shown) -->
+                <div class="camera-viewport" id="camera-viewport" style="display: flex;">
                     <video id="webcam" autoplay playsinline></video>
                     <canvas id="camera-canvas" style="display: none;"></canvas>
                     <div class="camera-overlay-frame">
@@ -440,18 +474,45 @@
                         <div class="corner bottom-left"></div>
                         <div class="corner bottom-right"></div>
                         <div class="center-target">
-                            <div class="target-circle"></div>
-                            <span class="target-label">请将人仔对准中心</span>
+                            <!-- Minifigure Dotted Outline SVG Overlay -->
+                            <div class="minifig-outline-container">
+                                <svg class="minifig-outline-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M 46,10 H 54 V 12 H 46 Z 
+                                             M 42,12 H 58 V 24 C 58,28 42,28 42,24 Z 
+                                             M 48,25 H 52 V 27 H 48 Z 
+                                             M 35,28 H 65 L 68,56 H 32 Z 
+                                             M 36,57 H 64 V 61 H 36 Z 
+                                             M 37,61 H 63 V 83 H 51 V 65 H 49 V 83 H 37 Z 
+                                             M 34,83 H 48 V 85 H 34 Z 
+                                             M 52,83 H 66 V 85 H 52 Z" 
+                                          fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-dasharray="3,3" />
+                                </svg>
+                            </div>
+                            <span class="target-label">请将人仔对准虚线区域</span>
+                        </div>
+                        
+                        <!-- Zoom Control Slider -->
+                        <div class="camera-zoom-control">
+                            <i class="fas fa-search-minus zoom-icon"></i>
+                            <input type="range" id="camera-zoom-slider" min="1" max="4" step="0.1" value="1" title="镜头缩放">
+                            <i class="fas fa-search-plus zoom-icon"></i>
                         </div>
                     </div>
                     <div class="camera-controls">
-                        <button type="button" class="btn-control-secondary" id="cancel-camera-btn">返回</button>
+                        <button type="button" class="btn-control-secondary" id="cancel-camera-btn">
+                            <i class="fas fa-chevron-left"></i> 返回
+                        </button>
                         <button type="button" class="btn-shutter" id="shutter-btn" title="拍照">
                             <div class="shutter-inner"></div>
                         </button>
-                        <button type="button" class="btn-control-secondary" id="switch-camera-btn" title="切换摄像头">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
+                        <div class="camera-sub-controls">
+                            <button type="button" class="btn-control-secondary" id="btn-camera-upload" title="从相册上传">
+                                <i class="fas fa-image"></i> 相册
+                            </button>
+                            <button type="button" class="btn-control-secondary" id="switch-camera-btn" title="切换摄像头">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -693,10 +754,87 @@
                     <span id="auth-switch-prompt">还没有账号？</span>
                     <a href="#" id="login-switch-link">立即注册</a>
                 </div>
+                
+                <div class="auth-divider" style="display: flex; align-items: center; justify-content: center; gap: 10px; margin: 15px 0; font-size: 0.78rem; color: var(--text-muted);">
+                    <span style="height: 1px; flex: 1; background: var(--border-color);"></span>
+                    <span>或其他快捷方式</span>
+                    <span style="height: 1px; flex: 1; background: var(--border-color);"></span>
+                </div>
+                
+                <div class="social-login-row" style="display: flex; flex-direction: column; gap: 8px;">
+                    <button type="button" class="btn-apple-login" id="btn-apple-login" style="background: #000; color: #fff; border: none; padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; transition: opacity 0.2s ease;">
+                        <i class="fab fa-apple" style="font-size: 1.15rem;"></i> 通过 Apple 登录
+                    </button>
+                    <button type="button" class="btn-passkey-login" id="btn-passkey-login" style="background: rgba(10, 132, 255, 0.08); color: var(--accent-color); border: 1px solid rgba(10, 132, 255, 0.15); padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; transition: var(--transition-smooth);">
+                        <i class="fas fa-key"></i> Passkey 通行密钥登录
+                    </button>
+                </div>
+                
+                <!-- Mock Passkey Verification Box -->
+                <div class="passkey-verifying-box" id="passkey-verifying-box" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-secondary); border-radius: 20px; flex-direction: column; align-items: center; justify-content: center; gap: 20px; z-index: 10; padding: 30px; box-sizing: border-box; text-align: center; animation: fadeIn 0.25s ease-out;">
+                    <div class="passkey-scanner-ring" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent-color); display: flex; align-items: center; justify-content: center; animation: ringPulse 1.5s infinite ease-in-out;">
+                        <i class="fas fa-fingerprint" style="font-size: 2.5rem; color: var(--accent-color);"></i>
+                    </div>
+                    <div>
+                        <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary);">正在验证通行密钥</h4>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">请将手指放在指纹传感器上或面向前置摄像头</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <script src="app.js?v=3.1" defer></script>
+    <!-- Full-Screen Part Detail Modal Overlay (Apple Style) -->
+    <div class="modal-overlay" id="part-detail-fullscreen-modal">
+        <div class="modal-card modal-large part-detail-fullscreen-card">
+            <div class="modal-header">
+                <h3><i class="fas fa-puzzle-piece"></i> 零部件透视详情</h3>
+                <button class="close-btn" id="close-part-modal-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body part-detail-scroll-body">
+                <div class="part-detail-hero-section">
+                    <div class="part-detail-image-box">
+                        <img id="part-fullscreen-img" src="" alt="Part Image">
+                    </div>
+                    <div class="part-detail-meta-box">
+                        <h4 id="part-fullscreen-title">零件名称</h4>
+                        <p class="part-fullscreen-subtitle" id="part-fullscreen-original-title">Original Name</p>
+                        <div class="part-fullscreen-meta-grid">
+                           <div class="meta-item">
+                               <span>设计 ID</span>
+                               <strong id="part-fullscreen-design-id">973</strong>
+                           </div>
+                           <div class="meta-item">
+                               <span>官方 Element ID</span>
+                               <strong id="part-fullscreen-element-id">-</strong>
+                           </div>
+                           <div class="meta-item">
+                               <span>零件颜色</span>
+                               <strong id="part-fullscreen-color">-</strong>
+                           </div>
+                           <div class="meta-item">
+                               <span>配给数量</span>
+                               <strong id="part-fullscreen-quantity">1</strong>
+                           </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="scroll-down-hint">
+                    <i class="fas fa-chevron-down animate-bounce"></i> 向下滚动查看共享此零件的其他角色实物图
+                </div>
+                
+                <div class="shared-gallery-section">
+                    <h3><i class="fas fa-link"></i> 共享此零件的乐高人仔</h3>
+                    <p class="gallery-desc">下列图鉴人仔在拼装设计中同样使用了该零部件，点击可直接切换切换查看：</p>
+                    <div class="shared-figures-gallery" id="part-shared-gallery">
+                        <!-- Dynamically filled with real minifigure card images -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=3.3" defer></script>
 </body>
 </html>
