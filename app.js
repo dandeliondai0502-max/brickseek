@@ -1015,8 +1015,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 6. Scanner Animation & Real SQLite Matching ---
     function resetScannerState() {
         clearInterval(scanInterval);
-        dropZone.style.display = 'block';
-        cameraViewport.style.display = 'none';
+        dropZone.style.display = 'none';
+        cameraViewport.style.display = 'flex';
         scanPreviewContainer.style.display = 'none';
         scanResultContainer.style.display = 'none';
         progressBarFill.style.width = '0%';
