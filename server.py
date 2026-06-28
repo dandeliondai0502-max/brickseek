@@ -828,6 +828,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             cursor = conn.cursor()
             for item in brick_items:
                 itype = str(item.get("type", "")).strip().lower()
+                
+                # Option A: Direct minifigure match
                 if itype in ("fig", "minifig") or item.get("id", "").startswith("fig-"):
                     candidates = {item.get("id", "").strip().lower()}
                     for ext in item.get("external_sites", []):
@@ -870,10 +872,81 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                                 "name": matched_row["name"],
                                 "num_parts": matched_row["num_parts"],
                                 "img_url": f"https://cdn.rebrickable.com/media/sets/{matched_row['minifig_num']}.jpg",
-                                "score": item.get("score", 0.9),
+                                "score": item.get("score", 0.9) * 0.9,
                                 "official_id": MINIFIG_ID_MAP.get(matched_row["minifig_num"], matched_row["minifig_num"])
                             })
-            return matched_figs
+                
+                # Option B: Partial part match (torso, head, accessories)
+                else:
+                    part_candidates = {item.get("id", "").strip().lower()}
+                    for ext in item.get("external_sites", []):
+                        url = ext.get("url", "")
+                        if "bricklink.com/" in url and ("?P=" in url or "&P=" in url or "?p=" in url or "&p=" in url):
+                            import re
+                            match = re.search(r'[?&][Pp]=([^&#]+)', url)
+                            if match:
+                                part_candidates.add(match.group(1).strip().lower())
+                        if "rebrickable.com/parts/" in url:
+                            parts = url.split("parts/")
+                            if len(parts) > 1:
+                                sub = parts[1].split("/")[0]
+                                if sub:
+                                    part_candidates.add(sub.strip().lower())
+                                    
+                    for pcand in part_candidates:
+                        if not pcand:
+                            continue
+                        pcand_clean = pcand.replace("part-", "")
+                        sql_figs_by_part = """
+                            SELECT DISTINCT m.minifig_num, m.name, m.num_parts
+                            FROM inventory_parts ip
+                            JOIN inventories i ON ip.inventory_id = i.id
+                            JOIN minifigs m ON i.set_num = m.minifig_num
+                            WHERE (LOWER(ip.part_num) = ? OR LOWER(ip.part_num) = ?)
+                              AND m.num_parts BETWEEN 3 AND 12
+                              AND LOWER(m.name) NOT LIKE '%keychain%'
+                              AND LOWER(m.name) NOT LIKE '%key chain%'
+                              AND LOWER(m.name) NOT LIKE '%magnet%'
+                              AND LOWER(m.name) NOT LIKE '%watch%'
+                              AND LOWER(m.name) NOT LIKE '%clock%'
+                              AND LOWER(m.name) NOT LIKE '%book%'
+                              AND LOWER(m.name) NOT LIKE '%sticker%'
+                              AND LOWER(m.name) NOT LIKE '%card%'
+                              AND LOWER(m.name) NOT LIKE '%giant%'
+                              AND LOWER(m.name) NOT LIKE '%maxifigure%'
+                              AND LOWER(m.name) NOT LIKE '%brick-built%'
+                              AND LOWER(m.name) NOT LIKE '%pen%'
+                              AND LOWER(m.name) NOT LIKE '%torch%'
+                              AND LOWER(m.name) NOT LIKE '%light%'
+                              AND LOWER(m.name) NOT LIKE '%plush%'
+                              AND LOWER(m.name) NOT LIKE '%notebook%'
+                              AND LOWER(m.name) NOT LIKE '%tag%'
+                              AND LOWER(m.name) NOT LIKE '%bag%'
+                              AND LOWER(m.name) NOT LIKE '%frame%'
+                              AND LOWER(m.name) NOT LIKE '%display%'
+                              AND LOWER(m.name) NOT LIKE '%scale%'
+                            LIMIT 12
+                        """
+                        cursor.execute(sql_figs_by_part, (pcand, pcand_clean))
+                        rows = cursor.fetchall()
+                        for row in rows:
+                            matched_figs.append({
+                                "minifig_num": row["minifig_num"],
+                                "name": row["name"],
+                                "num_parts": row["num_parts"],
+                                "img_url": f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
+                                "score": item.get("score", 0.8) * 0.8,
+                                "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
+                            })
+            
+            # Deduplicate final list of matches
+            unique_figs = []
+            seen = set()
+            for fig in matched_figs:
+                if fig["minifig_num"] not in seen:
+                    seen.add(fig["minifig_num"])
+                    unique_figs.append(fig)
+            return unique_figs
 
         # STEP 1: Attempt standard Brickognize scanning on original image
         brick_items = call_brickognize(image_data, mime_type)
