@@ -600,9 +600,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 3. Modal Opening & Closing ---
-    const openModal = () => {
+    const openModal = async () => {
         scanModal.classList.add('open');
         resetScannerState();
+        await startWebcamStream();
     };
 
     const closeModal = () => {
