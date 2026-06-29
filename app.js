@@ -1572,7 +1572,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Render assembly components
-        renderAssemblyComponents(data.parts, minifig.minifig_num);
+        renderAssemblyComponents(data.parts, minifig);
 
         // Render containing Sets
         renderSetsCards(data.sets);
@@ -1768,7 +1768,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return { hatPart, headPart, torsoPart, legsPart };
     }
 
-    function renderAssemblyComponents(parts, minifigId) {
+    function renderAssemblyComponents(parts, minifig) {
+        const minifigId = minifig.minifig_num;
         // Reset stage filters
         legoAssemblyStage.className = 'lego-figure-canvas exploded'; 
         const isBigfig = parts.some(p => p.part_cat_id === 13);
@@ -1784,7 +1785,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Populate complete minifigure image
         const fullFigImg = document.getElementById('lego-full-figure-img');
-        if (minifig && minifig.img_url) {
+        if (minifig && minifig.img_url && minifig.img_url !== 'undefined') {
             fullFigImg.src = minifig.img_url;
         } else {
             fullFigImg.src = `https://cdn.rebrickable.com/media/sets/${minifigId}.jpg`;
