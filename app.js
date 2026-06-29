@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             card.addEventListener('click', () => {
                 settingsModal.classList.remove('open');
-                showDetailPage(item.minifig_num);
+                showDetailPage(item.minifig_num, item.name, item.img_url);
             });
             settingsFavoritesList.appendChild(card);
         });
@@ -516,7 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
             div.addEventListener('click', () => {
                 searchInput.value = item.name;
                 suggestionsContainer.classList.remove('active');
-                showDetailPage(item.minifig_num);
+                showDetailPage(item.minifig_num, item.name);
             });
             
             suggestionsContainer.appendChild(div);
@@ -590,7 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (data.length > 0) {
                 // If there is an exact or first match, open it directly!
-                showDetailPage(data[0].minifig_num);
+                showDetailPage(data[0].minifig_num, data[0].name, data[0].img_url);
             } else {
                 alert(`在全量数据库中未找到与 "${query}" 匹配的乐高人仔。请换个词试试（如 "Vader"、"fig-000581"、"太空"）`);
             }
@@ -1461,7 +1461,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bestCard.addEventListener('click', (e) => {
             if (e.target.classList.contains('btn-card-secondary')) return;
             closeModal();
-            showDetailPage(best.minifig_num);
+            showDetailPage(best.minifig_num, best.name, best.img_url);
         });
         
         resultCardsContainer.appendChild(bestCard);
@@ -1489,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 miniCard.addEventListener('click', () => {
                     closeModal();
-                    showDetailPage(item.minifig_num);
+                    showDetailPage(item.minifig_num, item.name, item.img_url);
                 });
                 
                 secondaryContainer.appendChild(miniCard);
@@ -1500,18 +1500,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 7. Encyclopedia Detail View (Real API Integration) ---
-    async function showDetailPage(id) {
+    async function showDetailPage(id, name = '', imgUrl = '') {
         try {
             if (detailCache.has(id)) {
                 renderMinifigDetails(detailCache.get(id), id);
                 return;
             }
-            const res = await fetch(`/api/minifig?id=${encodeURIComponent(id)}`);
+            const res = await fetch(`/api/minifig?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}&img_url=${encodeURIComponent(imgUrl)}`);
             if (!res.ok) {
                 alert("未找到该人仔，可能数据库正在同步。");
                 return;
             }
             const data = await res.json();
+            if (!data.minifig.img_url && imgUrl) {
+                data.minifig.img_url = imgUrl;
+            }
             detailCache.set(id, data);
             renderMinifigDetails(data, id);
         } catch (e) {
@@ -1781,7 +1784,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Populate complete minifigure image
         const fullFigImg = document.getElementById('lego-full-figure-img');
-        fullFigImg.src = `https://cdn.rebrickable.com/media/sets/${minifigId}.jpg`;
+        if (minifig && minifig.img_url) {
+            fullFigImg.src = minifig.img_url;
+        } else {
+            fullFigImg.src = `https://cdn.rebrickable.com/media/sets/${minifigId}.jpg`;
+        }
         fullFigImg.onerror = () => {
             fullFigImg.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="220" height="220"><defs><linearGradient id="glow-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD500" /><stop offset="100%" stop-color="#FF5E00" /></linearGradient></defs><circle cx="50" cy="50" r="46" fill="rgba(255,255,255,0.01)" stroke="rgba(255,255,255,0.05)" stroke-width="1.5"/><circle cx="50" cy="50" r="40" fill="rgba(0,0,0,0.2)" stroke="rgba(255,255,255,0.02)" stroke-width="1"/><g transform="translate(0, 3)" fill="url(#glow-grad)" opacity="0.85"><rect x="45" y="16" width="10" height="4" rx="1"/><rect x="39" y="21" width="22" height="19" rx="5"/><rect x="37" y="26" width="26" height="9" rx="3"/><rect x="46" y="40" width="8" height="3"/><path d="M 34,44 L 66,44 L 71,72 L 29,72 Z"/><rect x="31" y="74" width="38" height="6" rx="1"/><rect x="31" y="81" width="17" height="15" rx="3"/><rect x="52" y="81" width="17" height="15" rx="3"/></g></svg>`);
         };
@@ -2122,7 +2129,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     card.addEventListener('click', () => {
                         // Switch page directly
                         partDetailModal.classList.remove('open');
-                        showDetailPage(item.minifig_num);
+                        showDetailPage(item.minifig_num, item.name, item.img_url);
                     });
                     sharedGallery.appendChild(card);
                 });
@@ -2373,7 +2380,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             card.addEventListener("click", () => {
                 galleryContainer.style.display = "none";
-                showDetailPage(item.minifig_num);
+                showDetailPage(item.minifig_num, item.name, item.img_url);
             });
             
             galleryGrid.appendChild(card);
@@ -2514,7 +2521,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             card.addEventListener('click', () => {
                 if (favoritesContainer) favoritesContainer.style.display = 'none';
-                showDetailPage(favId);
+                showDetailPage(favId, item.name, item.img_url);
             });
             favGrid.appendChild(card);
         });

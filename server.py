@@ -858,7 +858,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                                 "minifig_num": row["minifig_num"],
                                 "name": row["name"],
                                 "num_parts": row["num_parts"],
-                                "img_url": f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
+                                "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
                                 "score": item.get("score", 0.9),
                                 "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
                             })
@@ -871,10 +871,21 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                                 "minifig_num": matched_row["minifig_num"],
                                 "name": matched_row["name"],
                                 "num_parts": matched_row["num_parts"],
-                                "img_url": f"https://cdn.rebrickable.com/media/sets/{matched_row['minifig_num']}.jpg",
+                                "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{matched_row['minifig_num']}.jpg",
                                 "score": item.get("score", 0.9) * 0.9,
                                 "official_id": MINIFIG_ID_MAP.get(matched_row["minifig_num"], matched_row["minifig_num"])
                             })
+                            found_direct = True
+
+                    if not found_direct:
+                        matched_figs.append({
+                            "minifig_num": item["id"],
+                            "name": item["name"],
+                            "num_parts": 4,
+                            "img_url": item.get("img_url", f"https://cdn.rebrickable.com/media/sets/{item['id']}.jpg"),
+                            "score": item.get("score", 0.8),
+                            "official_id": item["id"]
+                        })
                 
                 # Option B: Partial part match (torso, head, accessories)
                 else:
@@ -1164,13 +1175,79 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         minifig_row = cursor.fetchone()
         
         if not minifig_row:
-            self.send_json_response({"error": "Minifigure not found"}, status=404)
-            return None
+            param_name = params.get("name", [""])[0].strip()
+            param_img = params.get("img_url", [""])[0].strip()
+            if param_name:
+                minifig_data = {
+                    "minifig_num": minifig_id,
+                    "name": translate_to_zh(param_name),
+                    "num_parts": 4,
+                    "img_url": param_img or f"https://cdn.rebrickable.com/media/sets/{minifig_id}.jpg",
+                    "official_id": minifig_id
+                }
+                parts_list = [
+                    {
+                        "part_num": "973",
+                        "color_id": 0,
+                        "quantity": 1,
+                        "part_name": "人仔躯干与双臂 (胸部印刷饰面)",
+                        "color_name": "官方多色",
+                        "color_rgb": "FFFFFF",
+                        "img_url": "",
+                        "part_cat_id": 60,
+                        "element_id": "973"
+                    },
+                    {
+                        "part_num": "970",
+                        "color_id": 0,
+                        "quantity": 1,
+                        "part_name": "人仔双腿关节与臀部",
+                        "color_name": "官方常规色",
+                        "color_rgb": "000000",
+                        "img_url": "",
+                        "part_cat_id": 61,
+                        "element_id": "970"
+                    },
+                    {
+                        "part_num": "3626",
+                        "color_id": 0,
+                        "quantity": 1,
+                        "part_name": "人仔头部 (双面面部表情印花)",
+                        "color_name": "黄色/肤色",
+                        "color_rgb": "F2CD37",
+                        "img_url": "",
+                        "part_cat_id": 59,
+                        "element_id": "3626"
+                    },
+                    {
+                        "part_num": "accessory",
+                        "color_id": 0,
+                        "quantity": 1,
+                        "part_name": "人仔发型/头盔/武器配件",
+                        "color_name": "多色可选",
+                        "color_rgb": "333333",
+                        "img_url": "",
+                        "part_cat_id": 65,
+                        "element_id": "accessory"
+                    }
+                ]
+                return {
+                    "minifig": minifig_data,
+                    "parts": parts_list,
+                    "sets": [],
+                    "weapons": []
+                }
+            else:
+                self.send_json_response({"error": "Minifigure not found"}, status=404)
+                return None
             
         minifig_data = dict(minifig_row)
         minifig_data["name"] = translate_to_zh(minifig_data["name"])
         minifig_num = minifig_data["minifig_num"]
         minifig_data["official_id"] = MINIFIG_ID_MAP.get(minifig_num, minifig_num)
+        
+        param_img = params.get("img_url", [""])[0].strip()
+        minifig_data["img_url"] = param_img or f"https://cdn.rebrickable.com/media/sets/{minifig_num}.jpg"
 
         # Get parts list
         cursor.execute("SELECT id FROM inventories WHERE set_num = ?", (minifig_num,))
