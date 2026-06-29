@@ -466,6 +466,10 @@
 
                 <!-- Camera/Video Viewport State (Directly shown) -->
                 <div class="camera-viewport" id="camera-viewport" style="display: flex;">
+                    <div class="camera-loading-overlay" id="camera-loading">
+                        <i class="fas fa-circle-notch fa-spin loading-spinner"></i>
+                        <span>正在开启镜头并对齐...</span>
+                    </div>
                     <video id="webcam" autoplay playsinline></video>
                     <canvas id="camera-canvas" style="display: none;"></canvas>
                     <div class="camera-overlay-frame">

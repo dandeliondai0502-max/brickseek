@@ -603,6 +603,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const openModal = async () => {
         scanModal.classList.add('open');
         resetScannerState();
+        
+        if (dropZone) dropZone.style.display = 'none';
+        if (cameraViewport) cameraViewport.style.display = 'flex';
+        const loader = document.getElementById('camera-loading');
+        if (loader) loader.classList.remove('hidden');
+        
         await startWebcamStream();
     };
 
@@ -1053,6 +1059,9 @@ document.addEventListener('DOMContentLoaded', () => {
             webcam.srcObject = webcamStream;
             dropZone.style.display = 'none';
             cameraViewport.style.display = 'flex';
+            
+            const loader = document.getElementById('camera-loading');
+            if (loader) loader.classList.add('hidden');
 
             // Set up zoom slider functionality
             const zoomSlider = document.getElementById('camera-zoom-slider');
@@ -1087,6 +1096,8 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog('⚠️ 无法直接访问镜头，请从相册选择照片识别...', 'warning');
             dropZone.style.display = 'block';
             cameraViewport.style.display = 'none';
+            const loader = document.getElementById('camera-loading');
+            if (loader) loader.classList.add('hidden');
             fileInput.click();
         }
     }

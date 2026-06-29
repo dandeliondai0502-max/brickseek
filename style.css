@@ -5359,3 +5359,30 @@ footer {
     background: rgba(255, 59, 48, 0.08);
 }
 
+.camera-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.95rem;
+    font-weight: 500;
+    z-index: 8;
+    transition: opacity 0.3s ease;
+}
+.camera-loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+.camera-loading-overlay .loading-spinner {
+    font-size: 2.2rem;
+    color: var(--accent-color);
+}
+
