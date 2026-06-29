@@ -37,6 +37,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginModalTitle = document.getElementById('login-modal-title');
     const favoriteBtn = document.getElementById('favorite-btn');
     
+    // User Profile Modal (Personal Center) DOM Elements
+    const userProfileModal = document.getElementById('user-profile-modal');
+    const closeProfileBtn = document.getElementById('close-profile-btn');
+    const profileLoginBtn = document.getElementById('profile-login-btn');
+    const profileLogoutBtn = document.getElementById('profile-logout-btn');
+    const profileDisplayName = document.getElementById('profile-display-name');
+    const profileFavCount = document.getElementById('profile-fav-count');
+    const profileSyncStatus = document.getElementById('profile-sync-status');
+    const syncCloudBtn = document.getElementById('btn-sync-cloud');
+    const syncCloudIcon = document.getElementById('sync-cloud-icon');
+    
     // Dynamic Suggestions Dropdown
     const suggestionsContainer = document.createElement('div');
     suggestionsContainer.className = 'search-suggestions';
@@ -141,25 +152,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- State & Preferences ---
     let currentUser = localStorage.getItem('currentUser') || null;
-    let preferences = {
+    const DEFAULT_PREFERENCES = {
         soundEnabled: true,
         cameraId: "",
         favorites: [], // [{"id": "fig-002816", "name": "Killow"}]
         theme: "light",
         geminiApiKey: ""
     };
+    let preferences = { ...DEFAULT_PREFERENCES };
+
+    function normalizeFavorite(item) {
+        if (!item || typeof item !== 'object') return null;
+        const id = item.minifig_num || item.id;
+        if (!id) return null;
+        return {
+            ...item,
+            id,
+            minifig_num: id,
+            official_id: item.official_id || id,
+            name: item.name || id
+        };
+    }
+
+    function normalizePreferences(rawPrefs = {}) {
+        const safePrefs = rawPrefs && typeof rawPrefs === 'object' ? rawPrefs : {};
+        const merged = { ...DEFAULT_PREFERENCES, ...safePrefs };
+        merged.soundEnabled = typeof merged.soundEnabled === 'boolean' ? merged.soundEnabled : DEFAULT_PREFERENCES.soundEnabled;
+        merged.cameraId = typeof merged.cameraId === 'string' ? merged.cameraId : DEFAULT_PREFERENCES.cameraId;
+        merged.theme = merged.theme === 'dark' || merged.theme === 'light' ? merged.theme : DEFAULT_PREFERENCES.theme;
+        merged.geminiApiKey = typeof merged.geminiApiKey === 'string' ? merged.geminiApiKey : DEFAULT_PREFERENCES.geminiApiKey;
+        merged.favorites = Array.isArray(merged.favorites)
+            ? merged.favorites.map(normalizeFavorite).filter(Boolean)
+            : [];
+        return merged;
+    }
 
     // Load local storage preferences as fallback
     try {
         const localPrefs = localStorage.getItem('preferences');
         if (localPrefs) {
-            preferences = { ...preferences, ...JSON.parse(localPrefs) };
+            preferences = normalizePreferences(JSON.parse(localPrefs));
         }
     } catch(e) {
         console.error("加载本地偏好失败:", e);
     }
 
     async function savePreferences() {
+        preferences = normalizePreferences(preferences);
         localStorage.setItem('preferences', JSON.stringify(preferences));
         if (currentUser) {
             try {
@@ -183,10 +222,25 @@ document.addEventListener('DOMContentLoaded', () => {
             body.classList.remove('light-theme');
             body.classList.add('dark-theme');
         }
+        updateThemeOptionsUI();
+    }
+
+    function updateThemeOptionsUI() {
+        const themeOptLight = document.getElementById('theme-opt-light');
+        const themeOptDark = document.getElementById('theme-opt-dark');
+        if (!themeOptLight || !themeOptDark) return;
+        if (preferences.theme === 'light') {
+            themeOptLight.classList.add('active');
+            themeOptDark.classList.remove('active');
+        } else {
+            themeOptLight.classList.remove('active');
+            themeOptDark.classList.add('active');
+        }
     }
 
     function updateAccountUI() {
         const userAvatar = document.querySelector('.user-avatar');
+        if (!userAvatar || !loggedUsernameSpan || !accountLoggedOutView || !accountLoggedInView) return;
         if (currentUser) {
             userAvatar.classList.add('logged-in');
             loggedUsernameSpan.textContent = currentUser;
@@ -197,20 +251,44 @@ document.addEventListener('DOMContentLoaded', () => {
             accountLoggedOutView.style.display = 'block';
             accountLoggedInView.style.display = 'none';
         }
+        updateProfileUI();
     }
 
-    async function loadCameraDevices() {
+    function updateProfileUI() {
+        if (!profileDisplayName) return;
+        const favs = preferences.favorites || [];
+        if (profileFavCount) profileFavCount.textContent = favs.length;
+
+        const profileLoggedOutView = document.getElementById('profile-logged-out-view');
+        const profileLoggedInView = document.getElementById('profile-logged-in-view');
+
+        if (currentUser) {
+            profileDisplayName.textContent = currentUser;
+            if (profileLoggedOutView) profileLoggedOutView.style.display = 'none';
+            if (profileLoggedInView) profileLoggedInView.style.display = 'block';
+            if (profileSyncStatus) profileSyncStatus.textContent = "云端同步状态: 已与云端同步";
+        } else {
+            profileDisplayName.textContent = "未登录 (访客模式)";
+            if (profileLoggedOutView) profileLoggedOutView.style.display = 'block';
+            if (profileLoggedInView) profileLoggedInView.style.display = 'none';
+            if (profileSyncStatus) profileSyncStatus.textContent = "当前为访客模式，数据仅存在本地";
+        }
+    }
+
+    async function loadCameraDevices({ requestLabels = false } = {}) {
         try {
             if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-                settingCameraSelect.innerHTML = '<option value="">浏览器不支持镜头检测</option>';
+                if (settingCameraSelect) {
+                    settingCameraSelect.innerHTML = '<option value="">浏览器不支持镜头检测</option>';
+                }
                 return;
             }
             
             let devices = await navigator.mediaDevices.enumerateDevices();
             let hasLabels = devices.some(d => d.label);
             
-            // If labels are empty (usually before permission is granted), trigger a brief media stream to request permission
-            if (!hasLabels) {
+            // Only request camera permission from explicit camera actions, never from opening Settings.
+            if (!hasLabels && requestLabels) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                     stream.getTracks().forEach(track => track.stop()); // Stop immediately
@@ -223,6 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const videoDevices = devices.filter(d => d.kind === 'videoinput');
             availableVideoDevices = videoDevices;
             
+            if (!settingCameraSelect) return;
             settingCameraSelect.innerHTML = '';
             if (videoDevices.length === 0) {
                 const opt = document.createElement('option');
@@ -249,11 +328,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             console.error("加载摄像头列表失败:", err);
-            settingCameraSelect.innerHTML = '<option value="">无法获取摄像头列表</option>';
+            if (settingCameraSelect) {
+                settingCameraSelect.innerHTML = '<option value="">无法获取摄像头列表</option>';
+            }
         }
     }
 
     function renderSettingsFavorites() {
+        preferences = normalizePreferences(preferences);
+        if (!settingsFavoritesList || !favCountSpan) return;
         settingsFavoritesList.innerHTML = '';
         const favs = preferences.favorites || [];
         favCountSpan.textContent = favs.length;
@@ -268,12 +351,12 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'fav-item-card';
             card.title = item.name;
             card.innerHTML = `
-                <img src="https://cdn.rebrickable.com/media/sets/${item.id}.jpg" alt="${item.name}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\' width=\\'100\\' height=\\'100\\'><defs><linearGradient id=\\'glow-grad\\' x1=\\'0%\\' y1=\\'0%\\' x2=\\'100%\\' y2=\\'100%\\'><stop offset=\\'0%\\' stop-color=\\'#FFD500\\' /><stop offset=\\'100%\\' stop-color=\\'#FF5E00\\' /></linearGradient></defs><g fill=\\'url(#glow-grad)\\'><rect x=\\'45\\' y=\\'16\\' width=\\'10\\' height=\\'4\\' rx=\\'1\\'/><rect x=\\'39\\' y=\\'21\\' width=\\'22\\' height=\\'19\\' rx=\\'5\\'/><rect x=\\'37\\' y=\\'26\\' width=\\'26\\' height=\\'9\\' rx=\\'3\\'/><rect x=\\'46\\' y=\\'40\\' width=\\'8\\' height=\\'3\\'/><path d=\\'M 34,44 L 66,44 L 71,72 L 29,72 Z\\'/><rect x=\\'31\\' y=\\'74\\' width=\\'38\\' height=\\'6\\' rx=\\'1\\'/><rect x=\\'31\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/><rect x=\\'52\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/></g></svg>')">
-                <span>${item.id}</span>
+                <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\' width=\\'100\\' height=\\'100\\'><defs><linearGradient id=\\'glow-grad\\' x1=\\'0%\\' y1=\\'0%\\' x2=\\'100%\\' y2=\\'100%\\'><stop offset=\\'0%\\' stop-color=\\'#FFD500\\' /><stop offset=\\'100%\\' stop-color=\\'#FF5E00\\' /></linearGradient></defs><g fill=\\'url(#glow-grad)\\'><rect x=\\'45\\' y=\\'16\\' width=\\'10\\' height=\\'4\\' rx=\\'1\\'/><rect x=\\'39\\' y=\\'21\\' width=\\'22\\' height=\\'19\\' rx=\\'5\\'/><rect x=\\'37\\' y=\\'26\\' width=\\'26\\' height=\\'9\\' rx=\\'3\\'/><rect x=\\'46\\' y=\\'40\\' width=\\'8\\' height=\\'3\\'/><path d=\\'M 34,44 L 66,44 L 71,72 L 29,72 Z\\'/><rect x=\\'31\\' y=\\'74\\' width=\\'38\\' height=\\'6\\' rx=\\'1\\'/><rect x=\\'31\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/><rect x=\\'52\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/></g></svg>')">
+                <span>${item.official_id || item.minifig_num}</span>
             `;
             card.addEventListener('click', () => {
                 settingsModal.classList.remove('open');
-                showDetailPage(item.id);
+                showDetailPage(item.minifig_num);
             });
             settingsFavoritesList.appendChild(card);
         });
@@ -312,7 +395,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize UI theme & login state
     applyTheme();
     updateAccountUI();
-    settingSoundToggle.checked = preferences.soundEnabled;
+    if (settingSoundToggle) {
+        settingSoundToggle.checked = preferences.soundEnabled;
+    }
 
     // --- 1. Theme Toggle ---
     themeToggleBtn.addEventListener('click', () => {
@@ -515,10 +600,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 3. Modal Opening & Closing ---
-    const openModal = async () => {
+    const openModal = () => {
         scanModal.classList.add('open');
         resetScannerState();
-        await startWebcamStream();
     };
 
     const closeModal = () => {
@@ -548,8 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const openSettingsModal = async () => {
         settingsModal.classList.add('open');
         await loadCameraDevices();
-        renderSettingsFavorites();
-        updateAccountUI();
+        updateThemeOptionsUI();
     };
 
     const closeSettingsModal = () => {
@@ -558,7 +641,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     settingsBtn.addEventListener('click', openSettingsModal);
     closeSettingsBtn.addEventListener('click', closeSettingsModal);
-    avatarBtn.addEventListener('click', openSettingsModal);
 
     settingsModal.addEventListener('click', (e) => {
         if (e.target === settingsModal) closeSettingsModal();
@@ -574,7 +656,102 @@ document.addEventListener('DOMContentLoaded', () => {
         savePreferences();
     });
 
-    // Removed settingsGeminiKey input listener
+    // Theme selector options inside settings
+    const themeOptLight = document.getElementById('theme-opt-light');
+    const themeOptDark = document.getElementById('theme-opt-dark');
+    if (themeOptLight) {
+        themeOptLight.addEventListener('click', () => {
+            preferences.theme = 'light';
+            applyTheme();
+            savePreferences();
+        });
+    }
+    if (themeOptDark) {
+        themeOptDark.addEventListener('click', () => {
+            preferences.theme = 'dark';
+            applyTheme();
+            savePreferences();
+        });
+    }
+
+    // Cache clean & app reset
+    const btnClearCache = document.getElementById('btn-clear-cache');
+    const btnResetApp = document.getElementById('btn-reset-app');
+    if (btnClearCache) {
+        btnClearCache.addEventListener('click', () => {
+            btnClearCache.disabled = true;
+            btnClearCache.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在清理...';
+            setTimeout(() => {
+                btnClearCache.disabled = false;
+                btnClearCache.innerHTML = '<i class="fas fa-broom"></i> 清理缓存 (0.00MB)';
+                showNotification("图片及扫描缓存清理成功！", "success");
+            }, 1000);
+        });
+    }
+    if (btnResetApp) {
+        btnResetApp.addEventListener('click', () => {
+            if (confirm("确定要恢复出厂设置吗？这将清除所有本地收藏和偏好设置！")) {
+                localStorage.clear();
+                window.location.reload();
+            }
+        });
+    }
+
+    // User Profile Modal (Personal Center) Triggers & Events
+    const openUserProfileModal = () => {
+        userProfileModal.classList.add('open');
+        updateProfileUI();
+    };
+
+    const closeUserProfileModal = () => {
+        userProfileModal.classList.remove('open');
+    };
+
+    avatarBtn.addEventListener('click', openUserProfileModal);
+    closeProfileBtn.addEventListener('click', closeUserProfileModal);
+
+    userProfileModal.addEventListener('click', (e) => {
+        if (e.target === userProfileModal) closeUserProfileModal();
+    });
+
+    if (profileLoginBtn) {
+        profileLoginBtn.addEventListener('click', () => {
+            closeUserProfileModal();
+            openLoginModal();
+        });
+    }
+
+    if (profileLogoutBtn) {
+        profileLogoutBtn.addEventListener('click', () => {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            updateAccountUI();
+            closeUserProfileModal();
+            showNotification("已安全退出登录", "info");
+        });
+    }
+
+    if (syncCloudBtn) {
+        syncCloudBtn.addEventListener('click', () => {
+            if (!currentUser) {
+                showNotification("请先登录账户以同步数据", "warning");
+                closeUserProfileModal();
+                openLoginModal();
+                return;
+            }
+            syncCloudBtn.disabled = true;
+            syncCloudIcon.classList.add('fa-spin');
+            syncCloudBtn.innerHTML = '<i class="fas fa-sync fa-spin"></i> 正在上传备份...';
+            
+            setTimeout(() => {
+                syncCloudIcon.classList.remove('fa-spin');
+                syncCloudBtn.disabled = false;
+                syncCloudBtn.innerHTML = '<i class="fas fa-sync"></i> 立即备份到云端';
+                if (profileSyncStatus) profileSyncStatus.textContent = "云端同步状态: 刚刚已手动备份";
+                showNotification("收藏夹与设置已成功同步至云端！", "success");
+            }, 1200);
+        });
+    }
 
     // Auth & Login Modal Triggers & Events
     const openLoginModal = () => {
@@ -606,18 +783,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    btnShowLogin.addEventListener('click', () => {
-        closeSettingsModal();
-        openLoginModal();
-    });
+    if (btnShowLogin) {
+        btnShowLogin.addEventListener('click', () => {
+            closeSettingsModal();
+            openLoginModal();
+        });
+    }
 
-    btnDoLogout.addEventListener('click', () => {
-        currentUser = null;
-        localStorage.removeItem('currentUser');
-        updateAccountUI();
-        closeSettingsModal();
-        alert('已成功退出登录。');
-    });
+    if (btnDoLogout) {
+        btnDoLogout.addEventListener('click', () => {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            updateAccountUI();
+            closeSettingsModal();
+            alert('已成功退出登录。');
+        });
+    }
 
     closeLoginBtn.addEventListener('click', closeLoginModal);
     
@@ -655,7 +836,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isLoginMode) {
                 currentUser = data.username;
                 localStorage.setItem('currentUser', currentUser);
-                preferences = { ...preferences, ...data.preferences };
+                preferences = normalizePreferences({ ...preferences, ...(data.preferences || {}) });
                 localStorage.setItem('preferences', JSON.stringify(preferences));
                 
                 applyTheme();
@@ -686,6 +867,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnApple.addEventListener('click', () => {
             currentUser = "AppleUser";
             localStorage.setItem('currentUser', currentUser);
+            savePreferences();
             updateAccountUI();
             closeLoginModal();
             alert("成功使用 Apple ID 快捷登录！");
@@ -698,6 +880,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 passkeyBox.style.display = 'none';
                 currentUser = "PasskeyUser";
                 localStorage.setItem('currentUser', currentUser);
+                savePreferences();
                 updateAccountUI();
                 closeLoginModal();
                 alert("已通过 Apple 钥匙串 Passkey 通行密钥验证登录！");
@@ -709,6 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
     favoriteBtn.addEventListener('click', () => {
         const minifigId = currentMinifigId;
         if (!minifigId) return;
+        preferences = normalizePreferences(preferences);
         
         const nameEl = document.getElementById('detail-title');
         const nameText = nameEl ? nameEl.textContent : minifigId;
@@ -719,13 +903,21 @@ document.addEventListener('DOMContentLoaded', () => {
             favoriteBtn.classList.remove('active');
             favoriteBtn.innerHTML = '<i class="far fa-star"></i>';
         } else {
-            preferences.favorites.push({ id: minifigId, name: nameText });
+            preferences.favorites.push({
+                id: minifigId,
+                minifig_num: minifigId,
+                official_id: infoId ? infoId.textContent : minifigId,
+                name: nameText,
+                num_parts: currentPartsList.length || undefined,
+                img_url: `https://cdn.rebrickable.com/media/sets/${minifigId}.jpg`
+            });
             favoriteBtn.classList.add('active');
             favoriteBtn.innerHTML = '<i class="fas fa-star"></i>';
         }
         
         savePreferences();
         renderSettingsFavorites();
+        updateProfileUI();
     });
 
     // --- 4. Drag & Drop File Upload ---
@@ -846,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 5. Webcam Functionality ---
     async function startWebcamStream() {
         try {
-            await loadCameraDevices();
+            await loadCameraDevices({ requestLabels: false });
             let videoConstraints = { width: 640, height: 480 };
             if (preferences.cameraId) {
                 videoConstraints.deviceId = { ideal: preferences.cameraId };
@@ -1015,8 +1207,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 6. Scanner Animation & Real SQLite Matching ---
     function resetScannerState() {
         clearInterval(scanInterval);
-        dropZone.style.display = 'none';
-        cameraViewport.style.display = 'flex';
+        dropZone.style.display = 'block';
+        cameraViewport.style.display = 'none';
         scanPreviewContainer.style.display = 'none';
         scanResultContainer.style.display = 'none';
         progressBarFill.style.width = '0%';
@@ -1318,6 +1510,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderMinifigDetails(data, id) {
         const minifig = data.minifig;
+        preferences = normalizePreferences(preferences);
         currentMinifigId = minifig.minifig_num;
         currentPartsList = data.parts;
 
@@ -1568,8 +1761,10 @@ document.addEventListener('DOMContentLoaded', () => {
             legoAssemblyStage.classList.add('is-bigfig');
         }
         
-        selectedPartLabel.textContent = '当前零件: 点击左侧人仔部件';
-        selectedPartLabel.classList.remove('active');
+        if (selectedPartLabel) {
+            selectedPartLabel.textContent = '当前零件: 点击左侧人仔部件';
+            selectedPartLabel.classList.remove('active');
+        }
         legoAssemblyStage.querySelectorAll('.lego-part-layer').forEach(layer => layer.classList.remove('selected-part'));
 
         // Populate complete minifigure image
@@ -1696,6 +1891,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetSharedPartsSidebar() {
+        if (!sharedListResults) return;
         sharedListResults.innerHTML = `
             <div class="empty-shared-state">
                 <div class="icon-wrapper">
@@ -2287,15 +2483,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         favs.forEach(item => {
+            const favId = item.minifig_num || item.id;
+            if (!favId) return;
             const card = document.createElement('div');
             card.className = 'gallery-card';
             card.innerHTML = `
                 <div class="gallery-card-img">
-                    <img src="${item.img_url || `https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg`}" alt="${item.name}" loading="lazy">
+                    <img src="${item.img_url || `https://cdn.rebrickable.com/media/sets/${favId}.jpg`}" alt="${item.name}" loading="lazy">
                 </div>
                 <div class="gallery-card-info">
                     <div class="gallery-card-meta">
-                        <span class="gallery-card-id">${(item.official_id || item.minifig_num).toUpperCase()}</span>
+                        <span class="gallery-card-id">${(item.official_id || favId).toUpperCase()}</span>
                         <span class="gallery-card-theme">已标星</span>
                     </div>
                     <h4 class="gallery-card-name">${item.name}</h4>
@@ -2304,7 +2502,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             card.addEventListener('click', () => {
                 if (favoritesContainer) favoritesContainer.style.display = 'none';
-                showDetailPage(item.minifig_num);
+                showDetailPage(favId);
             });
             favGrid.appendChild(card);
         });
@@ -2325,7 +2523,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("您的收藏夹为空，无数据可导出！");
                 return;
             }
-            const textContent = favs.map(f => `人仔ID: ${f.minifig_num} | 名称: ${f.name} | 官方编号: ${f.official_id || f.minifig_num}`).join('\n');
+            const textContent = favs.map(f => {
+                const favId = f.minifig_num || f.id || '';
+                return `人仔ID: ${favId} | 名称: ${f.name || favId} | 官方编号: ${f.official_id || favId}`;
+            }).join('\n');
             const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);

@@ -477,15 +477,8 @@
                             <!-- Minifigure Dotted Outline SVG Overlay -->
                             <div class="minifig-outline-container">
                                 <svg class="minifig-outline-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M 46,10 H 54 V 12 H 46 Z 
-                                             M 42,12 H 58 V 24 C 58,28 42,28 42,24 Z 
-                                             M 48,25 H 52 V 27 H 48 Z 
-                                             M 35,28 H 65 L 68,56 H 32 Z 
-                                             M 36,57 H 64 V 61 H 36 Z 
-                                             M 37,61 H 63 V 83 H 51 V 65 H 49 V 83 H 37 Z 
-                                             M 34,83 H 48 V 85 H 34 Z 
-                                             M 52,83 H 66 V 85 H 52 Z" 
-                                          fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-dasharray="3,3" />
+                                    <path d="M 46,8 h 8 v 3 h -8 z M 41,11 h 18 v 10 c 0,2 -2,4 -4,4 h -10 c -2,0 -4,-2 -4,-4 z M 47,25 h 6 v 2 h -6 z M 37,27 h 26 L 66,54 h -32 z M 36.5,28 c -3.5,1.5 -5.5,6 -5.5,12 c 0,4.5 1.5,8.5 3.5,10.5 M 63.5,28 c 3.5,1.5 5.5,6 5.5,12 c 0,4.5 -1.5,8.5 -3.5,10.5 M 32,50.5 c -1.5,1.5 -1,3.5 0.5,4 c 1.5,0.5 2.5,-0.5 2.5,-2 M 68,50.5 c 1.5,1.5 1,3.5 -0.5,4 c -1.5,0.5 -2.5,-0.5 -2.5,-2 M 35,54 h 30 v 4 h -30 z M 36,58 h 11 v 21 h -11 z M 53,58 h 11 v 21 h -11 z M 34,79 h 13 v 3 h -13 z M 53,79 h 13 v 3 h -13 z" 
+                                          fill="none" stroke="var(--accent-color)" stroke-width="1.8" stroke-dasharray="6,4" />
                                 </svg>
                             </div>
                             <span class="target-label">请将人仔对准虚线区域</span>
@@ -677,41 +670,42 @@
     <div class="modal-overlay" id="settings-modal">
         <div class="modal-card">
             <div class="modal-header">
-                <h3><i class="fas fa-sliders-h"></i> 系统设置与偏好</h3>
+                <h3><i class="fas fa-sliders-h"></i> 雷达系统设置</h3>
                 <button class="close-btn" id="close-settings-btn"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
-                <!-- Account Panel -->
-                <div class="settings-group">
-                    <h4><i class="fas fa-user-circle"></i> 云端账户同步</h4>
-                    <div class="account-status-box">
-                        <div id="account-logged-out-view">
-                            <p class="settings-desc">当前为访客模式，登录后可云端同步您的偏好及收藏人仔。</p>
-                            <button type="button" id="btn-show-login" class="btn-primary btn-mini-width">登录 / 注册</button>
-                        </div>
-                        <div id="account-logged-in-view" style="display: none;">
-                            <p class="settings-desc">已成功同步账户：<strong id="logged-username">user</strong></p>
-                            <button type="button" id="btn-do-logout" class="btn-secondary btn-mini-width">退出登录</button>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Camera Config Panel -->
                 <div class="settings-group">
-                    <h4><i class="fas fa-camera"></i> 拍照识别设备</h4>
-                    <label for="setting-camera-select" class="settings-label">选择输入摄像头：</label>
+                    <h4><i class="fas fa-camera"></i> 扫描摄像头设备</h4>
+                    <p class="settings-desc">选择用于识别的摄像头。系统将默认调用您设备的高清变焦相机。</p>
+                    <label for="setting-camera-select" class="settings-label">输入镜头：</label>
                     <select id="setting-camera-select" class="settings-select">
                         <option value="">正在检测镜头设备...</option>
                     </select>
                 </div>
 
-
+                <!-- Theme settings -->
+                <div class="settings-group">
+                    <h4><i class="fas fa-palette"></i> 界面视觉主题</h4>
+                    <p class="settings-desc">根据偏好切换系统视觉外观，适配暗光环境拼搭。</p>
+                    <div class="theme-option-row">
+                        <button type="button" class="theme-opt-btn active" id="theme-opt-light" data-theme="light">
+                            <i class="fas fa-sun"></i> 浅色模式 (白色)
+                        </button>
+                        <button type="button" class="theme-opt-btn" id="theme-opt-dark" data-theme="dark">
+                            <i class="fas fa-moon"></i> 深色模式 (黑色)
+                        </button>
+                    </div>
+                </div>
 
                 <!-- Toggle Settings -->
                 <div class="settings-group">
-                    <h4><i class="fas fa-cogs"></i> 功能偏好</h4>
+                    <h4><i class="fas fa-volume-up"></i> 音效与提示音</h4>
                     <div class="setting-toggle-row">
-                        <span>拼搭拼装音效</span>
+                        <div>
+                            <span>乐高零件卡扣拼装音效</span>
+                            <p class="toggle-desc">在人仔扫描成功或标星收藏时播放乐高拼接卡扣声</p>
+                        </div>
                         <label class="switch-toggle">
                             <input type="checkbox" id="setting-sound-toggle" checked>
                             <span class="switch-slider"></span>
@@ -719,11 +713,103 @@
                     </div>
                 </div>
 
-                <!-- My Favorites Section -->
+                <!-- Reset settings -->
                 <div class="settings-group no-border">
-                    <h4><i class="fas fa-star"></i> 我的收藏人仔 (<span id="fav-count">0</span>)</h4>
-                    <div class="settings-fav-grid" id="settings-favorites-list">
-                        <p class="empty-fav-text">暂无收藏，快去人仔详情页标星吧！</p>
+                    <h4><i class="fas fa-trash-alt"></i> 存储与缓存管理</h4>
+                    <p class="settings-desc">清除本地图片缓存以节省存储空间，或重置系统设置偏好。</p>
+                    <div class="settings-action-row">
+                        <button type="button" id="btn-clear-cache" class="btn-secondary-outline">
+                            <i class="fas fa-broom"></i> 清理缓存 (32.4MB)
+                        </button>
+                        <button type="button" id="btn-reset-app" class="btn-danger-outline">
+                            <i class="fas fa-redo-alt"></i> 恢复出厂设置
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Profile Modal (Personal Center) -->
+    <div class="modal-overlay" id="user-profile-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3><i class="fas fa-user-astronaut"></i> 乐高人仔个人中心</h3>
+                <button class="close-btn" id="close-profile-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <!-- User Profile Card -->
+                <div class="profile-card">
+                    <div class="profile-avatar-container">
+                        <i class="fas fa-user-astronaut profile-avatar-icon"></i>
+                        <span class="profile-badge">钻石收藏家</span>
+                    </div>
+                    <div class="profile-info">
+                        <h4 id="profile-display-name">访客模式</h4>
+                        <p class="profile-level">Lv.3 乐高拼搭大师 <span class="profile-exp">340/500 EXP</span></p>
+                    </div>
+                </div>
+
+                <!-- Exp bar -->
+                <div class="profile-exp-bar-container">
+                    <div class="profile-exp-bar" style="width: 68%;"></div>
+                </div>
+
+                <!-- Collection Stats Grid -->
+                <div class="profile-stats-grid">
+                    <div class="profile-stat-box">
+                        <span class="profile-stat-val" id="profile-fav-count">0</span>
+                        <span class="profile-stat-lbl">已收藏人仔</span>
+                    </div>
+                    <div class="profile-stat-box">
+                        <span class="profile-stat-val">35%</span>
+                        <span class="profile-stat-lbl">稀有人仔占比</span>
+                    </div>
+                    <div class="profile-stat-box">
+                        <span class="profile-stat-val">99%</span>
+                        <span class="profile-stat-lbl">雷达识别率</span>
+                    </div>
+                </div>
+
+                <!-- Sync and Cloud Section -->
+                <div class="profile-group">
+                    <h4><i class="fas fa-cloud-upload-alt"></i> 云端备份与同步</h4>
+                    <div class="sync-status-box">
+                        <p class="sync-status-text" id="profile-sync-status">云端数据已与本地保持同步</p>
+                        <button type="button" id="btn-sync-cloud" class="btn-primary" style="margin-top: 8px; width: 100%;">
+                            <i class="fas fa-sync" id="sync-cloud-icon"></i> 立即备份到云端
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Account Authorization Section -->
+                <div class="profile-group">
+                    <h4><i class="fas fa-shield-alt"></i> 登录保护</h4>
+                    <div class="security-row">
+                        <div class="security-item">
+                            <i class="fab fa-apple security-icon apple-active"></i>
+                            <div>
+                                <h5>Apple ID 关联</h5>
+                                <p class="security-status" id="profile-apple-status">已启用安全绑定</p>
+                            </div>
+                        </div>
+                        <div class="security-item">
+                            <i class="fas fa-fingerprint security-icon passkey-active"></i>
+                            <div>
+                                <h5>Passkeys 安全密钥</h5>
+                                <p class="security-status" id="profile-passkey-status">已关联指纹 / 面容免密登录</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <div class="profile-actions" style="margin-top: 20px;">
+                    <div id="profile-logged-out-view">
+                        <button type="button" id="profile-login-btn" class="btn-primary" style="width: 100%;">登录 / 注册</button>
+                    </div>
+                    <div id="profile-logged-in-view" style="display: none;">
+                        <button type="button" id="profile-logout-btn" class="btn-danger-outline" style="width: 100%;">退出登录</button>
                     </div>
                 </div>
             </div>
