@@ -1263,33 +1263,55 @@ document.addEventListener('DOMContentLoaded', () => {
         scanResults = [];
         let isAiSuccessful = false;
         
+        function dataURLtoBlob(dataurl) {
+            var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+                bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+            while(n--){
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], {type:mime});
+        }
+
         if (base64Image) {
             addLog('🔍 Transmitting image bytes to Brickognize API gateway...', 'highlight');
             try {
-                const res = await fetch('/api/scan-image', {
+                const blob = dataURLtoBlob(base64Image);
+                const formData = new FormData();
+                formData.append('query_image', blob, 'image.jpg');
+                
+                const apiRes = await fetch('https://api.brickognize.com/predict/', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        image: base64Image,
-                        color: color,
-                        api_key: ""
-                    })
+                    body: formData
                 });
                 
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.results && data.results.length > 0) {
-                        scanResults = data.results;
-                        scanAiDescription = data.description || '';
-                        isAiSuccessful = true;
+                if (apiRes.ok) {
+                    const apiData = await apiRes.json();
+                    const items = apiData.items || [];
+                    
+                    const res = await fetch('/api/scan-candidates', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            items: items,
+                            color: color
+                        })
+                    });
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.results && data.results.length > 0) {
+                            scanResults = data.results;
+                            scanAiDescription = data.description || '';
+                            isAiSuccessful = true;
+                        }
                     }
-                } else {
-                    const errData = await res.json().catch(() => ({}));
-                    const errMsg = errData.message || 'API request failed';
-                    addLog(`⚠️ Recognition service offline (${errMsg}). Falling back to visual proxy...`, 'warning');
+                }
+                
+                if (!isAiSuccessful) {
+                    addLog('⚠️ Recognition service offline. Falling back to visual proxy...', 'warning');
                 }
             } catch (e) {
-                console.error("AI Scan fetch error:", e);
+                console.error("Direct API Scan fetch error:", e);
                 addLog('⚠️ Connection timed out. Falling back to visual proxy...', 'warning');
             }
         }
@@ -1437,12 +1459,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return '普通级 (Common)';
         };
 
+        const bestScore = best.score ? `Match Confirmed ${(best.score * 100).toFixed(1)}%` : 'Best Match 99.4%';
+
         const bestCard = document.createElement('div');
         bestCard.className = 'result-card best-match';
         bestCard.setAttribute('data-minifig-num', best.minifig_num);
         bestCard.style.cursor = 'pointer';
         bestCard.innerHTML = `
-            <div class="badge-best">最佳匹配 99.4%</div>
+            <div class="badge-best">${bestScore}</div>
             <div class="result-image-box">
                 <img id="match-img-1" src="${best.img_url}" alt="${best.name}" decoding="async" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%2313171f%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22rgba(0,123,255,0.1)%22/></svg>'">
             </div>
@@ -1472,13 +1496,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             [item2, item3].forEach((item, index) => {
                 if (!item) return;
-                const percent = index === 0 ? '88.5%' : '65.2%';
+                const percent = item.score ? `${(item.score * 100).toFixed(1)}% Match` : (index === 0 ? '88.5% Match' : '65.2% Match');
                 const miniCard = document.createElement('div');
                 miniCard.className = 'result-card-mini';
                 miniCard.setAttribute('data-minifig-num', item.minifig_num);
                 miniCard.style.cursor = 'pointer';
                 miniCard.innerHTML = `
-                    <div class="mini-percent">${percent} 相似</div>
+                    <div class="mini-percent">${percent}</div>
                     <img id="match-img-${index + 2}" src="${item.img_url}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%2313171f%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22rgba(0,123,255,0.1)%22/></svg>'">
                     <div class="mini-info">
                         <span class="fig-id">编号：${(item.official_id || item.minifig_num).toUpperCase()}</span>

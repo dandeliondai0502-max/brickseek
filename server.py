@@ -468,6 +468,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 payload = self.api_scan_image(conn, body)
                 if payload is not None:
                     self.send_json_response(payload)
+                    
+            elif path == "/api/scan-candidates":
+                self.api_scan_candidates(conn, body)
                 
             else:
                 self.send_json_response({"error": "Endpoint not found"}, status=404)
@@ -842,7 +845,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         if not cand:
                             continue
                         resolved_cand = resolve_minifig_id(cand)
-                        cursor.execute("SELECT minifig_num, name, num_parts FROM minifigs WHERE LOWER(minifig_num) = ?", (resolved_cand,))
+                        cursor.execute("SELECT minifig_num, name, num_parts FROM minifigs WHERE LOWER(minifig_num) = ?", (resolved_cand.lower(),))
                         row = cursor.fetchone()
                         if row:
                             matched_figs.append({
@@ -855,19 +858,6 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                             })
                             found_direct = True
                             
-                    if not found_direct and item.get("name"):
-                        matched_row, match_score = fuzzy_match_minifig(conn, item["name"])
-                        if matched_row and match_score >= 0.5:
-                            matched_figs.append({
-                                "minifig_num": matched_row["minifig_num"],
-                                "name": matched_row["name"],
-                                "num_parts": matched_row["num_parts"],
-                                "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{matched_row['minifig_num']}.jpg",
-                                "score": item.get("score", 0.9) * 0.9,
-                                "official_id": MINIFIG_ID_MAP.get(matched_row["minifig_num"], matched_row["minifig_num"])
-                            })
-                            found_direct = True
-
                     if not found_direct:
                         matched_figs.append({
                             "minifig_num": item["id"],
@@ -980,6 +970,34 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             })
             return
 
+        # Fallback to color distance if still no matches found
+        print("Brickognize returned no matches. Falling back to traditional color distance match...")
+        params = {"color": [target_color], "query": [""]}
+        color_matches = self.api_scan(conn, params)
+        
+        self.send_json_response({
+            "description": "⚠️ No exact match found. Recommending figures with similar dominant colors.",
+            "results": color_matches
+        })
+
+    def api_scan_candidates(self, conn, body):
+        brick_items = body.get("items", [])
+        target_color = body.get("color", "ffffff").strip().lower()
+        
+        matches = self.lookup_candidates(conn, brick_items)
+        
+        top_matches = matches[:3]
+        for fig in top_matches:
+            fig["name"] = translate_to_zh(fig["name"])
+            
+        if top_matches:
+            ai_desc = f"Match confirmed with {(top_matches[0].get('score', 0.9)*100):.1f}% confidence."
+            self.send_json_response({
+                "description": ai_desc,
+                "results": top_matches
+            })
+            return
+            
         # Fallback to color distance if still no matches found
         print("Brickognize returned no matches. Falling back to traditional color distance match...")
         params = {"color": [target_color], "query": [""]}
