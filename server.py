@@ -272,20 +272,6 @@ def translate_query(q):
 SORTED_TRANSLATION_KEYS = sorted(EN_TO_ZH_MAP.keys(), key=len, reverse=True)
 
 def translate_to_zh(name_en):
-    import re
-    if not name_en:
-        return ""
-    translated = name_en
-    replaced = False
-    for key in SORTED_TRANSLATION_KEYS:
-        pattern = r'\b' + re.escape(key) + r'\b'
-        if re.search(pattern, translated, re.IGNORECASE):
-            translated = re.sub(pattern, EN_TO_ZH_MAP[key], translated, flags=re.IGNORECASE)
-            replaced = True
-    if replaced:
-        if translated.lower() == name_en.lower():
-            return name_en
-        return translated
     return name_en
 
 def fuzzy_match_minifig(conn, name_en):
@@ -960,7 +946,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     if not found_part_figs:
                         matched_figs.append({
                             "minifig_num": item["id"],
-                            "name": f"[零件] {item['name']}",
+                            "name": f"[Part] {item['name']}",
                             "num_parts": 1,
                             "img_url": item.get("img_url", f"https://cdn.rebrickable.com/media/parts/elements/{item['id']}.jpg"),
                             "score": item.get("score", 0.8),
@@ -987,7 +973,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
 
         # If matches are found, return them directly!
         if top_matches:
-            ai_desc = f"已成功识别，匹配置信度 {(top_matches[0].get('score', 0.9)*100):.1f}%"
+            ai_desc = f"Match confirmed with {(top_matches[0].get('score', 0.9)*100):.1f}% confidence."
             self.send_json_response({
                 "description": ai_desc,
                 "results": top_matches
@@ -1000,7 +986,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         color_matches = self.api_scan(conn, params)
         
         self.send_json_response({
-            "description": "⚠️ 图像未能精准匹配，已为您推荐主颜色最相近的经典乐高人仔。",
+            "description": "⚠️ No exact match found. Recommending figures with similar dominant colors.",
             "results": color_matches
         })
 
@@ -1040,8 +1026,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         "part_num": "973",
                         "color_id": 0,
                         "quantity": 1,
-                        "part_name": "人仔躯干与双臂 (胸部印刷饰面)",
-                        "color_name": "官方多色",
+                        "part_name": "Minifigure Torso & Arms (Printed)",
+                        "color_name": "Official Multicolored",
                         "color_rgb": "FFFFFF",
                         "img_url": "",
                         "part_cat_id": 60,
@@ -1051,8 +1037,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         "part_num": "970",
                         "color_id": 0,
                         "quantity": 1,
-                        "part_name": "人仔双腿关节与臀部",
-                        "color_name": "官方常规色",
+                        "part_name": "Minifigure Legs & Hips Assembly",
+                        "color_name": "Official Standard",
                         "color_rgb": "000000",
                         "img_url": "",
                         "part_cat_id": 61,
@@ -1062,8 +1048,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         "part_num": "3626",
                         "color_id": 0,
                         "quantity": 1,
-                        "part_name": "人仔头部 (双面面部表情印花)",
-                        "color_name": "黄色/肤色",
+                        "part_name": "Minifigure Head (Printed Face)",
+                        "color_name": "Yellow / Flesh",
                         "color_rgb": "F2CD37",
                         "img_url": "",
                         "part_cat_id": 59,
@@ -1073,8 +1059,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         "part_num": "accessory",
                         "color_id": 0,
                         "quantity": 1,
-                        "part_name": "人仔发型/头盔/武器配件",
-                        "color_name": "多色可选",
+                        "part_name": "Minifigure Hair / Helmet / Accessory",
+                        "color_name": "Assorted Colors",
                         "color_rgb": "333333",
                         "img_url": "",
                         "part_cat_id": 65,

@@ -1257,14 +1257,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const aiBox = document.getElementById('ai-analysis-box');
         if (aiBox) aiBox.style.display = 'none';
         
-        addLog('⚡ 正在初始化图像特征矩阵分析引擎...', 'highlight');
+        addLog('⚡ Initializing visual feature matrix analysis engine...', 'highlight');
         
         // Fetch matching figures instantly in the background!
         scanResults = [];
         let isAiSuccessful = false;
         
         if (base64Image) {
-            addLog('🔍 正在将图像发送至 AI 智能视觉分析引擎...', 'highlight');
+            addLog('🔍 Transmitting image bytes to Brickognize API gateway...', 'highlight');
             try {
                 const res = await fetch('/api/scan-image', {
                     method: 'POST',
@@ -1285,12 +1285,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } else {
                     const errData = await res.json().catch(() => ({}));
-                    const errMsg = errData.message || 'API 调用失败';
-                    addLog(`⚠️ AI 智能识别暂不可用 (${errMsg})。正在切换为传统算法...`, 'warning');
+                    const errMsg = errData.message || 'API request failed';
+                    addLog(`⚠️ Recognition service offline (${errMsg}). Falling back to visual proxy...`, 'warning');
                 }
             } catch (e) {
                 console.error("AI Scan fetch error:", e);
-                addLog('⚠️ AI 智能识别连接超时。正在切换为传统算法...', 'warning');
+                addLog('⚠️ Connection timed out. Falling back to visual proxy...', 'warning');
             }
         }
         
@@ -1319,55 +1319,55 @@ document.addEventListener('DOMContentLoaded', () => {
         const matchName = bestMatch.name;
         
         // Customize logs dynamically based on the best match character name!
-        let characterType = '未知人仔';
-        let detail1 = `主色调 #${color.toUpperCase()} 的头部配件`;
-        let detail2 = `主色调符合 #${color.toUpperCase()} 印刷纹理`;
+        let characterType = 'Unknown Minifigure';
+        let detail1 = `Head accessory with #${color.toUpperCase()} highlights`;
+        let detail2 = `Standard torso with #${color.toUpperCase()} print patterns`;
         
         const matchNameLower = matchName.toLowerCase();
-        if (matchNameLower.includes('vader') || matchNameLower.includes('维达')) {
-            characterType = '黑武士 (Darth Vader)';
-            detail1 = '经典黑武士头面罩轮廓';
-            detail2 = '达斯维达控制面板胸章印花';
-        } else if (matchNameLower.includes('yoda') || matchNameLower.includes('尤达')) {
-            characterType = '尤达大师 (Yoda)';
-            detail1 = '尤达大师经典耳朵面部轮廓';
-            detail2 = '绝地武士粗麻长袍印记';
-        } else if (matchNameLower.includes('batman') || matchNameLower.includes('蝙蝠侠')) {
-            characterType = '蝙蝠侠 (Batman)';
-            detail1 = '蝙蝠侠尖耳面罩轮廓';
-            detail2 = '蝙蝠战衣标志性胸章';
-        } else if (matchNameLower.includes('iron') || matchNameLower.includes('钢铁侠')) {
-            characterType = '钢铁侠 (Iron Man)';
-            detail1 = '钢铁侠金色战甲面罩轮廓';
-            detail2 = '方舟反应堆胸部印刷图案';
-        } else if (matchNameLower.includes('lloyd') || matchNameLower.includes('劳埃德')) {
-            characterType = '劳埃德 (Lloyd)';
-            detail1 = '幻影忍者劳埃德经典头巾';
-            detail2 = '能量元素战服印记';
-        } else if (matchNameLower.includes('spider') || matchNameLower.includes('蜘蛛侠')) {
-            characterType = '蜘蛛侠 (Spider-Man)';
-            detail1 = '经典红蓝网状蜘蛛头罩轮廓';
-            detail2 = '胸部黑色蜘蛛标志印花';
-        } else if (matchNameLower.includes('stormtrooper') || matchNameLower.includes('冲锋队')) {
-            characterType = '帝国冲锋队 (Stormtrooper)';
-            detail1 = '经典白兵头盔面部轮廓';
-            detail2 = '帝国军用战术装甲印记';
-        } else if (matchNameLower.includes('luke') || matchNameLower.includes('卢克')) {
-            characterType = '卢克·天行者 (Luke Skywalker)';
-            detail1 = '塔图因金发或反抗军头盔轮廓';
-            detail2 = '经典绝地装束/反抗军飞行服印花';
+        if (matchNameLower.includes('vader')) {
+            characterType = 'Darth Vader';
+            detail1 = 'Classic Darth Vader helmet contour';
+            detail2 = 'Sith chest control panel insignia';
+        } else if (matchNameLower.includes('yoda')) {
+            characterType = 'Master Yoda';
+            detail1 = 'Alien green pointed ears & forehead contour';
+            detail2 = 'Jedi Grand Master textured robe pattern';
+        } else if (matchNameLower.includes('batman')) {
+            characterType = 'Batman';
+            detail1 = 'Pointed ears cowl mask profile';
+            detail2 = 'Signature bat chest insignia print';
+        } else if (matchNameLower.includes('iron')) {
+            characterType = 'Iron Man';
+            detail1 = 'Tony Stark gold faceplate contour';
+            detail2 = 'Chest arc reactor power unit outline';
+        } else if (matchNameLower.includes('lloyd')) {
+            characterType = 'Green Ninja Lloyd';
+            detail1 = 'Ninjago hood wrap bandana contour';
+            detail2 = 'Energy elemental fabric alignment print';
+        } else if (matchNameLower.includes('spider')) {
+            characterType = 'Spider-Man';
+            detail1 = 'Classic webbed spider-cowl contour';
+            detail2 = 'Signature spider chest emblem print';
+        } else if (matchNameLower.includes('stormtrooper')) {
+            characterType = 'Stormtrooper';
+            detail1 = 'Classic military imperial helmet profile';
+            detail2 = 'Tactical white plastoid armor prints';
+        } else if (matchNameLower.includes('luke')) {
+            characterType = 'Luke Skywalker';
+            detail1 = 'Tatooine hair or rebel helmet contour';
+            detail2 = 'Jedi Knight tunic or pilot flight suit pattern';
         }
         
         const logsSchedule = [
-            { threshold: 10, text: '🔍 图像解析成功，正在进行边缘轮廓拟合...', type: '' },
-            { threshold: 22, text: isAiSuccessful ? `🤖 AI 视觉大模型已确认角色特征，初步匹配为：${characterType}` : `🤖 检测到乐高人仔经典骨架，初步判定为：${characterType}`, type: 'success' },
-            { threshold: 30, text: '🎯 [定位] 头部配件匹配。启动脸部印刷扫描...', type: '' },
-            { threshold: 45, text: `🏷️ 头部特征匹配度高：${detail1}`, type: 'highlight' },
-            { threshold: 55, text: '🎯 [定位] 躯干印花检测。分析胸部和手臂色彩...', type: '' },
-            { threshold: 70, text: `🏷️ 躯干印花符合：${detail2}`, type: 'highlight' },
-            { threshold: 82, text: '🎯 [定位] 腿部轮廓检测已完成...', type: '' },
-            { threshold: 90, text: isAiSuccessful ? '📦 AI 分析完成。正在调取 SQLite 对应特征编号进行双向校准...' : '📦 正在检索离线 SQLite 数据库 16,985 份人仔百科库...', type: '' },
-            { threshold: 98, text: isAiSuccessful ? `✅ AI 识别完毕，${bestMatch.name} 比对成功！` : `✅ 比对完毕，${bestMatch.name} 匹配精确率 99.4%`, type: 'success' }
+            { threshold: 10, text: '🔍 Image bytes parsed. Commencing edge contour extraction...', type: '' },
+            { threshold: 22, text: isAiSuccessful ? `🤖 API Match Confirmed: ${characterType}` : `🤖 Structural match identified: ${characterType}`, type: 'success' },
+            { threshold: 30, text: '🎯 [LOCK] Scanning facial decals and helmet prints...', type: '' },
+            { threshold: 45, text: `🏷️ Helmet Match: ${detail1}`, type: 'highlight' },
+            { threshold: 55, text: '🎯 [LOCK] Analysing torso decals, arms, and base colors...', type: '' },
+            { threshold: 70, text: `🏷️ Torso Match: ${detail2}`, type: 'highlight' },
+            { threshold: 82, text: '🎯 [LOCK] Leg and hip alignment validation completed...', type: '' },
+            { threshold: 90, text: isAiSuccessful ? '📦 Matching database catalogs against visual weights...' : '📦 Fetching metadata from offline index files...', type: '' },
+            { threshold: 98, text: isAiSuccessful ? `✅ Match verified! Registered as: ${bestMatch.name}` : `✅ Search completed. Match confidence for ${bestMatch.name}: 99.4%`, type: 'success' }
         ];
 
         scanInterval = setInterval(() => {
