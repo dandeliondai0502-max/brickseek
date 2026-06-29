@@ -811,15 +811,20 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     headers={
                         'Content-Type': f'multipart/form-data; boundary={bound}',
                         'Accept': 'application/json',
-                        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
                     },
                     method='POST'
                 )
-                with urllib.request.urlopen(req, timeout=8) as response:
+                with urllib.request.urlopen(req, timeout=15) as response:
                     res = json.loads(response.read().decode('utf-8'))
                 return res.get("items", [])
+            except urllib.error.HTTPError as he:
+                print(f"Brickognize API HTTPError {he.code}: {he.read().decode('utf-8', errors='ignore')}")
+                return []
             except Exception as ex:
-                print(f"Brickognize API call failed: {ex}")
+                import traceback
+                print("Brickognize API call failed exception:")
+                traceback.print_exc()
                 return []
 
         # Helper to lookup candidates in database
@@ -904,6 +909,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                                 if sub:
                                     part_candidates.add(sub.strip().lower())
                                     
+                    found_part_figs = False
                     for pcand in part_candidates:
                         if not pcand:
                             continue
@@ -945,10 +951,21 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                                 "minifig_num": row["minifig_num"],
                                 "name": row["name"],
                                 "num_parts": row["num_parts"],
-                                "img_url": f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
+                                "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
                                 "score": item.get("score", 0.8) * 0.8,
                                 "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
                             })
+                            found_part_figs = True
+                            
+                    if not found_part_figs:
+                        matched_figs.append({
+                            "minifig_num": item["id"],
+                            "name": f"[零件] {item['name']}",
+                            "num_parts": 1,
+                            "img_url": item.get("img_url", f"https://cdn.rebrickable.com/media/parts/elements/{item['id']}.jpg"),
+                            "score": item.get("score", 0.8),
+                            "official_id": item["id"]
+                        })
             
             # Deduplicate final list of matches
             unique_figs = []
