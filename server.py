@@ -963,51 +963,43 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         brick_items = call_brickognize(image_data, mime_type)
         first_round_matches = lookup_candidates(brick_items)
         
-        has_high_confidence = False
-        if first_round_matches:
-            first_round_matches.sort(key=lambda x: x.get("score", 0), reverse=True)
-            if first_round_matches[0].get("score", 0) >= 0.85:
-                has_high_confidence = True
-
-        # STEP 2: If low confidence or no matches, use Gemini to detect bounding box, crop & retry!
-        cropped_image_data = None
-        gemini_box = None
-        gemini_keywords = []
+        is_verified = False
         ai_desc = ""
-
-        if not has_high_confidence and api_key:
-            print("Confidence is low or no matches found. Initiating Gemini crop & retry sequence...")
-            # We call Gemini to find the bounding box
-            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-            prompt = (
-                "Analyze the Lego minifigure (or Lego part) in this image. We need to crop it to improve matching.\n"
-                "1. Detect the bounding box of the main LEGO minifigure (or prominent LEGO part/piece). Return coordinates as [ymin, xmin, ymax, xmax] normalized on a 0-1000 scale.\n"
-                "2. Provide 3-6 English keywords describing its visual attributes (e.g. torso prints, helmet color, legs).\n"
-                "3. Provide a brief description of the minifigure in Chinese (within 60 characters) describing who/what it is.\n"
-                "Return STRICTLY JSON format:\n"
-                "{\n"
-                "  \"box\": [ymin, xmin, ymax, xmax],\n"
-                "  \"keywords\": [\"keyword1\", \"keyword2\", ...],\n"
-                "  \"description\": \"Chinese description\"\n"
-                "}"
-            )
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {"text": prompt},
-                        {"inlineData": {"mimeType": mime_type, "data": image_data}}
-                    ]
-                }],
-                "generationConfig": {"responseMimeType": "application/json"}
-            }
+        gemini_keywords = []
+        
+        # STEP 2: If we have first round matches, call Gemini to verify similarity
+        if first_round_matches and api_key:
+            top_candidate = first_round_matches[0]
+            candidate_name = top_candidate["name"]
+            print(f"First-round found candidate: '{candidate_name}'. Calling Gemini to verify similarity...")
             try:
+                gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+                prompt = (
+                    f"Analyze the LEGO image. Determine if the minifigure (or part) shown in the image is a match for the candidate item: '{candidate_name}'.\n"
+                    "Pay close attention to face prints, torso print designs, helmet details, and color differences.\n"
+                    "Return STRICTLY JSON format:\n"
+                    "{\n"
+                    "  \"is_similar\": true,\n"
+                    "  \"description\": \"在照片中发现了与该候选项特征高度相近的乐高人仔。\"\n"
+                    "}"
+                    "Make sure the response is valid JSON. Set 'is_similar' to true or false. 'description' should be a brief Chinese explanation (within 60 characters)."
+                )
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt},
+                            {"inlineData": {"mimeType": mime_type, "data": image_data}}
+                        ]
+                    }],
+                    "generationConfig": {"responseMimeType": "application/json"}
+                }
                 req = urllib.request.Request(
                     gemini_url,
                     data=json.dumps(payload).encode('utf-8'),
                     headers={'Content-Type': 'application/json'},
                     method='POST'
                 )
-                with urllib.request.urlopen(req, timeout=15) as response:
+                with urllib.request.urlopen(req, timeout=10) as response:
                     res_body = json.loads(response.read().decode('utf-8'))
                 
                 text_resp = res_body["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -1017,13 +1009,68 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     text_resp = text_resp[:-3]
                 text_resp = text_resp.strip()
                 
-                ai_data = json.loads(text_resp)
-                gemini_box = ai_data.get("box")
-                gemini_keywords = ai_data.get("keywords", [])
-                ai_desc = ai_data.get("description", "")
+                verification_result = json.loads(text_resp)
+                is_similar = verification_result.get("is_similar", False)
+                ai_desc = verification_result.get("description", "")
+                
+                if is_similar:
+                    print("Gemini verified similarity: Match confirmed!")
+                    is_verified = True
+                else:
+                    print("Gemini verified similarity: Match rejected or not similar.")
+            except Exception as e:
+                print(f"Gemini verification failed: {e}")
+                # If verification fails due to network/API issues, fallback to high confidence if score is high
+                if top_candidate.get("score", 0) >= 0.85:
+                    is_verified = True
+                    ai_desc = f"已通过智能影像识别匹配，置信度 {(top_candidate.get('score', 0)*100):.1f}%"
+
+        # STEP 3: If not verified (not similar or no matches), crop the background, zoom in and retry!
+        cropped_image_data = None
+        if not is_verified and api_key:
+            print("Initiating Gemini background removal / crop & retry sequence...")
+            try:
+                gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+                prompt = (
+                    "Analyze the Lego image and locate the main LEGO minifigure (or prominent LEGO part/piece).\n"
+                    "1. Detect the bounding box to crop out the background. Return coordinates as [ymin, xmin, ymax, xmax] normalized on a 0-1000 scale.\n"
+                    "2. Provide 3-6 English keywords describing its visual attributes.\n"
+                    "Return STRICTLY JSON format:\n"
+                    "{\n"
+                    "  \"box\": [ymin, xmin, ymax, xmax],\n"
+                    "  \"keywords\": [\"keyword1\", \"keyword2\", ...]\n"
+                    "}"
+                )
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt},
+                            {"inlineData": {"mimeType": mime_type, "data": image_data}}
+                        ]
+                    }],
+                    "generationConfig": {"responseMimeType": "application/json"}
+                }
+                req = urllib.request.Request(
+                    gemini_url,
+                    data=json.dumps(payload).encode('utf-8'),
+                    headers={'Content-Type': 'application/json'},
+                    method='POST'
+                )
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    res_body = json.loads(response.read().decode('utf-8'))
+                
+                text_resp = res_body["candidates"][0]["content"]["parts"][0]["text"].strip()
+                if text_resp.startswith("```json"):
+                    text_resp = text_resp[7:]
+                if text_resp.endswith("```"):
+                    text_resp = text_resp[:-3]
+                text_resp = text_resp.strip()
+                
+                crop_data = json.loads(text_resp)
+                gemini_box = crop_data.get("box")
+                gemini_keywords = crop_data.get("keywords", [])
                 
                 if gemini_box and len(gemini_box) == 4:
-                    # Perform image crop using Pillow
                     try:
                         raw_bytes = base64.b64decode(image_data)
                         img = Image.open(io.BytesIO(raw_bytes))
@@ -1047,7 +1094,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         
                         if right > left and bottom > top:
                             cropped_img = img.crop((left, top, right, bottom))
-                            # Resize 1.5x for higher detail matching resolution
+                            # Resize 1.5x for higher detail matching resolution (放大人仔)
                             cropped_img = cropped_img.resize(
                                 (int((right - left) * 1.5), int((bottom - top) * 1.5)), 
                                 Image.Resampling.LANCZOS
@@ -1061,13 +1108,13 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             except Exception as gemini_err:
                 print(f"Gemini coordinate extraction failed: {gemini_err}")
 
-        # STEP 3: If we have a cropped image, perform a second-round Brickognize match
+        # STEP 4: If we have a cropped image, perform a second-round Brickognize match
         second_round_matches = []
         if cropped_image_data:
             brick_items_retry = call_brickognize(cropped_image_data, "image/jpeg")
             second_round_matches = lookup_candidates(brick_items_retry)
             if second_round_matches:
-                print(f"Second-round match succeeded! Found {len(second_round_matches)} candidate figures.")
+                print(f"Second-round match succeeded! Found {len(second_round_matches)} candidate figures after background crop.")
 
         # Combine results from both rounds
         all_matches = []
@@ -1079,47 +1126,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 seen.add(fig["minifig_num"])
                 all_matches.append(fig)
 
-        # STEP 4: Call Gemini for final visual confirmation and Chinese report if we have matches but no AI description
-        if all_matches and api_key and not ai_desc:
-            try:
-                gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-                best_match_name = all_matches[0]["name"]
-                prompt = (
-                    f"We matched this LEGO image with candidate character: '{best_match_name}'.\n"
-                    "Provide a brief description of the minifigure in Chinese (within 60 characters) describing who it is and its key visual features.\n"
-                    "Return STRICTLY JSON format:\n"
-                    "{\n"
-                    "  \"description\": \"Chinese description\"\n"
-                    "}"
-                )
-                payload = {
-                    "contents": [{
-                        "parts": [
-                            {"text": prompt},
-                            {"inlineData": {"mimeType": mime_type, "data": image_data}}
-                        ]
-                    }],
-                    "generationConfig": {"responseMimeType": "application/json"}
-                }
-                req = urllib.request.Request(
-                    gemini_url,
-                    data=json.dumps(payload).encode('utf-8'),
-                    headers={'Content-Type': 'application/json'},
-                    method='POST'
-                )
-                with urllib.request.urlopen(req, timeout=8) as response:
-                    res_body = json.loads(response.read().decode('utf-8'))
-                
-                text_resp = res_body["candidates"][0]["content"]["parts"][0]["text"].strip()
-                if text_resp.startswith("```json"):
-                    text_resp = text_resp[7:]
-                if text_resp.endswith("```"):
-                    text_resp = text_resp[:-3]
-                text_resp = text_resp.strip()
-                
-                ai_desc = json.loads(text_resp).get("description", "")
-            except Exception as desc_err:
-                print(f"Gemini confirmation report failed: {desc_err}")
+        # Update description if retry occurred
+        if second_round_matches and not is_verified:
+            ai_desc = "⚠️ 原图匹配不符，已为您进行背景抠除与放大识别，以下为重试匹配结果。"
 
         # Translate names for top matches
         top_matches = all_matches[:3]
@@ -1129,9 +1138,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         # If any matches are found, return them!
         if top_matches:
             if not ai_desc:
-                ai_desc = f"已通过双通道智能影像识别，匹配置信度 {(top_matches[0].get('score', 0.9)*100):.1f}%"
-                if second_round_matches:
-                    ai_desc += "（触发 Gemini 精细裁切识别）"
+                ai_desc = f"已通过智能影像识别匹配，置信度 {(top_matches[0].get('score', 0.9)*100):.1f}%"
             self.send_json_response({
                 "description": ai_desc,
                 "results": top_matches
