@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BrickFinder 乐高人仔雷达 - 极简搜索</title>
-    <link rel="stylesheet" href="style.css?v=3.6">
+    <link rel="stylesheet" href="style.css?v=3.7">
     <!-- FontAwesome is decorative; load it asynchronously so the first screen is not blocked by the CDN. -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -482,16 +482,16 @@
                             <div class="minifig-outline-container">
                                 <svg class="minifig-outline-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                                     <!-- Inner AI Target Dashed Box -->
-                                    <rect x="15" y="10" width="70" height="80" rx="6" fill="none" stroke="rgba(10, 132, 255, 0.2)" stroke-width="1" stroke-dasharray="4,4" />
+                                    <rect x="5" y="2" width="90" height="96" rx="6" fill="none" stroke="rgba(10, 132, 255, 0.25)" stroke-width="1" stroke-dasharray="4,4" />
                                     
                                     <!-- 4 Glowing Scanner Corner Brackets -->
-                                    <path d="M 15,20 V 10 H 25" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" />
-                                    <path d="M 85,20 V 10 H 75" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" />
-                                    <path d="M 15,80 V 90 H 25" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" />
-                                    <path d="M 85,80 V 90 H 75" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" />
+                                    <path d="M 5,12 V 2 H 15" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" />
+                                    <path d="M 95,12 V 2 H 85" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" />
+                                    <path d="M 5,88 V 98 H 15" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" />
+                                    <path d="M 95,88 V 98 H 85" fill="none" stroke="var(--accent-color)" stroke-width="2.5" stroke-linecap="round" />
 
-                                    <!-- Minifigure silhouette outline -->
-                                    <path d="M 46,16 h 8 v 3 h -8 z M 41,19 h 18 v 12 c 0,2 -2,4 -4,4 h -10 c -2,0 -4,-2 -4,-4 z M 47,35 h 6 v 2 h -6 z M 37,37 h 26 L 66,64 h -32 z M 36.5,38 c -3.5,1.5 -5.5,6 -5.5,12 c 0,4.5 1.5,8.5 3.5,10.5 M 63.5,38 c 3.5,1.5 5.5,6 5.5,12 c 0,4.5 -1.5,8.5 -3.5,10.5 M 32,60.5 c -1.5,1.5 -1,3.5 0.5,4 c 1.5,0.5 2.5,-0.5 2.5,-2 M 68,60.5 c 1.5,1.5 1,3.5 -0.5,4 c -1.5,0.5 -2.5,-0.5 -2.5,-2 M 35,64 h 30 v 4 h -30 z M 36,68 h 11 v 21 h -11 z M 53,68 h 11 v 21 h -11 z M 34,89 h 13 v 3 h -13 z M 53,89 h 13 v 3 h -13 z" 
+                                    <!-- Minifigure silhouette outline (Single continuous outer path) -->
+                                    <path d="M 45,2 h 10 v 3 h 6 v 14 c 0,2.5 -2.5,4.5 -5,4.5 h -2 v 1.5 h 10 c 5.5,1 9.5,8 9.5,16.5 c 0,6.5 -3.5,9.5 -5.5,10.5 c 2.5,1 3,4.5 0.5,6 c -2.5,1.5 -5,-0.5 -5,-3 c 0,-1.5 1.5,-2.5 2.5,-3 h -2 v 8.5 h 2 v 3.5 v 28 h 4 v 3 h -16 v -27 h -8 v 27 h -16 v -3 h 4 v -28 v -3.5 h 2 v -8.5 h -2 c 1,0.5 2.5,1.5 2.5,3 c 0,2.5 -2.5,4.5 -5,3 c -2.5,-1.5 -2,-5 0.5,-6 c -2,-1 -5.5,-4 -5.5,-10.5 c 0,-8.5 4,-15.5 9.5,-16.5 h 10 v -1.5 h -2 c -2.5,0 -5,-2 -5,-4.5 v -14 h 6 v -3 Z" 
                                           fill="none" stroke="var(--accent-color)" stroke-width="1.8" stroke-dasharray="6,4" />
                                 </svg>
                             </div>
@@ -935,6 +935,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=3.6" defer></script>
+    <script src="app.js?v=3.7" defer></script>
 </body>
 </html>
