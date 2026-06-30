@@ -57,6 +57,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchContainer = document.querySelector('.search-container');
     const detailContainer = document.getElementById('detail-container');
     const backToSearchBtn = document.getElementById('back-to-search-btn');
+    const backToPreviousBtn = document.getElementById('back-to-previous-btn');
+    let detailPageHistory = [];
+    let currentMinifigState = null;
 
     // Gallery Elements
     const galleryContainer = document.getElementById('gallery-container');
@@ -1522,8 +1525,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- 7. Encyclopedia Detail View (Real API Integration) ---
-    async function showDetailPage(id, name = '', imgUrl = '') {
+    async function showDetailPage(id, name = '', imgUrl = '', isBackNavigation = false) {
         try {
+            // Manage page traversal history
+            if (!isBackNavigation) {
+                if (detailContainer.style.display === 'block' && currentMinifigState && currentMinifigState.id !== id) {
+                    detailPageHistory.push({
+                        id: currentMinifigState.id,
+                        name: currentMinifigState.name,
+                        imgUrl: currentMinifigState.imgUrl
+                    });
+                } else if (detailContainer.style.display !== 'block') {
+                    // Entering details view fresh: reset traversal stack
+                    detailPageHistory = [];
+                }
+            }
+            
+            currentMinifigState = { id, name, imgUrl };
+
+            // Control visual visibility of "返回上一步" button
+            if (backToPreviousBtn) {
+                if (detailPageHistory.length > 0) {
+                    backToPreviousBtn.style.display = 'inline-flex';
+                } else {
+                    backToPreviousBtn.style.display = 'none';
+                }
+            }
+
             if (detailCache.has(id)) {
                 renderMinifigDetails(detailCache.get(id), id);
                 return;
@@ -1947,7 +1975,23 @@ document.addEventListener('DOMContentLoaded', () => {
     backToSearchBtn.addEventListener('click', () => {
         detailContainer.style.display = 'none';
         searchContainer.style.display = 'flex';
+        detailPageHistory = []; // Reset history
     });
+
+    if (backToPreviousBtn) {
+        backToPreviousBtn.addEventListener('click', () => {
+            goBackOneStep();
+        });
+    }
+
+    function goBackOneStep() {
+        if (detailPageHistory.length > 0) {
+            const prevState = detailPageHistory.pop();
+            showDetailPage(prevState.id, prevState.name, prevState.imgUrl, true);
+        } else {
+            backToSearchBtn.click();
+        }
+    }
 
     // --- 7.5 Interactive Swipe Right on Detail Page to Go Back ---
     let detailTouchStartX = 0;
@@ -2007,7 +2051,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Swiped far enough, complete the exit animation
             detailContainer.style.transform = `translate3d(100%, 0, 0)`;
             setTimeout(() => {
-                backToSearchBtn.click();
+                goBackOneStep();
                 detailContainer.style.transform = '';
                 detailContainer.style.transition = '';
             }, 250);
