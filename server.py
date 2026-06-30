@@ -746,6 +746,141 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         SCAN_CANDIDATE_CACHE["loaded_at"] = now
         return rows
 
+    def lookup_candidates(self, conn, brick_items):
+        matched_figs = []
+        cursor = conn.cursor()
+        for item in brick_items:
+            itype = str(item.get("type", "")).strip().lower()
+            
+            # Option A: Direct minifigure match
+            if itype in ("fig", "minifig") or item.get("id", "").startswith("fig-"):
+                candidates = {item.get("id", "").strip().lower()}
+                for ext in item.get("external_sites", []):
+                    url = ext.get("url", "")
+                    if "bricklink.com/" in url and ("?M=" in url or "&M=" in url or "?m=" in url or "&m=" in url):
+                        import re
+                        match = re.search(r'[?&][Mm]=([^&#]+)', url)
+                        if match:
+                            candidates.add(match.group(1).strip().lower())
+                    if "rebrickable.com/minifigs/" in url:
+                        parts = url.split("minifigs/")
+                        if len(parts) > 1:
+                            sub = parts[1].split("/")[0]
+                            if sub:
+                                candidates.add(sub.strip().lower())
+                                
+                found_direct = False
+                for cand in candidates:
+                    if not cand:
+                        continue
+                    resolved_cand = resolve_minifig_id(cand)
+                    cursor.execute("SELECT minifig_num, name, num_parts FROM minifigs WHERE LOWER(minifig_num) = ?", (resolved_cand.lower(),))
+                    row = cursor.fetchone()
+                    if row:
+                        matched_figs.append({
+                            "minifig_num": row["minifig_num"],
+                            "name": row["name"],
+                            "num_parts": row["num_parts"],
+                            "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
+                            "score": item.get("score", 0.9),
+                            "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
+                        })
+                        found_direct = True
+                        
+                if not found_direct:
+                    matched_figs.append({
+                        "minifig_num": item["id"],
+                        "name": item["name"],
+                        "num_parts": 4,
+                        "img_url": item.get("img_url", f"https://cdn.rebrickable.com/media/sets/{item['id']}.jpg"),
+                        "score": item.get("score", 0.8),
+                        "official_id": item["id"]
+                    })
+            
+            # Option B: Partial part match (torso, head, accessories)
+            else:
+                part_candidates = {item.get("id", "").strip().lower()}
+                for ext in item.get("external_sites", []):
+                    url = ext.get("url", "")
+                    if "bricklink.com/" in url and ("?P=" in url or "&P=" in url or "?p=" in url or "&p=" in url):
+                        import re
+                        match = re.search(r'[?&][Pp]=([^&#]+)', url)
+                        if match:
+                            part_candidates.add(match.group(1).strip().lower())
+                    if "rebrickable.com/parts/" in url:
+                        parts = url.split("parts/")
+                        if len(parts) > 1:
+                            sub = parts[1].split("/")[0]
+                            if sub:
+                                part_candidates.add(sub.strip().lower())
+                                
+                found_part_figs = False
+                for pcand in part_candidates:
+                    if not pcand:
+                        continue
+                    pcand_clean = pcand.replace("part-", "")
+                    sql_figs_by_part = """
+                        SELECT DISTINCT m.minifig_num, m.name, m.num_parts
+                        FROM inventory_parts ip
+                        JOIN inventories i ON ip.inventory_id = i.id
+                        JOIN minifigs m ON i.set_num = m.minifig_num
+                        WHERE (LOWER(ip.part_num) = ? OR LOWER(ip.part_num) = ?)
+                          AND m.num_parts BETWEEN 3 AND 12
+                          AND LOWER(m.name) NOT LIKE '%keychain%'
+                          AND LOWER(m.name) NOT LIKE '%key chain%'
+                          AND LOWER(m.name) NOT LIKE '%magnet%'
+                          AND LOWER(m.name) NOT LIKE '%watch%'
+                          AND LOWER(m.name) NOT LIKE '%clock%'
+                          AND LOWER(m.name) NOT LIKE '%book%'
+                          AND LOWER(m.name) NOT LIKE '%sticker%'
+                          AND LOWER(m.name) NOT LIKE '%card%'
+                          AND LOWER(m.name) NOT LIKE '%giant%'
+                          AND LOWER(m.name) NOT LIKE '%maxifigure%'
+                          AND LOWER(m.name) NOT LIKE '%brick-built%'
+                          AND LOWER(m.name) NOT LIKE '%pen%'
+                          AND LOWER(m.name) NOT LIKE '%torch%'
+                          AND LOWER(m.name) NOT LIKE '%light%'
+                          AND LOWER(m.name) NOT LIKE '%plush%'
+                          AND LOWER(m.name) NOT LIKE '%notebook%'
+                          AND LOWER(m.name) NOT LIKE '%tag%'
+                          AND LOWER(m.name) NOT LIKE '%bag%'
+                          AND LOWER(m.name) NOT LIKE '%frame%'
+                          AND LOWER(m.name) NOT LIKE '%display%'
+                          AND LOWER(m.name) NOT LIKE '%scale%'
+                        LIMIT 12
+                    """
+                    cursor.execute(sql_figs_by_part, (pcand, pcand_clean))
+                    rows = cursor.fetchall()
+                    for row in rows:
+                        matched_figs.append({
+                            "minifig_num": row["minifig_num"],
+                            "name": row["name"],
+                            "num_parts": row["num_parts"],
+                            "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
+                            "score": item.get("score", 0.8) * 0.8,
+                            "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
+                        })
+                        found_part_figs = True
+                        
+                if not found_part_figs:
+                    matched_figs.append({
+                        "minifig_num": item["id"],
+                        "name": f"[Part] {item['name']}",
+                        "num_parts": 1,
+                        "img_url": item.get("img_url", f"https://cdn.rebrickable.com/media/parts/elements/{item['id']}.jpg"),
+                        "score": item.get("score", 0.8),
+                        "official_id": item["id"]
+                    })
+        
+        # Deduplicate final list of matches
+        unique_figs = []
+        seen = set()
+        for fig in matched_figs:
+            if fig["minifig_num"] not in seen:
+                seen.add(fig["minifig_num"])
+                unique_figs.append(fig)
+        return unique_figs
+
     def api_scan_image(self, conn, body):
         import urllib.request
         import urllib.error
@@ -816,145 +951,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 traceback.print_exc()
                 return []
 
-        # Helper to lookup candidates in database
-        def lookup_candidates(brick_items):
-            matched_figs = []
-            cursor = conn.cursor()
-            for item in brick_items:
-                itype = str(item.get("type", "")).strip().lower()
-                
-                # Option A: Direct minifigure match
-                if itype in ("fig", "minifig") or item.get("id", "").startswith("fig-"):
-                    candidates = {item.get("id", "").strip().lower()}
-                    for ext in item.get("external_sites", []):
-                        url = ext.get("url", "")
-                        if "bricklink.com/" in url and ("?M=" in url or "&M=" in url or "?m=" in url or "&m=" in url):
-                            import re
-                            match = re.search(r'[?&][Mm]=([^&#]+)', url)
-                            if match:
-                                candidates.add(match.group(1).strip().lower())
-                        if "rebrickable.com/minifigs/" in url:
-                            parts = url.split("minifigs/")
-                            if len(parts) > 1:
-                                sub = parts[1].split("/")[0]
-                                if sub:
-                                    candidates.add(sub.strip().lower())
-                                    
-                    found_direct = False
-                    for cand in candidates:
-                        if not cand:
-                            continue
-                        resolved_cand = resolve_minifig_id(cand)
-                        cursor.execute("SELECT minifig_num, name, num_parts FROM minifigs WHERE LOWER(minifig_num) = ?", (resolved_cand.lower(),))
-                        row = cursor.fetchone()
-                        if row:
-                            matched_figs.append({
-                                "minifig_num": row["minifig_num"],
-                                "name": row["name"],
-                                "num_parts": row["num_parts"],
-                                "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
-                                "score": item.get("score", 0.9),
-                                "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
-                            })
-                            found_direct = True
-                            
-                    if not found_direct:
-                        matched_figs.append({
-                            "minifig_num": item["id"],
-                            "name": item["name"],
-                            "num_parts": 4,
-                            "img_url": item.get("img_url", f"https://cdn.rebrickable.com/media/sets/{item['id']}.jpg"),
-                            "score": item.get("score", 0.8),
-                            "official_id": item["id"]
-                        })
-                
-                # Option B: Partial part match (torso, head, accessories)
-                else:
-                    part_candidates = {item.get("id", "").strip().lower()}
-                    for ext in item.get("external_sites", []):
-                        url = ext.get("url", "")
-                        if "bricklink.com/" in url and ("?P=" in url or "&P=" in url or "?p=" in url or "&p=" in url):
-                            import re
-                            match = re.search(r'[?&][Pp]=([^&#]+)', url)
-                            if match:
-                                part_candidates.add(match.group(1).strip().lower())
-                        if "rebrickable.com/parts/" in url:
-                            parts = url.split("parts/")
-                            if len(parts) > 1:
-                                sub = parts[1].split("/")[0]
-                                if sub:
-                                    part_candidates.add(sub.strip().lower())
-                                    
-                    found_part_figs = False
-                    for pcand in part_candidates:
-                        if not pcand:
-                            continue
-                        pcand_clean = pcand.replace("part-", "")
-                        sql_figs_by_part = """
-                            SELECT DISTINCT m.minifig_num, m.name, m.num_parts
-                            FROM inventory_parts ip
-                            JOIN inventories i ON ip.inventory_id = i.id
-                            JOIN minifigs m ON i.set_num = m.minifig_num
-                            WHERE (LOWER(ip.part_num) = ? OR LOWER(ip.part_num) = ?)
-                              AND m.num_parts BETWEEN 3 AND 12
-                              AND LOWER(m.name) NOT LIKE '%keychain%'
-                              AND LOWER(m.name) NOT LIKE '%key chain%'
-                              AND LOWER(m.name) NOT LIKE '%magnet%'
-                              AND LOWER(m.name) NOT LIKE '%watch%'
-                              AND LOWER(m.name) NOT LIKE '%clock%'
-                              AND LOWER(m.name) NOT LIKE '%book%'
-                              AND LOWER(m.name) NOT LIKE '%sticker%'
-                              AND LOWER(m.name) NOT LIKE '%card%'
-                              AND LOWER(m.name) NOT LIKE '%giant%'
-                              AND LOWER(m.name) NOT LIKE '%maxifigure%'
-                              AND LOWER(m.name) NOT LIKE '%brick-built%'
-                              AND LOWER(m.name) NOT LIKE '%pen%'
-                              AND LOWER(m.name) NOT LIKE '%torch%'
-                              AND LOWER(m.name) NOT LIKE '%light%'
-                              AND LOWER(m.name) NOT LIKE '%plush%'
-                              AND LOWER(m.name) NOT LIKE '%notebook%'
-                              AND LOWER(m.name) NOT LIKE '%tag%'
-                              AND LOWER(m.name) NOT LIKE '%bag%'
-                              AND LOWER(m.name) NOT LIKE '%frame%'
-                              AND LOWER(m.name) NOT LIKE '%display%'
-                              AND LOWER(m.name) NOT LIKE '%scale%'
-                            LIMIT 12
-                        """
-                        cursor.execute(sql_figs_by_part, (pcand, pcand_clean))
-                        rows = cursor.fetchall()
-                        for row in rows:
-                            matched_figs.append({
-                                "minifig_num": row["minifig_num"],
-                                "name": row["name"],
-                                "num_parts": row["num_parts"],
-                                "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
-                                "score": item.get("score", 0.8) * 0.8,
-                                "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
-                            })
-                            found_part_figs = True
-                            
-                    if not found_part_figs:
-                        matched_figs.append({
-                            "minifig_num": item["id"],
-                            "name": f"[Part] {item['name']}",
-                            "num_parts": 1,
-                            "img_url": item.get("img_url", f"https://cdn.rebrickable.com/media/parts/elements/{item['id']}.jpg"),
-                            "score": item.get("score", 0.8),
-                            "official_id": item["id"]
-                        })
-            
-            # Deduplicate final list of matches
-            unique_figs = []
-            seen = set()
-            for fig in matched_figs:
-                if fig["minifig_num"] not in seen:
-                    seen.add(fig["minifig_num"])
-                    unique_figs.append(fig)
-            return unique_figs
-
         # Directly call Brickognize predict API on the uploaded image
         brick_items = call_brickognize(image_data, mime_type)
-        matches = lookup_candidates(brick_items)
+        matches = self.lookup_candidates(conn, brick_items)
         
         # Translate names for top matches
         top_matches = matches[:3]
