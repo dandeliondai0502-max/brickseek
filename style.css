@@ -123,37 +123,37 @@ header {
     gap: 25px;
 }
 
+.header-left {
+    background: rgba(120, 120, 128, 0.08); /* iOS translucent background */
+    border-radius: 9px;
+    padding: 3px;
+    gap: 2px !important;
+    border: 1px solid rgba(120, 120, 128, 0.02);
+}
+
 .nav-link {
     color: var(--text-secondary);
     text-decoration: none;
     font-weight: 500;
-    font-size: 0.95rem;
-    transition: var(--transition-smooth);
+    font-size: 0.88rem; /* Apple uses smaller tab text */
+    padding: 6px 16px;
+    border-radius: 7px;
+    transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
     position: relative;
-    padding: 5px 0;
 }
 
 .nav-link::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background-color: var(--accent-color);
-    transition: var(--transition-smooth);
+    display: none;
 }
 
 .nav-link:hover {
     color: var(--text-primary);
 }
 
-.nav-link:hover::after, .nav-link.active::after {
-    width: 100%;
-}
-
 .nav-link.active {
+    background: var(--bg-secondary);
     color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 1px rgba(0, 0, 0, 0.04);
 }
 
 .icon-btn {
@@ -326,27 +326,32 @@ main {
     width: 100%;
     position: relative;
     border-radius: 18px;
-    padding: 1.5px;
-    background: var(--border-color);
-    box-shadow: 0 2px 12px var(--shadow-color);
-    transition: var(--transition-smooth);
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 16px var(--shadow-color);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
     margin-bottom: 25px;
 }
 
-.search-box-wrapper:hover, .search-box-wrapper.focused {
-    background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
-    box-shadow: 0 4px 20px var(--accent-glow);
+.search-box-wrapper:hover {
+    border-color: var(--border-hover);
+}
+
+.search-box-wrapper.focused {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 20px var(--shadow-color);
 }
 
 .search-box {
     display: flex;
     align-items: center;
-    background: var(--bg-secondary);
+    background: var(--bg-card);
     border-radius: 17px;
     padding: 6px 6px 6px 18px;
     height: 54px;
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
     transition: background-color 0.4s ease;
 }
 
@@ -795,19 +800,23 @@ footer {
 
 /* Drag and Drop Zone */
 .drop-zone {
-    border: 2px dashed var(--border-color);
+    border: 1px solid var(--border-color);
     border-radius: 18px;
     padding: 40px 20px;
     text-align: center;
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.01);
+    background: var(--bg-card);
     transition: var(--transition-smooth);
     position: relative;
+    box-shadow: 0 4px 12px var(--shadow-color);
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
 }
 
 .drop-zone:hover, .drop-zone.dragover {
     border-color: var(--accent-color);
-    background: rgba(0, 123, 255, 0.02);
+    background: var(--bg-card-hover);
+    box-shadow: 0 0 0 3px var(--accent-glow), 0 6px 18px var(--shadow-color);
 }
 
 .file-input-hidden {
@@ -999,32 +1008,33 @@ footer {
 }
 
 .btn-shutter {
-    width: 60px;
-    height: 60px;
+    width: 66px;
+    height: 66px;
     border-radius: 50%;
-    background: white;
-    border: 4px solid rgba(255, 255, 255, 0.3);
+    background: transparent;
+    border: 4px solid #ffffff;
+    padding: 4px;
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    transition: var(--transition-smooth);
-}
-
-.btn-shutter:hover {
-    transform: scale(1.05);
+    transition: transform 0.15s ease;
 }
 
 .shutter-inner {
-    width: 44px;
-    height: 44px;
+    width: 100%;
+    height: 100%;
     border-radius: 50%;
-    background: #ff3b30;
-    transition: var(--transition-smooth);
+    background: #ffffff;
+    transition: transform 0.15s ease, border-radius 0.15s ease;
+}
+
+.btn-shutter:active {
+    transform: scale(0.96);
 }
 
 .btn-shutter:active .shutter-inner {
-    transform: scale(0.9);
+    transform: scale(0.82);
 }
 
 /* Scanning preview & animations */
@@ -2510,18 +2520,18 @@ footer {
     top: calc(100% + 6px);
     left: 0;
     width: 100%;
-    background: var(--bg-secondary);
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--card-radius);
-    box-shadow: 0 4px 20px var(--shadow-color);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
     z-index: 999;
     max-height: 280px;
     overflow-y: auto;
-    backdrop-filter: blur(var(--glass-blur)) saturate(180%);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    backdrop-filter: blur(var(--glass-blur)) saturate(190%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(190%);
     display: none;
     flex-direction: column;
-    padding: 6px 0;
+    padding: 6px;
     animation: sugFadeIn 0.15s ease-out;
 }
 
@@ -2535,30 +2545,36 @@ footer {
 }
 
 .suggestion-item {
-    padding: 10px 20px;
+    padding: 8px 14px;
+    margin: 2px 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
-    transition: var(--transition-smooth);
+    border-radius: 10px;
+    transition: background-color 0.15s, color 0.15s;
 }
 
 .suggestion-item:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .suggestion-item.highlighted {
-    background: var(--accent-glow);
-    border-left: 3px solid var(--accent-color);
+    background: var(--accent-color);
+    color: #ffffff;
+}
+
+.suggestion-item.highlighted .sug-id {
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .light-theme .suggestion-item:hover {
-    background: rgba(0, 0, 0, 0.03);
+    background: rgba(0, 0, 0, 0.04);
 }
 
 .light-theme .suggestion-item.highlighted {
-    background: rgba(0, 102, 204, 0.08);
-    border-left: 3px solid var(--accent-color);
+    background: var(--accent-color);
+    color: #ffffff;
 }
 
 .sug-name {
