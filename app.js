@@ -2713,4 +2713,29 @@ document.addEventListener('DOMContentLoaded', () => {
             openFavoritesView();
         });
     }
+
+    // --- 10. Interactive Mouse-following Glow Background ---
+    const bgGlow = document.querySelector('.bg-glow');
+    if (bgGlow) {
+        let mouseX = window.innerWidth / 2;
+        let mouseY = window.innerHeight / 3;
+        let glowX = mouseX;
+        let glowY = mouseY;
+        
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+        
+        function updateGlowPosition() {
+            glowX += (mouseX - glowX) * 0.08;
+            glowY += (mouseY - glowY) * 0.08;
+            
+            bgGlow.style.left = `${glowX}px`;
+            bgGlow.style.top = `${glowY}px`;
+            
+            requestAnimationFrame(updateGlowPosition);
+        }
+        updateGlowPosition();
+    }
 });

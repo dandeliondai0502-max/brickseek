@@ -68,8 +68,13 @@ body {
 }
 
 /* Background Grids & Glows */
+@keyframes gridBreathing {
+    0%, 100% { opacity: 0.18; }
+    50% { opacity: 0.32; }
+}
+
 .bg-grid {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
@@ -81,23 +86,25 @@ body {
     opacity: 0.25;
     pointer-events: none;
     z-index: 0;
-    mask-image: radial-gradient(circle at 50% 50%, black 30%, transparent 80%);
-    -webkit-mask-image: radial-gradient(circle at 50% 50%, black 30%, transparent 80%);
+    mask-image: radial-gradient(circle at 50% 50%, black 35%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at 50% 50%, black 35%, transparent 80%);
+    animation: gridBreathing 8s ease-in-out infinite;
 }
 
 .bg-glow {
-    position: absolute;
-    top: 25%;
+    position: fixed;
+    top: 30%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 600px;
-    height: 600px;
-    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
-    opacity: 0.4;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(0, 123, 255, 0.18) 0%, rgba(138, 43, 226, 0.12) 40%, transparent 70%);
+    opacity: 0.75;
     pointer-events: none;
     z-index: 0;
-    filter: blur(100px);
+    filter: blur(120px);
     transition: background 0.5s ease;
+    will-change: left, top;
 }
 
 /* Header styling */
