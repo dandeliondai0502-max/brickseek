@@ -1029,17 +1029,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const compressedDataUrl = await compressImage(event.target.result);
-            previewImage.src = compressedDataUrl;
-            previewImage.onload = () => {
-                const hexColor = getAverageColorFromImage(previewImage);
-                startScanning(hexColor, filenameQuery, compressedDataUrl);
-                previewImage.onload = null;
-            };
+        const objectUrl = URL.createObjectURL(file);
+        previewImage.src = objectUrl;
+        previewImage.onload = () => {
+            const hexColor = getAverageColorFromImage(previewImage);
+            startScanning(hexColor, filenameQuery, file); // Pass raw File object directly!
+            URL.revokeObjectURL(objectUrl);
+            previewImage.onload = null;
         };
-        reader.readAsDataURL(file);
     }
 
     // --- 5. Webcam Functionality ---
@@ -1177,11 +1174,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let width = webcam.videoWidth || 640;
         let height = webcam.videoHeight || 480;
         
-        const canvasWidth = 640;
-        const canvasHeight = Math.round((height * 640) / width);
-        
-        cameraCanvas.width = canvasWidth;
-        cameraCanvas.height = canvasHeight;
+        cameraCanvas.width = width;
+        cameraCanvas.height = height;
         
         const ctx = cameraCanvas.getContext('2d');
         
@@ -1190,12 +1184,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const sh = height / zoomVal;
             const sx = (width - sw) / 2;
             const sy = (height - sh) / 2;
-            ctx.drawImage(webcam, sx, sy, sw, sh, 0, 0, canvasWidth, canvasHeight);
+            ctx.drawImage(webcam, sx, sy, sw, sh, 0, 0, width, height);
         } else {
-            ctx.drawImage(webcam, 0, 0, width, height, 0, 0, canvasWidth, canvasHeight);
+            ctx.drawImage(webcam, 0, 0, width, height, 0, 0, width, height);
         }
         
-        const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.85);
+        const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.95);
         previewImage.src = dataUrl;
         
         stopWebcam();
@@ -1242,7 +1236,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let scanResults = [];
     let scanAiDescription = '';
-    async function startScanning(color, query, base64Image) {
+    async function startScanning(color, query, imageInput) {
         dropZone.style.display = 'none';
         cameraViewport.style.display = 'none';
         scanPreviewContainer.style.display = 'flex';
@@ -1272,12 +1266,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return new Blob([u8arr], {type:mime});
         }
 
-        if (base64Image) {
+        if (imageInput) {
             addLog('🔍 Transmitting image bytes to Brickognize API gateway...', 'highlight');
             try {
-                const blob = dataURLtoBlob(base64Image);
                 const formData = new FormData();
-                formData.append('query_image', blob, 'image.jpg');
+                if (typeof imageInput === 'string') {
+                    const blob = dataURLtoBlob(imageInput);
+                    formData.append('query_image', blob, 'image.jpg');
+                } else if (imageInput instanceof Blob) {
+                    formData.append('query_image', imageInput, imageInput.name || 'image.jpg');
+                }
                 
                 const apiRes = await fetch('https://api.brickognize.com/predict/', {
                     method: 'POST',
