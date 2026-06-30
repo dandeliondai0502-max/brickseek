@@ -787,6 +787,19 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         })
                         found_direct = True
                         
+                if not found_direct and item.get("name"):
+                    matched_row, match_score = fuzzy_match_minifig(conn, item["name"])
+                    if matched_row and match_score >= 1.0:
+                        matched_figs.append({
+                            "minifig_num": matched_row["minifig_num"],
+                            "name": matched_row["name"],
+                            "num_parts": matched_row["num_parts"],
+                            "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{matched_row['minifig_num']}.jpg",
+                            "score": item.get("score", 0.9) * 0.9,
+                            "official_id": MINIFIG_ID_MAP.get(matched_row["minifig_num"], matched_row["minifig_num"])
+                        })
+                        found_direct = True
+                        
                 if not found_direct:
                     matched_figs.append({
                         "minifig_num": item["id"],
@@ -1027,6 +1040,17 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         cursor.execute(sql_minifig, (norm_id, norm_id_suffix))
         minifig_row = cursor.fetchone()
         
+        if not minifig_row:
+            param_name = params.get("name", [""])[0].strip()
+            param_img = params.get("img_url", [""])[0].strip()
+            if param_name:
+                matched_row, match_score = fuzzy_match_minifig(conn, param_name)
+                if matched_row and match_score >= 1.0:
+                    minifig_row = matched_row
+                    minifig_id = matched_row["minifig_num"]
+                    norm_id = minifig_id.lower()
+                    norm_id_suffix = f"{norm_id}-1" if "-" not in norm_id else norm_id
+
         if not minifig_row:
             param_name = params.get("name", [""])[0].strip()
             param_img = params.get("img_url", [""])[0].strip()
