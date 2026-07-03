@@ -339,11 +339,13 @@ def fuzzy_match_minifig(conn, name_en):
             if desc_clean in cand_name.replace("-", "").replace(" ", ""):
                 score += 1
                 
-        # Slight boost if core query matches closely
+        # Boost if name matches closely or exactly
         cand_clean = cand_name.replace("-", "").replace(" ", "")
         core_clean = core_query.replace("-", "").replace(" ", "")
-        if core_clean in cand_clean:
-            score += 0.5
+        if cand_clean == core_clean:
+            score += 10.0
+        elif core_clean in cand_clean:
+            score += 0.5 * (len(core_clean) / len(cand_clean))
             
         if score > best_score:
             best_score = score
