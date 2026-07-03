@@ -781,7 +781,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                             "minifig_num": row["minifig_num"],
                             "name": row["name"],
                             "num_parts": row["num_parts"],
-                            "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
+                            "img_url": f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
                             "score": item.get("score", 0.9),
                             "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
                         })
@@ -794,7 +794,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                             "minifig_num": matched_row["minifig_num"],
                             "name": matched_row["name"],
                             "num_parts": matched_row["num_parts"],
-                            "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{matched_row['minifig_num']}.jpg",
+                            "img_url": f"https://cdn.rebrickable.com/media/sets/{matched_row['minifig_num']}.jpg",
                             "score": item.get("score", 0.9) * 0.9,
                             "official_id": MINIFIG_ID_MAP.get(matched_row["minifig_num"], matched_row["minifig_num"])
                         })
@@ -869,7 +869,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                             "minifig_num": row["minifig_num"],
                             "name": row["name"],
                             "num_parts": row["num_parts"],
-                            "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
+                            "img_url": f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
                             "score": item.get("score", 0.8) * 0.8,
                             "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
                         })
@@ -1054,6 +1054,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         if not minifig_row:
             param_name = params.get("name", [""])[0].strip()
             param_img = params.get("img_url", [""])[0].strip()
+            if param_img.lower() in ("undefined", "null", ""):
+                param_img = ""
             if param_name:
                 minifig_data = {
                     "minifig_num": minifig_id,
@@ -1123,8 +1125,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         minifig_num = minifig_data["minifig_num"]
         minifig_data["official_id"] = MINIFIG_ID_MAP.get(minifig_num, minifig_num)
         
-        param_img = params.get("img_url", [""])[0].strip()
-        minifig_data["img_url"] = param_img or f"https://cdn.rebrickable.com/media/sets/{minifig_num}.jpg"
+        # For database minifigures, always ignore client-side provided image URL (which could be a scanned part image like a helmet, or some mismatched preview)
+        # and use the high-resolution official assembled set image CDN URL.
+        minifig_data["img_url"] = f"https://cdn.rebrickable.com/media/sets/{minifig_num}.jpg"
 
         # Get parts list
         cursor.execute("SELECT id FROM inventories WHERE set_num = ?", (minifig_num,))
@@ -1216,7 +1219,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         
         # Exclude non-minifigures in shared parts check as well!
         sql_shared = """
-            SELECT DISTINCT m.minifig_num, m.name, ip.img_url
+            SELECT DISTINCT m.minifig_num, m.name
             FROM inventory_parts ip
             JOIN inventories i ON ip.inventory_id = i.id
             JOIN minifigs m ON i.set_num = m.minifig_num
@@ -1253,6 +1256,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             row_dict = dict(row)
             row_dict["name"] = translate_to_zh(row_dict["name"])
             row_dict["official_id"] = MINIFIG_ID_MAP.get(row_dict["minifig_num"], row_dict["minifig_num"])
+            row_dict["img_url"] = f"https://cdn.rebrickable.com/media/sets/{row_dict['minifig_num']}.jpg"
             results.append(row_dict)
             
         return results
