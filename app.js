@@ -1,4 +1,43 @@
-/* app.js - BrickFinder UI, Scanner Simulation & Real SQLite API Encyclopedia Gateway */
+window.healMinifigImage = function(imgElement, minifigNum, officialId) {
+    if (imgElement.dataset.triedHeal) return;
+    imgElement.dataset.triedHeal = "true";
+    
+    // If we already have a resolved official ID, try BrickLink directly first
+    if (officialId && officialId !== minifigNum) {
+        imgElement.src = `https://img.bricklink.com/ItemImage/MN/0/${officialId.toLowerCase()}.png`;
+        
+        // If the BrickLink image also fails, trigger fallback to silhouette
+        imgElement.onerror = () => {
+            imgElement.onerror = null;
+            imgElement.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><defs><linearGradient id="glow-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD500" /><stop offset="100%" stop-color="#FF5E00" /></linearGradient></defs><g fill="url(#glow-grad)"><rect x="45" y="16" width="10" height="4" rx="-1"/><rect x="39" y="21" width="22" height="19" rx="5"/><rect x="37" y="26" width="26" height="9" rx="3"/><rect x="46" y="40" width="8" height="3"/><path d="M 34,44 L 66,44 L 71,72 L 29,72 Z"/><rect x="31" y="74" width="38" height="6" rx="1"/><rect x="31" y="81" width="17" height="15" rx="3"/><rect x="52" y="81" width="17" height="15" rx="3"/></g></svg>');
+        };
+    } else {
+        // We don't have a resolved official ID yet. Ask backend to resolve it on-the-fly!
+        fetch(`/api/resolve-image?id=${encodeURIComponent(minifigNum)}`)
+            .then(res => {
+                if (!res.ok) throw new Error("Not resolved");
+                return res.json();
+            })
+            .then(data => {
+                if (data.img_url) {
+                    imgElement.src = data.img_url;
+                    
+                    // If the resolved BrickLink image also fails, trigger fallback to silhouette
+                    imgElement.onerror = () => {
+                        imgElement.onerror = null;
+                        imgElement.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><defs><linearGradient id="glow-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD500" /><stop offset="100%" stop-color="#FF5E00" /></linearGradient></defs><g fill="url(#glow-grad)"><rect x="45" y="16" width="10" height="4" rx="-1"/><rect x="39" y="21" width="22" height="19" rx="5"/><rect x="37" y="26" width="26" height="9" rx="3"/><rect x="46" y="40" width="8" height="3"/><path d="M 34,44 L 66,44 L 71,72 L 29,72 Z"/><rect x="31" y="74" width="38" height="6" rx="1"/><rect x="31" y="81" width="17" height="15" rx="3"/><rect x="52" y="81" width="17" height="15" rx="3"/></g></svg>');
+                    };
+                } else {
+                    throw new Error("No image URL");
+                }
+            })
+            .catch(() => {
+                // Fallback to silhouette SVG
+                imgElement.onerror = null;
+                imgElement.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><defs><linearGradient id="glow-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD500" /><stop offset="100%" stop-color="#FF5E00" /></linearGradient></defs><g fill="url(#glow-grad)"><rect x="45" y="16" width="10" height="4" rx="-1"/><rect x="39" y="21" width="22" height="19" rx="5"/><rect x="37" y="26" width="26" height="9" rx="3"/><rect x="46" y="40" width="8" height="3"/><path d="M 34,44 L 66,44 L 71,72 L 29,72 Z"/><rect x="31" y="74" width="38" height="6" rx="1"/><rect x="31" y="81" width="17" height="15" rx="3"/><rect x="52" y="81" width="17" height="15" rx="3"/></g></svg>');
+            });
+    }
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---

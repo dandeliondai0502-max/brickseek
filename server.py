@@ -641,6 +641,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 payload = self.api_scan(conn, params)
             elif path == "/api/minifig":
                 payload = self.api_minifig_details(conn, params)
+            elif path == "/api/resolve-image":
+                payload = self.api_resolve_image(conn, params)
             elif path == "/api/shared-part":
                 payload = self.api_shared_part(conn, params)
             else:
@@ -1426,6 +1428,42 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             "sets": sets_list,
             "weapons": weapons_list
         }
+
+    def api_resolve_image(self, conn, params):
+        minifig_id = params.get("id", [""])[0].strip()
+        if not minifig_id:
+            self.send_json_response({"error": "Missing 'id' parameter"}, status=400)
+            return None
+            
+        cursor = conn.cursor()
+        # Check if already resolved
+        cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (minifig_id,))
+        m_row = cursor.fetchone()
+        if m_row:
+            official_id = m_row["official_id"]
+            if official_id != minifig_id:
+                img_url = f"https://img.bricklink.com/ItemImage/MN/0/{official_id.lower()}.png"
+                return {"img_url": img_url, "official_id": official_id}
+                
+        # If not resolved yet, fetch name from database and resolve via Brickset
+        cursor.execute("SELECT name FROM minifigs WHERE minifig_num = ?", (minifig_id,))
+        fig_row = cursor.fetchone()
+        if fig_row:
+            eng_name = fig_row["name"]
+            resolved_official_id = resolve_name_to_official_id_via_brickset(eng_name)
+            if resolved_official_id:
+                try:
+                    write_conn = sqlite3.connect(DB_PATH)
+                    write_cursor = write_conn.cursor()
+                    write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (minifig_id, resolved_official_id))
+                    write_conn.commit()
+                    write_conn.close()
+                    img_url = f"https://img.bricklink.com/ItemImage/MN/0/{resolved_official_id.lower()}.png"
+                    return {"img_url": img_url, "official_id": resolved_official_id}
+                except Exception as write_err:
+                    print(f"[Resolve Error] Failed to write resolved mapping: {write_err}")
+                    
+        return {"error": "Could not resolve image"}
 
     def api_shared_part(self, conn, params):
         part_num = params.get("part_num", [""])[0].strip()
