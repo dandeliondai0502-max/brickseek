@@ -1314,15 +1314,68 @@ document.addEventListener('DOMContentLoaded', () => {
             return new Blob([u8arr], {type:mime});
         }
 
+        async function compressImageInput(input) {
+            let dataUrl = "";
+            if (typeof input === 'string') {
+                dataUrl = input;
+            } else if (input instanceof Blob) {
+                dataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = () => resolve("");
+                    reader.readAsDataURL(input);
+                });
+            }
+            if (!dataUrl) return input;
+            
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const maxDim = 480;
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > maxDim || height > maxDim) {
+                        if (width > height) {
+                            height = Math.round((height * maxDim) / width);
+                            width = maxDim;
+                        } else {
+                            width = Math.round((width * maxDim) / height);
+                            height = maxDim;
+                        }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    canvas.toBlob((blob) => {
+                        resolve(blob || input);
+                    }, 'image/jpeg', 0.80);
+                };
+                img.onerror = () => resolve(input);
+                img.src = dataUrl;
+            });
+        }
+
         if (imageInput) {
+            let compressedBlob;
+            try {
+                addLog('⚡ Resizing and optimizing image bytes for instant transmission...', 'highlight');
+                compressedBlob = await compressImageInput(imageInput);
+            } catch (err) {
+                console.error("Compression error:", err);
+                compressedBlob = imageInput;
+            }
+
             addLog('🔍 Transmitting image bytes to Brickognize API gateway...', 'highlight');
             try {
                 const formData = new FormData();
-                if (typeof imageInput === 'string') {
-                    const blob = dataURLtoBlob(imageInput);
+                if (typeof compressedBlob === 'string') {
+                    const blob = dataURLtoBlob(compressedBlob);
                     formData.append('query_image', blob, 'image.jpg');
-                } else if (imageInput instanceof Blob) {
-                    formData.append('query_image', imageInput, imageInput.name || 'image.jpg');
+                } else {
+                    formData.append('query_image', compressedBlob, 'image.jpg');
                 }
                 
                 const apiRes = await fetch('https://api.brickognize.com/predict/', {
