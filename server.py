@@ -405,7 +405,13 @@ def fuzzy_match_minifig(conn, name_en):
     sql = "SELECT minifig_num, name, num_parts FROM minifigs WHERE 1=1"
     params = []
     
-    for cw in core_words[:2]:
+    # Strip common modifiers from the match list to increase match rate for simplified names
+    ignore_prefixes = {"imperial", "lego", "official", "minifig", "minifigure"}
+    match_words = [w for w in core_words if w.lower() not in ignore_prefixes]
+    if not match_words:
+        match_words = core_words
+        
+    for cw in match_words[:2]:
         # Replace non-alphanumeric with '%' for SQL wildcard match (e.g. spider-man -> spider%man)
         cleaned_cw = re.sub(r'[^a-zA-Z0-9]', '%', cw)
         cleaned_cw = re.sub(r'%+', '%', cleaned_cw)
