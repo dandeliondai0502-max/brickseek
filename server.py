@@ -281,28 +281,68 @@ def resolve_name_to_official_id_via_brickset(name_en):
     import re
     import urllib.parse
     
-    # Clean the name: remove hyphens, commas, parentheses
-    clean_name = re.sub(r'\(.*?\)', '', name_en)
-    clean_name = clean_name.replace("-", " ").replace(",", " ")
-    clean_name = " ".join([w.strip() for w in clean_name.split() if w.strip()])
+    ssl_context = ssl._create_unverified_context()
     
-    url = f"https://brickset.com/minifigs?query={urllib.parse.quote(clean_name)}"
-    try:
-        req = urllib.request.Request(
-            url,
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
-        )
-        ssl_context = ssl._create_unverified_context()
-        with urllib.request.urlopen(req, timeout=5, context=ssl_context) as response:
-            html = response.read().decode('utf-8')
-            # Extract links in format href="/minifigs/mar0096/toad-scared"
-            links = re.findall(r'href="/minifigs/([a-zA-Z]{2,4}\d{3,5}[a-zA-Z]?)(?:/|$)[^"]*"', html)
-            if links:
-                resolved = links[0].strip().lower()
-                print(f"[Name Resolver] Resolved '{name_en}' to official ID: {resolved}")
-                return resolved
-    except Exception as e:
-        print(f"[Name Resolver] Failed to resolve name '{name_en}': {e}")
+    def _search_brickset(query):
+        """Search Brickset minifigs directory and return the first official ID found."""
+        url = f"https://brickset.com/minifigs?query={urllib.parse.quote(query)}"
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+            )
+            with urllib.request.urlopen(req, timeout=8, context=ssl_context) as response:
+                html = response.read().decode('utf-8')
+                links = re.findall(r'href="/minifigs/([a-zA-Z]{2,4}\d{3,5}[a-zA-Z]?)(?:/|$)[^"]*"', html)
+                if links:
+                    return links[0].strip().lower()
+        except Exception as e:
+            print(f"[Name Resolver] Search error for '{query}': {e}")
+        return None
+    
+    # Strategy 1: Full cleaned name (preserve intra-word hyphens like Bob-omb)
+    clean_name = re.sub(r'\(.*?\)', '', name_en)
+    clean_name = clean_name.replace(" - ", " ").replace(", ", " ")
+    clean_name = " ".join(w.strip() for w in clean_name.split() if w.strip())
+    
+    result = _search_brickset(clean_name)
+    if result:
+        print(f"[Name Resolver] Resolved '{name_en}' via full name '{clean_name}': {result}")
+        return result
+    
+    # Strategy 2: Base character name (part before first separator " - " or ", ")
+    segments = re.split(r'\s*[-–]\s+|\s*,\s*', name_en)
+    base_name = re.sub(r'\(.*?\)', '', segments[0]).strip()
+    if base_name and base_name.lower() != clean_name.lower():
+        result = _search_brickset(base_name)
+        if result:
+            print(f"[Name Resolver] Resolved '{name_en}' via base name '{base_name}': {result}")
+            return result
+    
+    # Strategy 3: Second segment (for theme-prefixed names like "Trolls - Hickory")
+    if len(segments) > 1:
+        second = re.sub(r'\(.*?\)', '', segments[1]).strip()
+        # Take just the character name part (first 1-2 words of segment)
+        second_words = second.split()
+        second_short = " ".join(second_words[:2]) if len(second_words) > 2 else second
+        if second_short and len(second_short) > 3:
+            result = _search_brickset(second_short)
+            if result:
+                print(f"[Name Resolver] Resolved '{name_en}' via second segment '{second_short}': {result}")
+                return result
+    
+    # Strategy 4: First significant word only (>3 chars, not a theme/common word)
+    skip_words = {'city', 'lego', 'the', 'with', 'and', 'from', 'super', 'mario'}
+    for word in name_en.split():
+        word_clean = re.sub(r'[,\-()]', '', word).strip()
+        if len(word_clean) > 3 and word_clean.lower() not in skip_words:
+            result = _search_brickset(word_clean)
+            if result:
+                print(f"[Name Resolver] Resolved '{name_en}' via keyword '{word_clean}': {result}")
+                return result
+            break  # Only try one keyword to avoid excessive requests
+    
+    print(f"[Name Resolver] Could not resolve '{name_en}' via any strategy.")
     return None
 
 def resolve_minifig_id(m_id, conn=None):
