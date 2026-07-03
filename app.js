@@ -1921,11 +1921,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // SVG / Image Holder bubble
             const holder = document.createElement('div');
             holder.className = 'lego-svg-holder';
-            if (part.img_url) {
-                holder.innerHTML = `<img src="${part.img_url}" alt="${part.part_name}" loading="lazy" decoding="async">`;
-            } else {
-                holder.innerHTML = `<i class="fas fa-puzzle-piece" style="font-size: 1.8rem; color: var(--text-muted);"></i>`;
-            }
+            const partImgUrl = part.img_url || `https://cdn.rebrickable.com/media/parts/ldraw/${part.color_id}/${part.part_num}.png`;
+            holder.innerHTML = `<img src="${partImgUrl}" alt="${part.part_name}" loading="lazy" decoding="async" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-puzzle-piece\\' style=\\'font-size: 1.8rem; color: var(--text-muted);\\'></i>';">`;
             layer.appendChild(holder);
             
             // Bind click event dynamically
@@ -2292,8 +2289,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Part Graphic Renderers
         const getPartGraphic = (part, placeholderSVG) => {
-            if (part && part.img_url) {
-                return `<img src="${part.img_url}" alt="${part.part_name}" class="manual-build-graphic" loading="lazy" decoding="async" style="max-height: 70%; max-width: 70%; object-fit: contain;">`;
+            if (part) {
+                const partImgUrl = part.img_url || `https://cdn.rebrickable.com/media/parts/ldraw/${part.color_id}/${part.part_num}.png`;
+                return `<img src="${partImgUrl}" alt="${part.part_name}" class="manual-build-graphic" loading="lazy" decoding="async" style="max-height: 70%; max-width: 70%; object-fit: contain;" onerror="this.onerror=null; this.outerHTML='${placeholderSVG.replace(/'/g, "\\'")}';">`;
             }
             return placeholderSVG;
         };
