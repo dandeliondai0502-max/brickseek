@@ -1237,6 +1237,98 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         brick_items = body.get("items", [])
         target_color = body.get("color", "ffffff").strip().lower()
         
+        is_part = False
+        scanned_part = None
+        if brick_items:
+            first_item = brick_items[0]
+            itype = str(first_item.get("type", "")).strip().lower()
+            if itype not in ("fig", "minifig") and not first_item.get("id", "").startswith("fig-"):
+                is_part = True
+                scanned_part = {
+                    "part_num": first_item.get("id", ""),
+                    "name": translate_to_zh(first_item.get("name", "未知零件")),
+                    "img_url": first_item.get("img_url") or f"https://cdn.rebrickable.com/media/parts/elements/{first_item.get('id')}.jpg",
+                    "score": first_item.get("score", 0.9)
+                }
+                
+        if is_part and scanned_part:
+            part_id = scanned_part["part_num"].strip().lower()
+            part_candidates = {part_id}
+            for ext in brick_items[0].get("external_sites", []):
+                url = ext.get("url", "")
+                if "bricklink.com/" in url and ("?P=" in url or "&P=" in url or "?p=" in url or "&p=" in url):
+                    import re
+                    match = re.search(r'[?&][Pp]=([^&#]+)', url)
+                    if match:
+                        part_candidates.add(match.group(1).strip().lower())
+                if "rebrickable.com/parts/" in url:
+                    parts = url.split("parts/")
+                    if len(parts) > 1:
+                        sub = parts[1].split("/")[0]
+                        if sub:
+                            part_candidates.add(sub.strip().lower())
+            
+            cursor = conn.cursor()
+            clean_candidates = [c.replace("part-", "") for c in part_candidates]
+            all_candidates = list(part_candidates) + clean_candidates
+            
+            sql_figs_by_part = f"""
+                SELECT DISTINCT m.minifig_num, m.name, m.num_parts
+                FROM inventory_parts ip
+                JOIN inventories i ON ip.inventory_id = i.id
+                JOIN minifigs m ON i.set_num = m.minifig_num
+                WHERE (LOWER(ip.part_num) IN ({", ".join("?" for _ in all_candidates)}))
+                  AND m.num_parts BETWEEN 3 AND 12
+                  AND LOWER(m.name) NOT LIKE '%keychain%'
+                  AND LOWER(m.name) NOT LIKE '%key chain%'
+                  AND LOWER(m.name) NOT LIKE '%magnet%'
+                  AND LOWER(m.name) NOT LIKE '%watch%'
+                  AND LOWER(m.name) NOT LIKE '%clock%'
+                  AND LOWER(m.name) NOT LIKE '%book%'
+                  AND LOWER(m.name) NOT LIKE '%sticker%'
+                  AND LOWER(m.name) NOT LIKE '%card%'
+                  AND LOWER(m.name) NOT LIKE '%giant%'
+                  AND LOWER(m.name) NOT LIKE '%maxifigure%'
+                  AND LOWER(m.name) NOT LIKE '%brick-built%'
+                  AND LOWER(m.name) NOT LIKE '%pen%'
+                  AND LOWER(m.name) NOT LIKE '%torch%'
+                  AND LOWER(m.name) NOT LIKE '%light%'
+                  AND LOWER(m.name) NOT LIKE '%plush%'
+                  AND LOWER(m.name) NOT LIKE '%notebook%'
+                  AND LOWER(m.name) NOT LIKE '%tag%'
+                  AND LOWER(m.name) NOT LIKE '%bag%'
+                  AND LOWER(m.name) NOT LIKE '%frame%'
+                  AND LOWER(m.name) NOT LIKE '%display%'
+                  AND LOWER(m.name) NOT LIKE '%scale%'
+                LIMIT 24
+            """
+            cursor.execute(sql_figs_by_part, all_candidates)
+            rows = cursor.fetchall()
+            
+            shared_figs = []
+            for row in rows:
+                fig_num = row["minifig_num"]
+                cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (fig_num,))
+                m_row = cursor.fetchone()
+                official_id_val = m_row["official_id"] if m_row else fig_num
+                
+                shared_figs.append({
+                    "minifig_num": fig_num,
+                    "name": translate_to_zh(row["name"]),
+                    "num_parts": row["num_parts"],
+                    "img_url": f"https://cdn.rebrickable.com/media/sets/{fig_num}.jpg",
+                    "official_id": official_id_val
+                })
+                
+            ai_desc = f"扫描到了零件 {scanned_part['name']} (编号: {scanned_part['part_num']})，共在 {len(shared_figs)} 个人仔中共享使用。"
+            self.send_json_response({
+                "type": "part",
+                "part": scanned_part,
+                "description": ai_desc,
+                "results": shared_figs
+            })
+            return
+            
         matches = self.lookup_candidates(conn, brick_items)
         
         top_matches = matches[:3]
@@ -1246,6 +1338,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         if top_matches:
             ai_desc = f"Match confirmed with {(top_matches[0].get('score', 0.9)*100):.1f}% confidence."
             self.send_json_response({
+                "type": "minifig",
                 "description": ai_desc,
                 "results": top_matches
             })
@@ -1257,6 +1350,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         color_matches = self.api_scan(conn, params)
         
         self.send_json_response({
+            "type": "minifig",
             "description": "⚠️ No exact match found. Recommending figures with similar dominant colors.",
             "results": color_matches
         })
