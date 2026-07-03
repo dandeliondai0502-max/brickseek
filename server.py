@@ -275,6 +275,34 @@ def resolve_official_id_via_brickset(o_id):
                 return title_match.group(1).strip()
     except Exception as e:
         print(f"[Brickset Resolver] Failed to resolve {o_id}: {e}")
+def resolve_name_to_official_id_via_brickset(name_en):
+    import urllib.request
+    import ssl
+    import re
+    import urllib.parse
+    
+    # Clean the name: remove hyphens, commas, parentheses
+    clean_name = re.sub(r'\(.*?\)', '', name_en)
+    clean_name = clean_name.replace("-", " ").replace(",", " ")
+    clean_name = " ".join([w.strip() for w in clean_name.split() if w.strip()])
+    
+    url = f"https://brickset.com/minifigs?query={urllib.parse.quote(clean_name)}"
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+        )
+        ssl_context = ssl._create_unverified_context()
+        with urllib.request.urlopen(req, timeout=5, context=ssl_context) as response:
+            html = response.read().decode('utf-8')
+            # Extract links in format href="/minifigs/mar0096/toad-scared"
+            links = re.findall(r'href="/minifigs/([a-zA-Z]{2,4}\d{3,5}[a-zA-Z]?)(?:/|$)[^"]*"', html)
+            if links:
+                resolved = links[0].strip().lower()
+                print(f"[Name Resolver] Resolved '{name_en}' to official ID: {resolved}")
+                return resolved
+    except Exception as e:
+        print(f"[Name Resolver] Failed to resolve name '{name_en}': {e}")
     return None
 
 def resolve_minifig_id(m_id, conn=None):
@@ -690,7 +718,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             cursor.execute(sql_theme, (row_dict["minifig_num"],))
             theme_row = cursor.fetchone()
             row_dict["theme_name"] = translate_to_zh(theme_row["name"]) if theme_row else "收藏系列"
-            row_dict["official_id"] = MINIFIG_ID_MAP.get(row_dict["minifig_num"], row_dict["minifig_num"])
+            cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (row_dict["minifig_num"],))
+            m_row = cursor.fetchone()
+            row_dict["official_id"] = m_row["official_id"] if m_row else row_dict["minifig_num"]
             results.append(row_dict)
             
         return results
@@ -1293,11 +1323,28 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 return None
             
         minifig_data = dict(minifig_row)
-        minifig_data["name"] = translate_to_zh(minifig_data["name"])
+        eng_name = minifig_data["name"]
+        minifig_data["name"] = translate_to_zh(eng_name)
         minifig_num = minifig_data["minifig_num"]
         cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (minifig_num,))
         m_row = cursor.fetchone()
-        minifig_data["official_id"] = m_row["official_id"] if m_row else minifig_num
+        if m_row:
+            minifig_data["official_id"] = m_row["official_id"]
+        else:
+            resolved_official_id = resolve_name_to_official_id_via_brickset(eng_name)
+            if resolved_official_id:
+                try:
+                    write_conn = sqlite3.connect(DB_PATH)
+                    write_cursor = write_conn.cursor()
+                    write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (minifig_num, resolved_official_id))
+                    write_conn.commit()
+                    write_conn.close()
+                    minifig_data["official_id"] = resolved_official_id
+                except Exception as write_err:
+                    print(f"[Resolve Error] Failed to write resolved mapping: {write_err}")
+                    minifig_data["official_id"] = minifig_num
+            else:
+                minifig_data["official_id"] = minifig_num
         
         # For database minifigures, always ignore client-side provided image URL (which could be a scanned part image like a helmet, or some mismatched preview)
         # and use the high-resolution official assembled set image CDN URL.

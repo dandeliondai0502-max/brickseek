@@ -1835,13 +1835,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Populate complete minifigure image
         const fullFigImg = document.getElementById('lego-full-figure-img');
+        delete fullFigImg.dataset.triedBrickLink;
         if (minifig && minifig.img_url && minifig.img_url !== 'undefined') {
             fullFigImg.src = minifig.img_url;
         } else {
             fullFigImg.src = `https://cdn.rebrickable.com/media/sets/${minifigId}.jpg`;
         }
         fullFigImg.onerror = () => {
-            fullFigImg.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="220" height="220"><defs><linearGradient id="glow-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD500" /><stop offset="100%" stop-color="#FF5E00" /></linearGradient></defs><circle cx="50" cy="50" r="46" fill="rgba(255,255,255,0.01)" stroke="rgba(255,255,255,0.05)" stroke-width="1.5"/><circle cx="50" cy="50" r="40" fill="rgba(0,0,0,0.2)" stroke="rgba(255,255,255,0.02)" stroke-width="1"/><g transform="translate(0, 3)" fill="url(#glow-grad)" opacity="0.85"><rect x="45" y="16" width="10" height="4" rx="1"/><rect x="39" y="21" width="22" height="19" rx="5"/><rect x="37" y="26" width="26" height="9" rx="3"/><rect x="46" y="40" width="8" height="3"/><path d="M 34,44 L 66,44 L 71,72 L 29,72 Z"/><rect x="31" y="74" width="38" height="6" rx="1"/><rect x="31" y="81" width="17" height="15" rx="3"/><rect x="52" y="81" width="17" height="15" rx="3"/></g></svg>`);
+            const officialId = minifig ? minifig.official_id : '';
+            if (officialId && officialId !== minifigId && !fullFigImg.dataset.triedBrickLink) {
+                fullFigImg.dataset.triedBrickLink = 'true';
+                fullFigImg.src = `https://img.bricklink.com/ItemImage/MN/0/${officialId.toLowerCase()}.png`;
+            } else {
+                fullFigImg.onerror = null;
+                fullFigImg.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="220" height="220"><defs><linearGradient id="glow-grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#FFD500" /><stop offset="100%" stop-color="#FF5E00" /></linearGradient></defs><circle cx="50" cy="50" r="46" fill="rgba(255,255,255,0.01)" stroke="rgba(255,255,255,0.05)" stroke-width="1.5"/><circle cx="50" cy="50" r="40" fill="rgba(0,0,0,0.2)" stroke="rgba(255,255,255,0.02)" stroke-width="1"/><g transform="translate(0, 3)" fill="url(#glow-grad)" opacity="0.85"><rect x="45" y="16" width="10" height="4" rx="1"/><rect x="39" y="21" width="22" height="19" rx="5"/><rect x="37" y="26" width="26" height="9" rx="3"/><rect x="46" y="40" width="8" height="3"/><path d="M 34,44 L 66,44 L 71,72 L 29,72 Z"/><rect x="31" y="74" width="38" height="6" rx="1"/><rect x="31" y="81" width="17" height="15" rx="3"/><rect x="52" y="81" width="17" height="15" rx="3"/></g></svg>`);
+            }
         };
 
         // Remove any existing dynamic part layers
@@ -2186,7 +2194,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     card.className = 'shared-figure-card';
                     card.innerHTML = `
                         <div class="shared-figure-img-box">
-                            <img src="${item.img_url}" alt="${item.name}" loading="lazy" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22rgba(0,0,0,0.05)%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22rgba(10,132,255,0.08)%22/></svg>'">
+                            <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" 
+                                 onerror="
+                                    const officialId = '${item.official_id || ''}';
+                                    const minifigNum = '${item.minifig_num}';
+                                    if (officialId && officialId !== minifigNum && !this.dataset.triedBrickLink) {
+                                        this.dataset.triedBrickLink = 'true';
+                                        this.src = 'https://img.bricklink.com/ItemImage/MN/0/' + officialId.toLowerCase() + '.png';
+                                    } else {
+                                        this.onerror = null;
+                                        this.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\' width=\\'100\\' height=\\'100\\'><defs><linearGradient id=\\'glow-grad\\' x1=\\'0%\\' y1=\\'0%\\' x2=\\'100%\\' y2=\\'100%\\'><stop offset=\\'0%\\' stop-color=\\'#FFD500\\' /><stop offset=\\'100%\\' stop-color=\\'#FF5E00\\' /></linearGradient></defs><g fill=\\'url(#glow-grad)\\'><rect x=\\'45\\' y=\\'16\\' width=\\'10\\' height=\\'4\\' rx=\\'-1\\'/><rect x=\\'39\\' y=\\'21\\' width=\\'22\\' height=\\'19\\' rx=\\'5\\'/><rect x=\\'37\\' y=\\'26\\' width=\\'26\\' height=\\'9\\' rx=\\'3\\'/><rect x=\\'46\\' y=\\'40\\' width=\\'8\\' height=\\'3\\'/><path d=\\'M 34,44 L 66,44 L 71,72 L 29,72 Z\\'/><rect x=\\'31\\' y=\\'74\\' width=\\'38\\' height=\\'6\\' rx=\\'1\\'/><rect x=\\'31\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/><rect x=\\'52\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/></g></svg>');
+                                    }
+                                 ">
                         </div>
                         <div class="shared-figure-info">
                             <h5 class="shared-figure-title">${item.name}</h5>
@@ -2433,7 +2452,18 @@ document.addEventListener('DOMContentLoaded', () => {
             
             card.innerHTML = `
                 <div class="gallery-card-img">
-                    <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\' width=\\'100\\' height=\\'100\\'><defs><linearGradient id=\\'glow-grad\\' x1=\\'0%\\' y1=\\'0%\\' x2=\\'100%\\' y2=\\'100%\\'><stop offset=\\'0%\\' stop-color=\\'#FFD500\\' /><stop offset=\\'100%\\' stop-color=\\'#FF5E00\\' /></linearGradient></defs><g fill=\\'url(#glow-grad)\\'><rect x=\\'45\\' y=\\'16\\' width=\\'10\\' height=\\'4\\' rx=\\'-1\\'/><rect x=\\'39\\' y=\\'21\\' width=\\'22\\' height=\\'19\\' rx=\\'5\\'/><rect x=\\'37\\' y=\\'26\\' width=\\'26\\' height=\\'9\\' rx=\\'3\\'/><rect x=\\'46\\' y=\\'40\\' width=\\'8\\' height=\\'3\\'/><path d=\\'M 34,44 L 66,44 L 71,72 L 29,72 Z\\'/><rect x=\\'31\\' y=\\'74\\' width=\\'38\\' height=\\'6\\' rx=\\'1\\'/><rect x=\\'31\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/><rect x=\\'52\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/></g></svg>')">
+                    <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" decoding="async" 
+                         onerror="
+                            const officialId = '${item.official_id || ''}';
+                            const minifigNum = '${item.minifig_num}';
+                            if (officialId && officialId !== minifigNum && !this.dataset.triedBrickLink) {
+                                this.dataset.triedBrickLink = 'true';
+                                this.src = 'https://img.bricklink.com/ItemImage/MN/0/' + officialId.toLowerCase() + '.png';
+                            } else {
+                                this.onerror = null;
+                                this.src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\' width=\\'100\\' height=\\'100\\'><defs><linearGradient id=\\'glow-grad\\' x1=\\'0%\\' y1=\\'0%\\' x2=\\'100%\\' y2=\\'100%\\'><stop offset=\\'0%\\' stop-color=\\'#FFD500\\' /><stop offset=\\'100%\\' stop-color=\\'#FF5E00\\' /></linearGradient></defs><g fill=\\'url(#glow-grad)\\'><rect x=\\'45\\' y=\\'16\\' width=\\'10\\' height=\\'4\\' rx=\\'-1\\'/><rect x=\\'39\\' y=\\'21\\' width=\\'22\\' height=\\'19\\' rx=\\'5\\'/><rect x=\\'37\\' y=\\'26\\' width=\\'26\\' height=\\'9\\' rx=\\'3\\'/><rect x=\\'46\\' y=\\'40\\' width=\\'8\\' height=\\'3\\'/><path d=\\'M 34,44 L 66,44 L 71,72 L 29,72 Z\\'/><rect x=\\'31\\' y=\\'74\\' width=\\'38\\' height=\\'6\\' rx=\\'1\\'/><rect x=\\'31\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/><rect x=\\'52\\' y=\\'81\\' width=\\'17\\' height=\\'15\\' rx=\\'3\\'/></g></svg>');
+                            }
+                         ">
                 </div>
                 <div class="gallery-card-info">
                     <div class="gallery-card-meta">
