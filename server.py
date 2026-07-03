@@ -255,11 +255,106 @@ MINIFIG_ID_MAP = {
 
 REVERSE_MINIFIG_MAP = {v: k for k, v in MINIFIG_ID_MAP.items()}
 
-def resolve_minifig_id(m_id):
+def resolve_official_id_via_brickset(o_id):
+    import urllib.request
+    import ssl
+    import re
+    
+    o_id_clean = o_id.strip().upper()
+    url = f"https://brickset.com/minifigs/{o_id_clean}"
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
+        )
+        ssl_context = ssl._create_unverified_context()
+        with urllib.request.urlopen(req, timeout=5, context=ssl_context) as response:
+            html = response.read().decode('utf-8')
+            title_match = re.search(r'<title>LEGO minifigures [A-Z0-9]+:\s*(.*?)\s*\|\s*Brickset</title>', html, re.IGNORECASE)
+            if title_match:
+                return title_match.group(1).strip()
+    except Exception as e:
+        print(f"[Brickset Resolver] Failed to resolve {o_id}: {e}")
+    return None
+
+def resolve_minifig_id(m_id, conn=None):
     if not m_id:
         return m_id
     m_id_lower = m_id.lower().strip()
-    return REVERSE_MINIFIG_MAP.get(m_id_lower, m_id)
+    
+    # First check in-memory map
+    if m_id_lower in REVERSE_MINIFIG_MAP:
+        return REVERSE_MINIFIG_MAP[m_id_lower]
+        
+    # Check SQLite minifig_mappings table
+    db_conn = conn
+    close_at_end = False
+    if not db_conn:
+        try:
+            db_conn = sqlite3.connect(DB_PATH)
+            db_conn.row_factory = sqlite3.Row
+            close_at_end = True
+        except Exception:
+            pass
+            
+    if db_conn:
+        try:
+            cursor = db_conn.cursor()
+            cursor.execute("SELECT rebrickable_id FROM minifig_mappings WHERE LOWER(official_id) = ?", (m_id_lower,))
+            row = cursor.fetchone()
+            if row:
+                res_id = row["rebrickable_id"]
+                if close_at_end:
+                    db_conn.close()
+                return res_id
+        except Exception as e:
+            print(f"[Resolve Error] Failed database lookup for {m_id}: {e}")
+            
+    # If it looks like a BrickLink ID (e.g. sw0527, njo0298, sh087) but isn't mapped yet,
+    # let's try to resolve it on-the-fly via Brickset!
+    import re
+    if re.match(r'^[a-zA-Z]{2,4}\d{2,5}[a-zA-Z]?$', m_id_clean := m_id_lower.replace("-", "")):
+        resolved_name = resolve_official_id_via_brickset(m_id_clean)
+        if resolved_name:
+            print(f"[Brickset Resolver] Resolved {m_id} to name: {resolved_name}")
+            # Try fuzzy match in database to find fig- ID
+            target_conn = db_conn
+            target_close = False
+            if not target_conn:
+                try:
+                    target_conn = sqlite3.connect(DB_PATH)
+                    target_conn.row_factory = sqlite3.Row
+                    target_close = True
+                except Exception:
+                    pass
+            if target_conn:
+                try:
+                    matched_row, _ = fuzzy_match_minifig(target_conn, resolved_name)
+                    if matched_row:
+                        fig_id = matched_row["minifig_num"]
+                        print(f"[Brickset Resolver] Matched name {resolved_name} to database ID: {fig_id}")
+                        # Save mapping using a fresh write connection
+                        try:
+                            write_conn = sqlite3.connect(DB_PATH)
+                            write_cursor = write_conn.cursor()
+                            write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (fig_id, m_id_lower))
+                            write_conn.commit()
+                            write_conn.close()
+                        except Exception as write_err:
+                            print(f"[Brickset Resolver] Error writing mapping: {write_err}")
+                        if target_close:
+                            target_conn.close()
+                        if close_at_end and db_conn:
+                            db_conn.close()
+                        return fig_id
+                except Exception as e:
+                    print(f"[Brickset Resolver] Error matching database: {e}")
+                if target_close and target_conn:
+                    target_conn.close()
+
+    if close_at_end and db_conn:
+        db_conn.close()
+    return m_id
 
 def translate_query(q):
     q_lower = q.lower()
@@ -584,7 +679,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         if not query:
             return []
 
-        mapped_id = resolve_minifig_id(query)
+        mapped_id = resolve_minifig_id(query, conn)
         cursor = conn.cursor()
 
         if mapped_id != query:
@@ -594,7 +689,10 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             for row in rows:
                 row_dict = dict(row)
                 row_dict["name"] = translate_to_zh(row_dict["name"])
-                row_dict["official_id"] = MINIFIG_ID_MAP.get(row_dict["minifig_num"], row_dict["minifig_num"])
+                # Resolve official ID from database mapping table
+                cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (row_dict["minifig_num"],))
+                m_row = cursor.fetchone()
+                row_dict["official_id"] = m_row["official_id"] if m_row else row_dict["minifig_num"]
                 results.append(row_dict)
             return results
 
@@ -650,7 +748,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         for row in rows:
             row_dict = dict(row)
             row_dict["name"] = translate_to_zh(row_dict["name"])
-            row_dict["official_id"] = MINIFIG_ID_MAP.get(row_dict["minifig_num"], row_dict["minifig_num"])
+            cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (row_dict["minifig_num"],))
+            m_row = cursor.fetchone()
+            row_dict["official_id"] = m_row["official_id"] if m_row else row_dict["minifig_num"]
             results.append(row_dict)
             
         return results
@@ -775,30 +875,51 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 for cand in candidates:
                     if not cand:
                         continue
-                    resolved_cand = resolve_minifig_id(cand)
+                    resolved_cand = resolve_minifig_id(cand, conn)
                     cursor.execute("SELECT minifig_num, name, num_parts FROM minifigs WHERE LOWER(minifig_num) = ?", (resolved_cand.lower(),))
                     row = cursor.fetchone()
                     if row:
+                        fig_num = row["minifig_num"]
+                        if resolved_cand.startswith("fig-") and not cand.startswith("fig-"):
+                            try:
+                                write_conn = sqlite3.connect(DB_PATH)
+                                write_cursor = write_conn.cursor()
+                                write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (resolved_cand, cand))
+                                write_conn.commit()
+                                write_conn.close()
+                            except Exception as write_err:
+                                print(f"[Resolve Error] Failed to write mapping: {write_err}")
                         matched_figs.append({
-                            "minifig_num": row["minifig_num"],
+                            "minifig_num": fig_num,
                             "name": row["name"],
                             "num_parts": row["num_parts"],
-                            "img_url": f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
+                            "img_url": f"https://cdn.rebrickable.com/media/sets/{fig_num}.jpg",
                             "score": item.get("score", 0.9),
-                            "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
+                            "official_id": cand
                         })
                         found_direct = True
                         
                 if not found_direct and item.get("name"):
                     matched_row, match_score = fuzzy_match_minifig(conn, item["name"])
                     if matched_row and match_score >= 1.0:
+                        fig_num = matched_row["minifig_num"]
+                        bricklink_id = item.get("id", "").strip().lower()
+                        if bricklink_id and not bricklink_id.startswith("fig-"):
+                            try:
+                                write_conn = sqlite3.connect(DB_PATH)
+                                write_cursor = write_conn.cursor()
+                                write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (fig_num, bricklink_id))
+                                write_conn.commit()
+                                write_conn.close()
+                            except Exception as write_err:
+                                print(f"[Resolve Error] Failed to write mapping: {write_err}")
                         matched_figs.append({
-                            "minifig_num": matched_row["minifig_num"],
+                            "minifig_num": fig_num,
                             "name": matched_row["name"],
                             "num_parts": matched_row["num_parts"],
-                            "img_url": f"https://cdn.rebrickable.com/media/sets/{matched_row['minifig_num']}.jpg",
+                            "img_url": f"https://cdn.rebrickable.com/media/sets/{fig_num}.jpg",
                             "score": item.get("score", 0.9) * 0.9,
-                            "official_id": MINIFIG_ID_MAP.get(matched_row["minifig_num"], matched_row["minifig_num"])
+                            "official_id": bricklink_id or fig_num
                         })
                         found_direct = True
                         
@@ -887,12 +1008,19 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         "official_id": item["id"]
                     })
         
-        # Deduplicate final list of matches
+        # Deduplicate final list of matches and resolve official_ids
         unique_figs = []
         seen = set()
         for fig in matched_figs:
-            if fig["minifig_num"] not in seen:
-                seen.add(fig["minifig_num"])
+            m_num = fig["minifig_num"]
+            if m_num not in seen:
+                seen.add(m_num)
+                cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (m_num,))
+                m_row = cursor.fetchone()
+                if m_row:
+                    fig["official_id"] = m_row["official_id"]
+                else:
+                    fig["official_id"] = m_num
                 unique_figs.append(fig)
         return unique_figs
 
@@ -1059,12 +1187,15 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             if param_img.lower() in ("undefined", "null", ""):
                 param_img = ""
             if param_name:
+                cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (minifig_id,))
+                m_row = cursor.fetchone()
+                official_id_val = m_row["official_id"] if m_row else minifig_id
                 minifig_data = {
                     "minifig_num": minifig_id,
                     "name": translate_to_zh(param_name),
                     "num_parts": 4,
                     "img_url": param_img or f"https://cdn.rebrickable.com/media/sets/{minifig_id}.jpg",
-                    "official_id": minifig_id
+                    "official_id": official_id_val
                 }
                 parts_list = [
                     {
@@ -1125,7 +1256,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         minifig_data = dict(minifig_row)
         minifig_data["name"] = translate_to_zh(minifig_data["name"])
         minifig_num = minifig_data["minifig_num"]
-        minifig_data["official_id"] = MINIFIG_ID_MAP.get(minifig_num, minifig_num)
+        cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (minifig_num,))
+        m_row = cursor.fetchone()
+        minifig_data["official_id"] = m_row["official_id"] if m_row else minifig_num
         
         # For database minifigures, always ignore client-side provided image URL (which could be a scanned part image like a helmet, or some mismatched preview)
         # and use the high-resolution official assembled set image CDN URL.
@@ -1295,16 +1428,27 @@ def init_users_db():
             password TEXT,
             preferences TEXT
         )""")
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS minifig_mappings (
+            rebrickable_id TEXT PRIMARY KEY,
+            official_id TEXT UNIQUE
+        )""")
+        
+        # Prepopulate MINIFIG_ID_MAP mappings
+        for r_id, o_id in MINIFIG_ID_MAP.items():
+            cursor.execute("INSERT OR IGNORE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (r_id, o_id))
+            
         cursor.executescript("""
         CREATE INDEX IF NOT EXISTS idx_minifigs_num_parts ON minifigs(num_parts);
         CREATE INDEX IF NOT EXISTS idx_inventory_parts_part_color_inv ON inventory_parts(part_num, color_id, inventory_id);
         CREATE INDEX IF NOT EXISTS idx_inventory_parts_color_part_inv ON inventory_parts(color_id, part_num, inventory_id);
         CREATE INDEX IF NOT EXISTS idx_parts_cat_part ON parts(part_cat_id, part_num);
         CREATE INDEX IF NOT EXISTS idx_sets_theme ON sets(theme_id);
+        CREATE INDEX IF NOT EXISTS idx_minifig_mappings_official ON minifig_mappings(official_id);
         """)
         conn.commit()
         conn.close()
-        print("[Database] Users table initialized successfully.")
+        print("[Database] Users and minifig_mappings tables initialized successfully.")
     except Exception as e:
         print(f"[Database Error] Failed to initialize users table: {e}")
 
