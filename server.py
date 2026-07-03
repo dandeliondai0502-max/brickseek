@@ -406,7 +406,12 @@ def fuzzy_match_minifig(conn, name_en):
     params = []
     
     # Strip common modifiers from the match list to increase match rate for simplified names
-    ignore_prefixes = {"imperial", "lego", "official", "minifig", "minifigure"}
+    ignore_prefixes = {
+        "imperial", "lego", "official", "minifig", "minifigure",
+        "white", "black", "red", "blue", "green", "yellow", "orange", "purple", "pink", "grey", "gray", "brown",
+        "dark", "light", "bright", "medium", "classic", "retro", "vintage", "custom", "original",
+        "star", "wars", "super", "heroes", "batman", "spiderman", "marvel", "disney"
+    }
     match_words = [w for w in core_words if w.lower() not in ignore_prefixes]
     if not match_words:
         match_words = core_words
@@ -425,6 +430,16 @@ def fuzzy_match_minifig(conn, name_en):
         
     cursor.execute(sql, params)
     rows = cursor.fetchall()
+    
+    if not rows and match_words:
+        # Fallback: query using the single longest word in filtered match_words
+        longest_word = max(match_words, key=len)
+        if len(longest_word) > 2:
+            cleaned_lw = re.sub(r'[^a-zA-Z0-9]', '%', longest_word)
+            cleaned_lw = re.sub(r'%+', '%', cleaned_lw)
+            sql_fallback = "SELECT minifig_num, name, num_parts FROM minifigs WHERE name LIKE ?"
+            cursor.execute(sql_fallback, (f"%{cleaned_lw}%",))
+            rows = cursor.fetchall()
     
     best_match = None
     best_score = -1
@@ -703,10 +718,18 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             return results
 
         translated_query = translate_query(query)
-        like_query = f"%{translated_query}%"
-        
-        # Step 1: Find parts matching the query (limit to 200 parts to prevent parameter list overflow)
-        cursor.execute("SELECT part_num FROM parts WHERE name LIKE ? OR part_num LIKE ? LIMIT 200", (like_query, like_query))
+        query_words = [w.strip() for w in translated_query.split() if w.strip()]
+        if not query_words:
+            return []
+            
+        # Step 1: Find parts matching all query words (limit to 200 parts to prevent parameter list overflow)
+        part_clauses = []
+        part_args = []
+        for qw in query_words:
+            part_clauses.append("(name LIKE ? OR part_num LIKE ?)")
+            part_args.extend([f"%{qw}%", f"%{qw}%"])
+        part_where = " AND ".join(part_clauses)
+        cursor.execute(f"SELECT part_num FROM parts WHERE {part_where} LIMIT 200", part_args)
         parts = [r[0] for r in cursor.fetchall()]
         
         sets = []
@@ -721,18 +744,28 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             """, parts)
             sets = [r[0] for r in cursor.fetchall()]
             
-        # Step 2: Query minifigs matching either minifig attributes or containing matching parts
-        args = [like_query, like_query]
+        # Step 2: Query minifigs matching either all minifig attributes or containing matching parts
+        minifig_clauses = []
+        minifig_args = []
+        for qw in query_words:
+            minifig_clauses.append("(m.minifig_num LIKE ? OR m.name LIKE ?)")
+            minifig_args.extend([f"%{qw}%", f"%{qw}%"])
+        name_matching_clause = " AND ".join(minifig_clauses)
+        
         set_clause = ""
         if sets:
             placeholders_set = ",".join(["?"] * len(sets))
             set_clause = f"OR m.minifig_num IN ({placeholders_set})"
-            args.extend(sets)
+            where_clause = f"(({name_matching_clause}) {set_clause})"
+            args = minifig_args + sets
+        else:
+            where_clause = name_matching_clause
+            args = minifig_args
             
         sql = f"""
             SELECT m.minifig_num, m.name, m.num_parts 
             FROM minifigs m
-            WHERE (m.minifig_num LIKE ? OR m.name LIKE ? {set_clause}) 
+            WHERE {where_clause} 
               AND m.num_parts BETWEEN 3 AND 12
               {MINIFIG_EXCLUSION_SQL}
               AND EXISTS (
