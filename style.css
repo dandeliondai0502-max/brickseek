@@ -948,39 +948,68 @@ footer {
     align-items: center;
 }
 
-.corner {
+/* Apple Camera Focus Indicator */
+@keyframes appleFocusPulse {
+    0% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+    15% {
+        transform: scale(1.0);
+        opacity: 1;
+    }
+    75% {
+        transform: scale(1.0);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1.0);
+        opacity: 0.35;
+    }
+}
+.apple-focus-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    z-index: 10;
+}
+.apple-focus-indicator .focus-box {
+    width: 76px;
+    height: 76px;
+    border: 1px solid #ffd500;
+    position: relative;
+    box-sizing: border-box;
+    animation: appleFocusPulse 2.2s infinite ease-out;
+}
+.apple-focus-indicator .focus-box::before {
+    content: '';
     position: absolute;
-    width: 25px;
-    height: 25px;
-    border-color: var(--accent-color);
-    border-style: solid;
-    width: 30px;
-    height: 30px;
+    top: 50%;
+    left: -4px;
+    width: 8px;
+    height: 1px;
+    background: #ffd500;
+    transform: translateY(-50%);
 }
-.top-left { top: 20px; left: 20px; border-width: 3px 0 0 3px; border-top-left-radius: 8px; }
-.top-right { top: 20px; right: 20px; border-width: 3px 3px 0 0; border-top-right-radius: 8px; }
-.bottom-left { bottom: 20px; left: 20px; border-width: 0 0 3px 3px; border-bottom-left-radius: 8px; }
-.bottom-right { bottom: 20px; right: 20px; border-width: 0 3px 3px 0; border-bottom-right-radius: 8px; }
-
-.center-target {
-    text-align: center;
+.apple-focus-indicator .focus-box::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    width: 1px;
+    height: 8px;
+    background: #ffd500;
+    transform: translateX(-50%);
 }
-
-.target-circle {
-    width: 160px;
-    height: 200px;
-    border: 2px dashed rgba(255, 255, 255, 0.4);
-    border-radius: 40px;
-    margin: 0 auto 10px auto;
-}
-
-.target-label {
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    padding: 4px 12px;
-    border-radius: 10px;
-    font-size: 0.75rem;
-    backdrop-filter: blur(4px);
+.apple-focus-indicator .focus-label {
+    color: #ffd500;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    opacity: 0.8;
 }
 
 .camera-controls {
@@ -988,12 +1017,15 @@ footer {
     bottom: 0;
     left: 0;
     width: 100%;
-    background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
-    padding: 20px;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    padding: 24px 40px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     z-index: 3;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .btn-control-secondary {
