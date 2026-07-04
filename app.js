@@ -298,6 +298,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const infoYear = document.getElementById('info-year');
     const infoRarity = document.getElementById('info-rarity');
     const infoParts = document.getElementById('info-parts');
+    const infoPriceNew = document.getElementById('info-price-new');
+    const infoPriceUsed = document.getElementById('info-price-used');
     const detailSetsGrid = document.getElementById('detail-sets-grid');
     
     // Instruction Manual Modal
@@ -2022,6 +2024,38 @@ document.addEventListener('DOMContentLoaded', () => {
         infoRarity.innerHTML = `<span class="${rarityClass}">${rarityText}</span>`;
         if (infoParts) {
             infoParts.textContent = `${data.parts.length} 个零部件`;
+        }
+
+        // Populate Pricing
+        const pricing = data.pricing || {};
+        if (infoPriceNew) {
+            if (pricing.new_price_usd) {
+                const newCny = Math.round(pricing.new_price_usd * 7.25);
+                infoPriceNew.textContent = `¥ ${newCny} (约 $${pricing.new_price_usd.toFixed(2)})`;
+            } else {
+                if (minifig.num_parts >= 7) {
+                    infoPriceNew.textContent = `¥ 88 - 245 (估值)`;
+                } else if (minifig.num_parts >= 4) {
+                    infoPriceNew.textContent = `¥ 35 - 65 (估值)`;
+                } else {
+                    infoPriceNew.textContent = `¥ 15 - 25 (估值)`;
+                }
+            }
+        }
+        
+        if (infoPriceUsed) {
+            if (pricing.used_price_usd) {
+                const usedCny = Math.round(pricing.used_price_usd * 7.25);
+                infoPriceUsed.textContent = `¥ ${usedCny} (约 $${pricing.used_price_usd.toFixed(2)})`;
+            } else {
+                if (minifig.num_parts >= 7) {
+                    infoPriceUsed.textContent = `¥ 48 - 135 (估值)`;
+                } else if (minifig.num_parts >= 4) {
+                    infoPriceUsed.textContent = `¥ 18 - 35 (估值)`;
+                } else {
+                    infoPriceUsed.textContent = `¥ 8 - 15 (估值)`;
+                }
+            }
         }
 
         // Render assembly components

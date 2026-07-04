@@ -582,6 +582,53 @@ def fuzzy_match_minifig(conn, name_en):
             
     return best_match, best_score
 
+PRICE_CACHE = {}
+
+def get_minifig_prices(official_id_or_num):
+    clean_id = official_id_or_num.strip().split("-")[0]
+    if clean_id in PRICE_CACHE:
+        return PRICE_CACHE[clean_id]
+        
+    if clean_id.lower().startswith("fig"):
+        return None, None
+        
+    url = f"https://brickset.com/minifigs/{clean_id}"
+    try:
+        import urllib.request, ssl, re
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+        ctx = ssl._create_unverified_context()
+        with urllib.request.urlopen(req, context=ctx, timeout=1.5) as response:
+            html = response.read().decode('utf-8', errors='ignore')
+            
+            new_price = None
+            used_price = None
+            
+            # Match New Price
+            new_match = re.search(r'New:\s*<a[^>]*>\s*~\$([\d\.]+)\s*</a>', html)
+            if new_match:
+                new_price = float(new_match.group(1))
+            else:
+                new_match = re.search(r'New:.*?\$([\d\.]+)', html)
+                if new_match:
+                    new_price = float(new_match.group(1))
+                    
+            # Match Used Price
+            used_match = re.search(r'Used:\s*<a[^>]*>\s*~\$([\d\.]+)\s*</a>', html)
+            if used_match:
+                used_price = float(used_match.group(1))
+            else:
+                used_match = re.search(r'Used:.*?\$([\d\.]+)', html)
+                if used_match:
+                    used_price = float(used_match.group(1))
+            
+            if new_price is not None or used_price is not None:
+                PRICE_CACHE[clean_id] = (new_price, used_price)
+                return new_price, used_price
+    except Exception as e:
+        print(f"[Price Scraper] Failed to fetch prices for {clean_id}: {e}")
+        
+    return None, None
+
 class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
@@ -1607,7 +1654,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     "minifig": minifig_data,
                     "parts": parts_list,
                     "sets": [],
-                    "weapons": []
+                    "weapons": [],
+                    "pricing": {"new_price_usd": None, "used_price_usd": None}
                 }
             else:
                 self.send_json_response({"error": "Minifigure not found"}, status=404)
@@ -1711,11 +1759,20 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             row_dict["color_name"] = translate_to_zh(row_dict["color_name"])
             weapons_list.append(row_dict)
 
+        # Fetch pricing details
+        target_id = minifig_data.get("official_id") or minifig_num
+        new_price, used_price = get_minifig_prices(target_id)
+        pricing = {
+            "new_price_usd": new_price,
+            "used_price_usd": used_price
+        }
+
         return {
             "minifig": minifig_data,
             "parts": parts_list,
             "sets": sets_list,
-            "weapons": weapons_list
+            "weapons": weapons_list,
+            "pricing": pricing
         }
 
     def api_resolve_image(self, conn, params):
