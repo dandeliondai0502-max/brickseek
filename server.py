@@ -556,7 +556,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         parsed_url = urllib.parse.urlparse(self.path)
         path = parsed_url.path
         if path.startswith("/api/"):
-            self.send_header("Cache-Control", "public, max-age=300, stale-while-revalidate=600")
+            self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
         elif path.endswith((".js", ".css")):
             self.send_header("Cache-Control", "public, max-age=3600")
         elif path.endswith((".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2", ".webp")):
