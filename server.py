@@ -72,16 +72,6 @@ def set_cached_api_response(cache_key, payload):
         API_CACHE.popitem(last=False)
 
 TRANSLATION_MAP = {
-    # Prefix mapping shortcuts for quick search
-    "njo": "ninjago",
-    "sw": "star wars",
-    "sh": "super heroes",
-    "hp": "harry potter",
-    "atl": "atlantis",
-    "loc": "chima",
-    "bio": "bionicle",
-    "cty": "city",
-    
     "黑武士": "darth vader",
     "达斯维达": "darth vader",
     "达斯·维达": "darth vader",
@@ -906,34 +896,62 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             # For search suggestions, try to match either: name, minifig_num, official_id, theme (orig and translated word)
             minifig_clauses = []
             minifig_args = []
+            ID_PREFIXES = {'njo', 'sw', 'sh', 'hp', 'col', 'poc', 'toy', 'dis', 'bat', 'idea', 'sc', 'frnd', 'spd', 'lor', 'hob', 'adv', 'tnt'}
+            
             for qw in query_words:
-                # For each query word, also check the prefix mappings
+                qw_clean = qw.lower().strip()
+                import re
+                prefix_match = re.match(r'^([a-z]+)', qw_clean)
+                is_id_search = False
+                if prefix_match:
+                    prefix = prefix_match.group(1)
+                    if prefix in ID_PREFIXES:
+                        is_id_search = True
+                        
                 tr_word = translate_query(qw)
-                minifig_clauses.append("""
-                    (
-                        m.minifig_num LIKE ? 
-                        OR m.name LIKE ? 
-                        OR EXISTS (
-                            SELECT 1 FROM minifig_mappings map 
-                            WHERE map.rebrickable_id = m.minifig_num 
-                              AND (map.official_id LIKE ? OR map.official_id LIKE ?)
+                if is_id_search:
+                    minifig_clauses.append("""
+                        (
+                            m.minifig_num LIKE ? 
+                            OR m.name LIKE ? 
+                            OR EXISTS (
+                                SELECT 1 FROM minifig_mappings map 
+                                WHERE map.rebrickable_id = m.minifig_num 
+                                  AND (map.official_id LIKE ? OR map.official_id LIKE ?)
+                            )
                         )
-                        OR EXISTS (
-                            SELECT 1 FROM inventory_minifigs im
-                            JOIN inventories i ON im.inventory_id = i.id
-                            JOIN sets s ON i.set_num = s.set_num
-                            JOIN themes t ON s.theme_id = t.id
-                            WHERE im.minifig_num = m.minifig_num
-                              AND (LOWER(t.name) LIKE ? OR LOWER(t.name) LIKE ?)
+                    """)
+                    minifig_args.extend([
+                        f"%{qw}%", 
+                        f"%{qw}%", 
+                        f"%{qw}%", f"%{tr_word}%"
+                    ])
+                else:
+                    minifig_clauses.append("""
+                        (
+                            m.minifig_num LIKE ? 
+                            OR m.name LIKE ? 
+                            OR EXISTS (
+                                SELECT 1 FROM minifig_mappings map 
+                                WHERE map.rebrickable_id = m.minifig_num 
+                                  AND (map.official_id LIKE ? OR map.official_id LIKE ?)
+                            )
+                            OR EXISTS (
+                                SELECT 1 FROM inventory_minifigs im
+                                JOIN inventories i ON im.inventory_id = i.id
+                                JOIN sets s ON i.set_num = s.set_num
+                                JOIN themes t ON s.theme_id = t.id
+                                WHERE im.minifig_num = m.minifig_num
+                                  AND (LOWER(t.name) LIKE ? OR LOWER(t.name) LIKE ?)
+                            )
                         )
-                    )
-                """)
-                minifig_args.extend([
-                    f"%{qw}%", 
-                    f"%{qw}%", 
-                    f"%{qw}%", f"%{tr_word}%",
-                    f"%{qw}%", f"%{tr_word}%"
-                ])
+                    """)
+                    minifig_args.extend([
+                        f"%{qw}%", 
+                        f"%{qw}%", 
+                        f"%{qw}%", f"%{tr_word}%",
+                        f"%{qw}%", f"%{tr_word}%"
+                    ])
             name_matching_clause = " AND ".join(minifig_clauses)
             
             set_clause = ""
