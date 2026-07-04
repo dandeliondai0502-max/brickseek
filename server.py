@@ -831,9 +831,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             cursor.execute(sql_theme, (row_dict["minifig_num"],))
             theme_row = cursor.fetchone()
             row_dict["theme_name"] = translate_to_zh(theme_row["name"]) if theme_row else "收藏系列"
-            cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (row_dict["minifig_num"],))
-            m_row = cursor.fetchone()
-            row_dict["official_id"] = m_row["official_id"] if m_row else row_dict["minifig_num"]
+            row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
             results.append(row_dict)
             
         return results
@@ -1221,12 +1219,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             m_num = fig["minifig_num"]
             if m_num not in seen:
                 seen.add(m_num)
-                cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (m_num,))
-                m_row = cursor.fetchone()
-                if m_row:
-                    fig["official_id"] = m_row["official_id"]
-                else:
-                    fig["official_id"] = m_num
+                fig["official_id"] = MINIFIG_MAPPINGS.get(m_num, m_num)
                 unique_figs.append(fig)
         return unique_figs
 
@@ -1403,9 +1396,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             shared_figs = []
             for row in rows:
                 fig_num = row["minifig_num"]
-                cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (fig_num,))
-                m_row = cursor.fetchone()
-                official_id_val = m_row["official_id"] if m_row else fig_num
+                official_id_val = MINIFIG_MAPPINGS.get(fig_num, fig_num)
                 
                 shared_figs.append({
                     "minifig_num": fig_num,
@@ -1487,9 +1478,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             if param_img.lower() in ("undefined", "null", ""):
                 param_img = ""
             if param_name:
-                cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (minifig_id,))
-                m_row = cursor.fetchone()
-                official_id_val = m_row["official_id"] if m_row else minifig_id
+                official_id_val = MINIFIG_MAPPINGS.get(minifig_id, minifig_id)
                 minifig_data = {
                     "minifig_num": minifig_id,
                     "name": translate_to_zh(param_name),
@@ -1557,10 +1546,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         eng_name = minifig_data["name"]
         minifig_data["name"] = translate_to_zh(eng_name)
         minifig_num = minifig_data["minifig_num"]
-        cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (minifig_num,))
-        m_row = cursor.fetchone()
-        if m_row:
-            minifig_data["official_id"] = m_row["official_id"]
+        if minifig_num in MINIFIG_MAPPINGS:
+            minifig_data["official_id"] = MINIFIG_MAPPINGS[minifig_num]
         else:
             resolved_official_id = resolve_name_to_official_id_via_brickset(eng_name)
             if resolved_official_id:
@@ -1668,10 +1655,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             
         cursor = conn.cursor()
         # Check if already resolved
-        cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (minifig_id,))
-        m_row = cursor.fetchone()
-        if m_row:
-            official_id = m_row["official_id"]
+        if minifig_id in MINIFIG_MAPPINGS:
+            official_id = MINIFIG_MAPPINGS[minifig_id]
             if official_id != minifig_id:
                 img_url = f"https://img.bricklink.com/ItemImage/MN/0/{official_id.lower()}.png"
                 return {"img_url": img_url, "official_id": official_id}
@@ -1928,14 +1913,8 @@ def run_background_precacher():
                 m_id = fig["minifig_num"]
                 name = fig["name"]
                 
-                # Check mapping
-                conn_check = sqlite3.connect(DB_PATH)
-                cursor_check = conn_check.cursor()
-                cursor_check.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (m_id,))
-                mapping = cursor_check.fetchone()
-                conn_check.close()
-                
-                if mapping:
+                # Check mapping in memory
+                if m_id in MINIFIG_MAPPINGS:
                     continue
                     
                 # Check Rebrickable image
