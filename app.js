@@ -628,19 +628,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         try {
-            const cacheKey = query.toLowerCase();
+            const cacheKey = query.toLowerCase() + "_full";
             let data = searchCache.get(cacheKey);
             if (!data) {
-                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&full=true`);
                 if (!res.ok) return;
                 data = await res.json();
                 searchCache.set(cacheKey, data);
             }
             
-            if (data.length === 1) {
-                // If there is exactly one match, open it directly!
-                showDetailPage(data[0].minifig_num, data[0].name, data[0].img_url);
-            } else if (data.length > 1) {
+            const minifigs = data.minifigs || [];
+            const sets = data.sets || [];
+            
+            if (minifigs.length === 1 && sets.length === 0) {
+                // If there is exactly one minifig match and no sets, open it directly!
+                showDetailPage(minifigs[0].minifig_num, minifigs[0].name, minifigs[0].img_url);
+            } else if (minifigs.length > 0 || sets.length > 0) {
                 // If there are multiple matches, switch to the gallery view and search!
                 if (navGalleryBtn) {
                     navGalleryBtn.click();
@@ -653,9 +656,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     galleryThemeFilter.value = "";
                 }
                 galleryTheme = "";
-                fetchGalleryItems(true);
+                
+                renderSearchResultsInGallery(data);
             } else {
-                alert(`在全量数据库中未找到与 "${query}" 匹配的乐高人仔。请换个词试试（如 "Vader"、"fig-000581"、"太空"）`);
+                alert(`在全量数据库中未找到与 "${query}" 匹配的乐高人仔或套装。请换个词试试（如 "Vader"、"fig-000581"、"太空"）`);
             }
         } catch (e) {
             console.error(e);
@@ -2954,6 +2958,34 @@ document.addEventListener('DOMContentLoaded', () => {
         gallerySort = gallerySortFilter.value;
         fetchGalleryItems(true);
     });
+
+    // Bind search category tab click switchers
+    const tabMinifigs = document.getElementById('tab-minifigs');
+    const tabSets = document.getElementById('tab-sets');
+    const setsGalleryGrid = document.getElementById('sets-gallery-grid');
+    if (tabMinifigs && tabSets) {
+        [tabMinifigs, tabSets].forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const category = e.currentTarget.getAttribute('data-category');
+                
+                // Toggle active class
+                tabMinifigs.classList.remove('active');
+                tabSets.classList.remove('active');
+                e.currentTarget.classList.add('active');
+                
+                // Toggle grids visibility
+                if (category === 'minifigs') {
+                    galleryGrid.style.display = 'grid';
+                    if (setsGalleryGrid) setsGalleryGrid.style.display = 'none';
+                    btnLoadMore.style.display = endOfGallery ? 'none' : 'flex';
+                } else {
+                    galleryGrid.style.display = 'none';
+                    if (setsGalleryGrid) setsGalleryGrid.style.display = 'grid';
+                    btnLoadMore.style.display = 'none';
+                }
+            });
+        });
+    }
 
     // Debounce for search filter
     let gallerySearchTimeout = null;

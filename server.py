@@ -846,8 +846,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
 
     def api_search(self, conn, params):
         query = params.get("q", [""])[0].strip()
+        full_mode = params.get("full", ["false"])[0].strip().lower() == "true"
         if not query:
-            return []
+            return {"minifigs": [], "sets": []} if full_mode else []
 
         cursor = conn.cursor()
         
@@ -860,108 +861,152 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             cursor.execute("SELECT rebrickable_id FROM minifig_mappings WHERE LOWER(official_id) = ?", (query.lower().strip(),))
             mapped_ids = [r[0] for r in cursor.fetchall()]
 
+        # Initialize results
+        minifigs_results = []
+
         if mapped_ids:
             placeholders = ",".join(["?"] * len(mapped_ids))
-            cursor.execute(f"SELECT minifig_num, name, num_parts FROM minifigs WHERE minifig_num IN ({placeholders})", mapped_ids)
+            limit_val = 300 if full_mode else 40
+            cursor.execute(f"SELECT minifig_num, name, num_parts FROM minifigs WHERE minifig_num IN ({placeholders}) LIMIT {limit_val}", mapped_ids)
             rows = cursor.fetchall()
-            results = []
             for row in rows:
                 row_dict = dict(row)
                 row_dict["name"] = translate_to_zh(row_dict["name"])
                 row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
-                results.append(row_dict)
-            return results
+                minifigs_results.append(row_dict)
+        else:
+            translated_query = translate_query(query)
+            query_words = [w.strip() for w in translated_query.split() if w.strip()]
+            if not query_words:
+                return {"minifigs": [], "sets": []} if full_mode else []
+                
+            # Step 1: Find parts matching all query words (limit to 200 parts to prevent parameter list overflow)
+            part_clauses = []
+            part_args = []
+            for qw in query_words:
+                part_clauses.append("(name LIKE ? OR part_num LIKE ?)")
+                part_args.extend([f"%{qw}%", f"%{qw}%"])
+            part_where = " AND ".join(part_clauses)
+            cursor.execute(f"SELECT part_num FROM parts WHERE {part_where} LIMIT 200", part_args)
+            parts = [r[0] for r in cursor.fetchall()]
+            
+            sets = []
+            if parts:
+                placeholders = ",".join(["?"] * len(parts))
+                cursor.execute(f"""
+                    SELECT DISTINCT i.set_num
+                    FROM inventories i
+                    JOIN inventory_parts ip ON i.id = ip.inventory_id
+                    WHERE ip.part_num IN ({placeholders}) AND i.set_num LIKE 'fig-%'
+                    LIMIT 500
+                """, parts)
+                sets = [r[0] for r in cursor.fetchall()]
+                
+            # Step 2: Query minifigs matching either all minifig attributes or containing matching parts
+            # For search suggestions, try to match either: name, minifig_num, official_id, theme (orig and translated word)
+            minifig_clauses = []
+            minifig_args = []
+            for qw in query_words:
+                # For each query word, also check the prefix mappings
+                tr_word = translate_query(qw)
+                minifig_clauses.append("""
+                    (
+                        m.minifig_num LIKE ? 
+                        OR m.name LIKE ? 
+                        OR EXISTS (
+                            SELECT 1 FROM minifig_mappings map 
+                            WHERE map.rebrickable_id = m.minifig_num 
+                              AND (map.official_id LIKE ? OR map.official_id LIKE ?)
+                        )
+                        OR EXISTS (
+                            SELECT 1 FROM inventory_minifigs im
+                            JOIN inventories i ON im.inventory_id = i.id
+                            JOIN sets s ON i.set_num = s.set_num
+                            JOIN themes t ON s.theme_id = t.id
+                            WHERE im.minifig_num = m.minifig_num
+                              AND (LOWER(t.name) LIKE ? OR LOWER(t.name) LIKE ?)
+                        )
+                    )
+                """)
+                minifig_args.extend([
+                    f"%{qw}%", 
+                    f"%{qw}%", 
+                    f"%{qw}%", f"%{tr_word}%",
+                    f"%{qw}%", f"%{tr_word}%"
+                ])
+            name_matching_clause = " AND ".join(minifig_clauses)
+            
+            set_clause = ""
+            if sets:
+                placeholders_set = ",".join(["?"] * len(sets))
+                set_clause = f"OR m.minifig_num IN ({placeholders_set})"
+                where_clause = f"(({name_matching_clause}) {set_clause})"
+                args = minifig_args + sets
+            else:
+                where_clause = name_matching_clause
+                args = minifig_args
+                
+            limit_val = 500 if full_mode else 40
+            sql = f"""
+                SELECT m.minifig_num, m.name, m.num_parts 
+                FROM minifigs m
+                WHERE {where_clause} 
+                  {MINIFIG_EXCLUSION_SQL}
+                ORDER BY m.num_parts DESC 
+                LIMIT {limit_val}
+            """
+            cursor.execute(sql, args)
+            rows = cursor.fetchall()
+            
+            for row in rows:
+                row_dict = dict(row)
+                row_dict["name"] = translate_to_zh(row_dict["name"])
+                row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
+                minifigs_results.append(row_dict)
+                
+        if not full_mode:
+            return minifigs_results
 
+        # Search matching sets for full_mode
+        sets_results = []
         translated_query = translate_query(query)
         query_words = [w.strip() for w in translated_query.split() if w.strip()]
-        if not query_words:
-            return []
-            
-        # Step 1: Find parts matching all query words (limit to 200 parts to prevent parameter list overflow)
-        part_clauses = []
-        part_args = []
-        for qw in query_words:
-            part_clauses.append("(name LIKE ? OR part_num LIKE ?)")
-            part_args.extend([f"%{qw}%", f"%{qw}%"])
-        part_where = " AND ".join(part_clauses)
-        cursor.execute(f"SELECT part_num FROM parts WHERE {part_where} LIMIT 200", part_args)
-        parts = [r[0] for r in cursor.fetchall()]
         
-        sets = []
-        if parts:
-            placeholders = ",".join(["?"] * len(parts))
-            cursor.execute(f"""
-                SELECT DISTINCT i.set_num
-                FROM inventories i
-                JOIN inventory_parts ip ON i.id = ip.inventory_id
-                WHERE ip.part_num IN ({placeholders}) AND i.set_num LIKE 'fig-%'
-                LIMIT 500
-            """, parts)
-            sets = [r[0] for r in cursor.fetchall()]
+        if query_words:
+            set_clauses = []
+            set_args = []
+            for qw in query_words:
+                set_clauses.append("(s.set_num LIKE ? OR s.name LIKE ? OR t.name LIKE ?)")
+                set_args.extend([f"%{qw}%", f"%{qw}%", f"%{qw}%"])
+            set_where = " AND ".join(set_clauses)
             
-        # Step 2: Query minifigs matching either all minifig attributes or containing matching parts
-        # For search suggestions, try to match either: name, minifig_num, official_id, theme (orig and translated word)
-        minifig_clauses = []
-        minifig_args = []
-        for qw in query_words:
-            # For each query word, also check the prefix mappings
-            tr_word = translate_query(qw)
-            minifig_clauses.append("""
-                (
-                    m.minifig_num LIKE ? 
-                    OR m.name LIKE ? 
-                    OR EXISTS (
-                        SELECT 1 FROM minifig_mappings map 
-                        WHERE map.rebrickable_id = m.minifig_num 
-                          AND (map.official_id LIKE ? OR map.official_id LIKE ?)
-                    )
-                    OR EXISTS (
-                        SELECT 1 FROM inventory_minifigs im
-                        JOIN inventories i ON im.inventory_id = i.id
-                        JOIN sets s ON i.set_num = s.set_num
-                        JOIN themes t ON s.theme_id = t.id
-                        WHERE im.minifig_num = m.minifig_num
-                          AND (LOWER(t.name) LIKE ? OR LOWER(t.name) LIKE ?)
-                    )
-                )
-            """)
-            minifig_args.extend([
-                f"%{qw}%", 
-                f"%{qw}%", 
-                f"%{qw}%", f"%{tr_word}%",
-                f"%{qw}%", f"%{tr_word}%"
-            ])
-        name_matching_clause = " AND ".join(minifig_clauses)
-        
-        set_clause = ""
-        if sets:
-            placeholders_set = ",".join(["?"] * len(sets))
-            set_clause = f"OR m.minifig_num IN ({placeholders_set})"
-            where_clause = f"(({name_matching_clause}) {set_clause})"
-            args = minifig_args + sets
-        else:
-            where_clause = name_matching_clause
-            args = minifig_args
-            
-        sql = f"""
-            SELECT m.minifig_num, m.name, m.num_parts 
-            FROM minifigs m
-            WHERE {where_clause} 
-              {MINIFIG_EXCLUSION_SQL}
-            ORDER BY m.num_parts DESC 
-            LIMIT 40
-        """
-        cursor.execute(sql, args)
-        rows = cursor.fetchall()
-        
-        results = []
-        for row in rows:
-            row_dict = dict(row)
-            row_dict["name"] = translate_to_zh(row_dict["name"])
-            row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
-            results.append(row_dict)
-            
-        return results
+            fig_placeholder = ""
+            fig_args = []
+            matched_minifig_nums = [m["minifig_num"] for m in minifigs_results]
+            if matched_minifig_nums:
+                placeholders = ",".join(["?"] * len(matched_minifig_nums[:100]))
+                fig_placeholder = f"OR s.set_num IN (SELECT DISTINCT i.set_num FROM inventories i JOIN inventory_minifigs im ON i.id = im.inventory_id WHERE im.minifig_num IN ({placeholders}))"
+                fig_args = matched_minifig_nums[:100]
+                
+            sql_sets = f"""
+                SELECT DISTINCT s.set_num, s.name, s.year, s.num_parts, s.img_url, t.name AS theme_name
+                FROM sets s
+                LEFT JOIN themes t ON s.theme_id = t.id
+                WHERE ({set_where} {fig_placeholder})
+                ORDER BY s.year DESC, s.num_parts DESC
+                LIMIT 200
+            """
+            cursor.execute(sql_sets, set_args + fig_args)
+            for row in cursor.fetchall():
+                row_dict = dict(row)
+                row_dict["name"] = translate_to_zh(row_dict["name"])
+                row_dict["theme_name"] = translate_to_zh(row_dict["theme_name"])
+                sets_results.append(row_dict)
+                
+        return {
+            "minifigs": minifigs_results,
+            "sets": sets_results
+        }
             
     def api_scan(self, conn, params):
         target_color = params.get("color", ["ffffff"])[0].strip().lower()
