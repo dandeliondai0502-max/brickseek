@@ -1756,6 +1756,19 @@ def init_users_db():
         for r_id, o_id in MINIFIG_ID_MAP.items():
             cursor.execute("INSERT OR IGNORE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (r_id, o_id))
             
+        # Load and prepopulate from db/minifig_mappings.json if available
+        json_path = os.path.join(os.path.dirname(DB_PATH), "minifig_mappings.json")
+        if os.path.exists(json_path):
+            try:
+                import json
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    extra_mappings = json.load(f)
+                for r_id, o_id in extra_mappings.items():
+                    cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (r_id, o_id))
+                print(f"[Database] Loaded {len(extra_mappings)} mappings from minifig_mappings.json")
+            except Exception as json_err:
+                print(f"[Database Error] Failed to load minifig_mappings.json: {json_err}")
+            
         cursor.executescript("""
         CREATE INDEX IF NOT EXISTS idx_minifigs_num_parts ON minifigs(num_parts);
         CREATE INDEX IF NOT EXISTS idx_inventory_parts_part_color_inv ON inventory_parts(part_num, color_id, inventory_id);
@@ -1782,7 +1795,7 @@ def run_background_precacher():
         time.sleep(12)  # Wait for server to bind and start accepting connections
         print("[Pre-Cacher] Starting gallery pre-resolver worker...")
         
-        ssl_ctx = ssl._create_for_unverified_context() if hasattr(ssl, '_create_unverified_context') else ssl.create_default_context()
+        ssl_ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else ssl.create_default_context()
         if hasattr(ssl, '_create_unverified_context'):
             ssl_ctx = ssl._create_unverified_context()
             
