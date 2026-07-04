@@ -265,6 +265,36 @@ MINIFIG_ID_MAP = {
 
 REVERSE_MINIFIG_MAP = {v: k for k, v in MINIFIG_ID_MAP.items()}
 
+# Global in-memory cache for fast lookups
+MINIFIG_MAPPINGS = {}
+REVERSE_MINIFIG_MAPPINGS = {}
+
+def load_minifig_mappings():
+    global MINIFIG_MAPPINGS, REVERSE_MINIFIG_MAPPINGS
+    MINIFIG_MAPPINGS.clear()
+    REVERSE_MINIFIG_MAPPINGS.clear()
+    
+    # 1. Load hardcoded map
+    MINIFIG_MAPPINGS.update(MINIFIG_ID_MAP)
+    for k, v in MINIFIG_ID_MAP.items():
+        REVERSE_MINIFIG_MAPPINGS[v.lower().strip()] = k
+        
+    # 2. Load from JSON file if available
+    json_path = os.path.join(os.path.dirname(DB_PATH), "minifig_mappings.json")
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                extra = json.load(f)
+                MINIFIG_MAPPINGS.update(extra)
+                for k, v in extra.items():
+                    REVERSE_MINIFIG_MAPPINGS[v.lower().strip()] = k
+            print(f"[Mappings Cache] Loaded {len(MINIFIG_MAPPINGS)} mappings and {len(REVERSE_MINIFIG_MAPPINGS)} reverse mappings into memory.")
+        except Exception as e:
+            print(f"[Mappings Cache Error] Failed to load JSON: {e}")
+
+# Initial load on import
+load_minifig_mappings()
+
 def resolve_official_id_via_brickset(o_id):
     import urllib.request
     import ssl
@@ -361,8 +391,8 @@ def resolve_minifig_id(m_id, conn=None):
     m_id_lower = m_id.lower().strip()
     
     # First check in-memory map
-    if m_id_lower in REVERSE_MINIFIG_MAP:
-        return REVERSE_MINIFIG_MAP[m_id_lower]
+    if m_id_lower in REVERSE_MINIFIG_MAPPINGS:
+        return REVERSE_MINIFIG_MAPPINGS[m_id_lower]
         
     # Check SQLite minifig_mappings table
     db_conn = conn
@@ -418,6 +448,9 @@ def resolve_minifig_id(m_id, conn=None):
                             write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (fig_id, m_id_lower))
                             write_conn.commit()
                             write_conn.close()
+                            # Update memory cache
+                            MINIFIG_MAPPINGS[fig_id] = m_id_lower
+                            REVERSE_MINIFIG_MAPPINGS[m_id_lower.lower().strip()] = fig_id
                         except Exception as write_err:
                             print(f"[Brickset Resolver] Error writing mapping: {write_err}")
                         if target_close:
@@ -435,10 +468,14 @@ def resolve_minifig_id(m_id, conn=None):
     return m_id
 
 def translate_query(q):
+    import re
     q_lower = q.lower()
     for zh, en in TRANSLATION_MAP.items():
         if zh in q_lower:
-            q_lower = q_lower.replace(zh, en)
+            if re.match(r'^[a-z]+$', zh):
+                q_lower = re.sub(rf'\b{zh}\b', en, q_lower)
+            else:
+                q_lower = q_lower.replace(zh, en)
     return q_lower
 
 # Pre-sort translation keys by length descending to match longest phrases first
@@ -806,20 +843,26 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         if not query:
             return []
 
-        mapped_id = resolve_minifig_id(query, conn)
         cursor = conn.cursor()
+        
+        # Check if query is a direct Rebrickable ID or matches official ID(s)
+        mapped_ids = []
+        if query.lower().startswith("fig-"):
+            mapped_ids = [query]
+        else:
+            # Find all rebrickable_ids that map to this official ID
+            cursor.execute("SELECT rebrickable_id FROM minifig_mappings WHERE LOWER(official_id) = ?", (query.lower().strip(),))
+            mapped_ids = [r[0] for r in cursor.fetchall()]
 
-        if mapped_id != query:
-            cursor.execute("SELECT minifig_num, name, num_parts FROM minifigs WHERE minifig_num = ?", (mapped_id,))
+        if mapped_ids:
+            placeholders = ",".join(["?"] * len(mapped_ids))
+            cursor.execute(f"SELECT minifig_num, name, num_parts FROM minifigs WHERE minifig_num IN ({placeholders})", mapped_ids)
             rows = cursor.fetchall()
             results = []
             for row in rows:
                 row_dict = dict(row)
                 row_dict["name"] = translate_to_zh(row_dict["name"])
-                # Resolve official ID from database mapping table
-                cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (row_dict["minifig_num"],))
-                m_row = cursor.fetchone()
-                row_dict["official_id"] = m_row["official_id"] if m_row else row_dict["minifig_num"]
+                row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
                 results.append(row_dict)
             return results
 
@@ -898,17 +941,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             SELECT m.minifig_num, m.name, m.num_parts 
             FROM minifigs m
             WHERE {where_clause} 
-              AND m.num_parts BETWEEN 3 AND 12
               {MINIFIG_EXCLUSION_SQL}
-              AND EXISTS (
-                  SELECT 1
-                  FROM inventories i
-                  JOIN inventory_parts ip ON i.id = ip.inventory_id
-                  JOIN parts p ON ip.part_num = p.part_num
-                  WHERE i.set_num = m.minifig_num
-                    AND p.part_cat_id IN (60, 61, 13)
-                  LIMIT 1
-              )
             ORDER BY m.num_parts DESC 
             LIMIT 40
         """
@@ -919,9 +952,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         for row in rows:
             row_dict = dict(row)
             row_dict["name"] = translate_to_zh(row_dict["name"])
-            cursor.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (row_dict["minifig_num"],))
-            m_row = cursor.fetchone()
-            row_dict["official_id"] = m_row["official_id"] if m_row else row_dict["minifig_num"]
+            row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
             results.append(row_dict)
             
         return results
@@ -963,7 +994,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             
             # Query keyword matching score
             query_score = 0
-            official_id = MINIFIG_ID_MAP.get(num_lower, num_lower)
+            official_id = MINIFIG_MAPPINGS.get(num_lower, num_lower)
             if query and (query in name_lower or query in num_lower or query in official_id):
                 query_score = 1000000  # huge boost
                 
@@ -992,7 +1023,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         for m in matches[:3]:
             fig = m[1]
             fig["name"] = translate_to_zh(fig["name"])
-            fig["official_id"] = MINIFIG_ID_MAP.get(fig["minifig_num"], fig["minifig_num"])
+            fig["official_id"] = MINIFIG_MAPPINGS.get(fig["minifig_num"], fig["minifig_num"])
             top_matches.append(fig)
         return top_matches
 
@@ -1058,6 +1089,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                                 write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (resolved_cand, cand))
                                 write_conn.commit()
                                 write_conn.close()
+                                MINIFIG_MAPPINGS[resolved_cand] = cand
+                                REVERSE_MINIFIG_MAPPINGS[cand.lower().strip()] = resolved_cand
                             except Exception as write_err:
                                 print(f"[Resolve Error] Failed to write mapping: {write_err}")
                         matched_figs.append({
@@ -1082,6 +1115,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                                 write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (fig_num, bricklink_id))
                                 write_conn.commit()
                                 write_conn.close()
+                                MINIFIG_MAPPINGS[fig_num] = bricklink_id
+                                REVERSE_MINIFIG_MAPPINGS[bricklink_id.lower().strip()] = fig_num
                             except Exception as write_err:
                                 print(f"[Resolve Error] Failed to write mapping: {write_err}")
                         matched_figs.append({
@@ -1165,7 +1200,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                             "num_parts": row["num_parts"],
                             "img_url": f"https://cdn.rebrickable.com/media/sets/{row['minifig_num']}.jpg",
                             "score": item.get("score", 0.8) * 0.8,
-                            "official_id": MINIFIG_ID_MAP.get(row["minifig_num"], row["minifig_num"])
+                            "official_id": MINIFIG_MAPPINGS.get(row["minifig_num"], row["minifig_num"])
                         })
                         found_part_figs = True
                         
@@ -1535,6 +1570,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (minifig_num, resolved_official_id))
                     write_conn.commit()
                     write_conn.close()
+                    MINIFIG_MAPPINGS[minifig_num] = resolved_official_id
+                    REVERSE_MINIFIG_MAPPINGS[resolved_official_id.lower().strip()] = minifig_num
                     minifig_data["official_id"] = resolved_official_id
                 except Exception as write_err:
                     print(f"[Resolve Error] Failed to write resolved mapping: {write_err}")
@@ -1652,6 +1689,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (minifig_id, resolved_official_id))
                     write_conn.commit()
                     write_conn.close()
+                    MINIFIG_MAPPINGS[minifig_id] = resolved_official_id
+                    REVERSE_MINIFIG_MAPPINGS[resolved_official_id.lower().strip()] = minifig_id
                     img_url = f"https://img.bricklink.com/ItemImage/MN/0/{resolved_official_id.lower()}.png"
                     return {"img_url": img_url, "official_id": resolved_official_id}
                 except Exception as write_err:
@@ -1708,7 +1747,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         for row in rows:
             row_dict = dict(row)
             row_dict["name"] = translate_to_zh(row_dict["name"])
-            row_dict["official_id"] = MINIFIG_ID_MAP.get(row_dict["minifig_num"], row_dict["minifig_num"])
+            row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
             row_dict["img_url"] = f"https://cdn.rebrickable.com/media/sets/{row_dict['minifig_num']}.jpg"
             results.append(row_dict)
             
@@ -1746,10 +1785,30 @@ def init_users_db():
             password TEXT,
             preferences TEXT
         )""")
+        # Check if minifig_mappings table exists and has UNIQUE constraint
+        cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='minifig_mappings'")
+        tbl_info = cursor.fetchone()
+        if tbl_info and "UNIQUE" in tbl_info[0].upper():
+            print("[Database Migration] Removing UNIQUE constraint from minifig_mappings table...")
+            try:
+                cursor.execute("ALTER TABLE minifig_mappings RENAME TO minifig_mappings_old")
+                cursor.execute("""
+                CREATE TABLE minifig_mappings (
+                    rebrickable_id TEXT PRIMARY KEY,
+                    official_id TEXT
+                )""")
+                cursor.execute("INSERT OR IGNORE INTO minifig_mappings SELECT rebrickable_id, official_id FROM minifig_mappings_old")
+                cursor.execute("DROP TABLE minifig_mappings_old")
+                print("[Database Migration] Migration complete!")
+            except Exception as migrate_err:
+                print(f"[Database Migration Error] Migration failed: {migrate_err}")
+                cursor.execute("DROP TABLE IF EXISTS minifig_mappings")
+                cursor.execute("DROP TABLE IF EXISTS minifig_mappings_old")
+
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS minifig_mappings (
             rebrickable_id TEXT PRIMARY KEY,
-            official_id TEXT UNIQUE
+            official_id TEXT
         )""")
         
         # Prepopulate MINIFIG_ID_MAP mappings
@@ -1775,10 +1834,14 @@ def init_users_db():
         CREATE INDEX IF NOT EXISTS idx_inventory_parts_color_part_inv ON inventory_parts(color_id, part_num, inventory_id);
         CREATE INDEX IF NOT EXISTS idx_parts_cat_part ON parts(part_cat_id, part_num);
         CREATE INDEX IF NOT EXISTS idx_sets_theme ON sets(theme_id);
+        DROP INDEX IF EXISTS idx_minifig_mappings_official;
         CREATE INDEX IF NOT EXISTS idx_minifig_mappings_official ON minifig_mappings(official_id);
         """)
         conn.commit()
         conn.close()
+        
+        # Initialize memory caches
+        load_minifig_mappings()
         print("[Database] Users and minifig_mappings tables initialized successfully.")
     except Exception as e:
         print(f"[Database Error] Failed to initialize users table: {e}")
@@ -1889,6 +1952,8 @@ def run_background_precacher():
                         w_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (m_id, official_id))
                         w_conn.commit()
                         w_conn.close()
+                        MINIFIG_MAPPINGS[m_id] = official_id
+                        REVERSE_MINIFIG_MAPPINGS[official_id.lower().strip()] = m_id
                         print(f"[Pre-Cacher] Successfully mapped {m_id} to BrickLink: {official_id}")
                     except Exception as err:
                         print(f"[Pre-Cacher] DB write error for {m_id}: {err}")
@@ -1900,6 +1965,8 @@ def run_background_precacher():
                         w_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (m_id, m_id))
                         w_conn.commit()
                         w_conn.close()
+                        MINIFIG_MAPPINGS[m_id] = m_id
+                        REVERSE_MINIFIG_MAPPINGS[m_id.lower().strip()] = m_id
                     except Exception:
                         pass
                 

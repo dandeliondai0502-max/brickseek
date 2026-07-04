@@ -1098,6 +1098,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 audio: false
             });
             webcam.srcObject = webcamStream;
+            webcam.style.display = 'block';
             dropZone.style.display = 'none';
             cameraViewport.style.display = 'flex';
             if (cameraControls) cameraControls.style.display = 'flex';
@@ -1236,17 +1237,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.95);
-        previewImage.src = dataUrl;
         
-        stopWebcam();
-        cameraViewport.style.display = 'none';
-        if (cameraControls) cameraControls.style.display = 'none';
-        
+        // Define onload FIRST to avoid data URL race conditions
         previewImage.onload = () => {
             const hexColor = getAverageColorFromImage(previewImage);
             startScanning(hexColor, '', dataUrl);
             previewImage.onload = null;
         };
+        previewImage.src = dataUrl;
+        
+        stopWebcam();
+        cameraViewport.style.display = 'none';
+        if (cameraControls) cameraControls.style.display = 'none';
     });
 
     function stopWebcam() {
@@ -1254,7 +1256,11 @@ document.addEventListener('DOMContentLoaded', () => {
             webcamStream.getTracks().forEach(track => track.stop());
             webcamStream = null;
         }
+        try {
+            webcam.pause();
+        } catch(e){}
         webcam.srcObject = null;
+        webcam.style.display = 'none';
     }
 
     // --- 6. Scanner Animation & Real SQLite Matching ---
