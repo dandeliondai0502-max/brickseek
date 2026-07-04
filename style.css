@@ -5615,4 +5615,40 @@ footer {
     font-weight: 500;
 }
 
+/* Custom Search Sorting Bar */
+.search-sorting-bar {
+    display: flex;
+    gap: 24px;
+    margin: 0 0 15px 0;
+    padding: 4px 6px;
+    align-items: center;
+}
+
+.sort-tab-btn {
+    background: none;
+    border: none;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: var(--transition-smooth);
+    padding: 4px 0;
+    position: relative;
+}
+
+.sort-tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.sort-tab-btn.active {
+    color: var(--accent-color);
+    font-weight: 700;
+}
+
+/* Home Search Results Section animation */
+.home-search-results-section {
+    animation: fadeIn 0.3s ease-out;
+}
+
+
 

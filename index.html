@@ -44,7 +44,7 @@
     <main>
         <div class="search-container">
             <!-- Dynamic SVG Logo -->
-            <div class="logo-wrapper">
+            <div class="logo-wrapper" id="home-logo-wrapper">
                 <svg class="main-logo" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
                     <defs>
                         <linearGradient id="brick-grad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -107,49 +107,82 @@
                 </div>
             </div>
 
-            <!-- Hot Searches / Quick Filters -->
-            <div class="hot-searches-section">
-                <h3 class="section-title"><i class="fas fa-fire hot-icon"></i> 最近热门</h3>
-                <div class="hot-tags-row">
-                    <button class="hot-tag-btn" data-search="Vader">
-                        <img src="https://cdn.rebrickable.com/media/sets/fig-000581.jpg" alt="Vader" class="hot-tag-img">
-                        <span>Vader</span>
+            <!-- Dedicated Home Search Results Area (Hidden by default) -->
+            <div class="home-search-results-section" id="home-search-results-section" style="display: none; flex-direction: column; width: 100%;">
+                <!-- Category Tabs (人仔 / 套装) -->
+                <div class="search-category-tabs">
+                    <button type="button" class="category-tab active" id="home-tab-minifigs" data-category="minifigs">
+                        人仔 <span class="tab-count" id="home-tab-count-minifigs">(0)</span>
                     </button>
-                    <button class="hot-tag-btn" data-search="Ninjago">
-                        <img src="https://cdn.rebrickable.com/media/sets/fig-000418.jpg" alt="Ninjago" class="hot-tag-img">
-                        <span>Ninjago</span>
+                    <button type="button" class="category-tab" id="home-tab-sets" data-category="sets">
+                        套装 <span class="tab-count" id="home-tab-count-sets">(0)</span>
                     </button>
-                    <button class="hot-tag-btn" data-search="星战">
-                        <img src="https://cdn.rebrickable.com/media/sets/fig-000075.jpg" alt="星战" class="hot-tag-img">
-                        <span>星战</span>
-                    </button>
-                    <button class="hot-tag-btn" data-search="Harry Potter">
-                        <img src="https://cdn.rebrickable.com/media/sets/fig-000029.jpg" alt="哈利波特" class="hot-tag-img">
-                        <span>哈利波特</span>
-                    </button>
+                </div>
+
+                <!-- Custom Sorting Bar -->
+                <div class="search-sorting-bar">
+                    <button type="button" class="sort-tab-btn" id="home-sort-popularity">按人气</button>
+                    <button type="button" class="sort-tab-btn" id="home-sort-price">按价位</button>
+                    <button type="button" class="sort-tab-btn active" id="home-sort-id">按编号</button>
+                </div>
+
+                <!-- Minifigures grid -->
+                <div class="gallery-grid" id="home-search-minifigs-grid">
+                    <!-- Dynamic cards loaded via JS -->
+                </div>
+
+                <!-- Sets grid -->
+                <div class="gallery-grid" id="home-search-sets-grid" style="display: none;">
+                    <!-- Dynamic cards loaded via JS -->
                 </div>
             </div>
 
-            <!-- Quick Entrance Cards -->
-            <div class="quick-entrance-section">
-                <h3 class="section-title"><i class="fas fa-bolt quick-icon"></i> 快速入口</h3>
-                <div class="quick-cards-grid">
-                    <div class="quick-card" id="quick-card-gallery">
-                        <div class="quick-card-icon-wrapper">
-                            <i class="fas fa-th-large"></i>
-                        </div>
-                        <div class="quick-card-info">
-                            <h4>人仔图鉴</h4>
-                            <p>浏览全部人仔 <i class="fas fa-chevron-right"></i></p>
-                        </div>
+            <!-- Home Default Sections (Hidden when search results are shown) -->
+            <div id="home-default-sections" style="display: block; width: 100%;">
+                <!-- Hot Searches / Quick Filters -->
+                <div class="hot-searches-section">
+                    <h3 class="section-title"><i class="fas fa-fire hot-icon"></i> 最近热门</h3>
+                    <div class="hot-tags-row">
+                        <button class="hot-tag-btn" data-search="Vader">
+                            <img src="https://cdn.rebrickable.com/media/sets/fig-000581.jpg" alt="Vader" class="hot-tag-img">
+                            <span>Vader</span>
+                        </button>
+                        <button class="hot-tag-btn" data-search="Ninjago">
+                            <img src="https://cdn.rebrickable.com/media/sets/fig-000418.jpg" alt="Ninjago" class="hot-tag-img">
+                            <span>Ninjago</span>
+                        </button>
+                        <button class="hot-tag-btn" data-search="星战">
+                            <img src="https://cdn.rebrickable.com/media/sets/fig-000075.jpg" alt="星战" class="hot-tag-img">
+                            <span>星战</span>
+                        </button>
+                        <button class="hot-tag-btn" data-search="Harry Potter">
+                            <img src="https://cdn.rebrickable.com/media/sets/fig-000029.jpg" alt="哈利波特" class="hot-tag-img">
+                            <span>哈利波特</span>
+                        </button>
                     </div>
-                    <div class="quick-card" id="quick-card-favorites">
-                        <div class="quick-card-icon-wrapper star-icon-wrapper">
-                            <i class="fas fa-star"></i>
+                </div>
+
+                <!-- Quick Entrance Cards -->
+                <div class="quick-entrance-section">
+                    <h3 class="section-title"><i class="fas fa-bolt quick-icon"></i> 快速入口</h3>
+                    <div class="quick-cards-grid">
+                        <div class="quick-card" id="quick-card-gallery">
+                            <div class="quick-card-icon-wrapper">
+                                <i class="fas fa-th-large"></i>
+                            </div>
+                            <div class="quick-card-info">
+                                <h4>人仔图鉴</h4>
+                                <p>浏览全部人仔 <i class="fas fa-chevron-right"></i></p>
+                            </div>
                         </div>
-                        <div class="quick-card-info">
-                            <h4>我的收藏</h4>
-                            <p>查看收藏的人仔 <i class="fas fa-chevron-right"></i></p>
+                        <div class="quick-card" id="quick-card-favorites">
+                            <div class="quick-card-icon-wrapper star-icon-wrapper">
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <div class="quick-card-info">
+                                <h4>我的收藏</h4>
+                                <p>查看收藏的人仔 <i class="fas fa-chevron-right"></i></p>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -49,6 +49,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const cameraTrigger = document.getElementById('camera-trigger');
     const searchSubmitBtn = document.getElementById('search-submit-btn');
 
+    // Home Dedicated Search Results View Elements
+    const homeLogoWrapper = document.getElementById('home-logo-wrapper');
+    const homeDefaultSections = document.getElementById('home-default-sections');
+    const homeSearchResultsSection = document.getElementById('home-search-results-section');
+    const homeTabMinifigs = document.getElementById('home-tab-minifigs');
+    const homeTabSets = document.getElementById('home-tab-sets');
+    const homeTabCountMinifigs = document.getElementById('home-tab-count-minifigs');
+    const homeTabCountSets = document.getElementById('home-tab-count-sets');
+    const homeSearchMinifigsGrid = document.getElementById('home-search-minifigs-grid');
+    const homeSearchSetsGrid = document.getElementById('home-search-sets-grid');
+    const homeSortPopularity = document.getElementById('home-sort-popularity');
+    const homeSortPrice = document.getElementById('home-sort-price');
+    const homeSortId = document.getElementById('home-sort-id');
+
     // Settings & Auth DOM Elements
     const settingsBtn = document.getElementById('settings-btn');
     const closeSettingsBtn = document.getElementById('close-settings-btn');
@@ -99,6 +113,120 @@ document.addEventListener('DOMContentLoaded', () => {
     const backToPreviousBtn = document.getElementById('back-to-previous-btn');
     let detailPageHistory = [];
     let currentMinifigState = null;
+
+    // Home Search Results state
+    let currentHomeSearchResults = { minifigs: [], sets: [] };
+    let currentHomeSearchCategory = 'minifigs';
+    let currentHomeSearchSort = 'id';
+
+    function renderHomeSearchResults() {
+        if (!currentHomeSearchResults) return;
+        
+        let minifigs = [...(currentHomeSearchResults.minifigs || [])];
+        let sets = [...(currentHomeSearchResults.sets || [])];
+        
+        // Sorting logic
+        if (currentHomeSearchSort === 'id') {
+            // Sort by ID / numerical sorting
+            minifigs.sort((a, b) => {
+                const idA = (a.official_id || a.minifig_num).toLowerCase();
+                const idB = (b.official_id || b.minifig_num).toLowerCase();
+                return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+            });
+            sets.sort((a, b) => {
+                return a.set_num.toLowerCase().localeCompare(b.set_num.toLowerCase(), undefined, { numeric: true, sensitivity: 'base' });
+            });
+        } else if (currentHomeSearchSort === 'popularity') {
+            // Sort by popularity (using parts count descending as proxy)
+            minifigs.sort((a, b) => (b.num_parts || 0) - (a.num_parts || 0));
+            sets.sort((a, b) => (b.num_parts || 0) - (a.num_parts || 0));
+        } else if (currentHomeSearchSort === 'price') {
+            // Sort by price (using parts count ascending as proxy)
+            minifigs.sort((a, b) => (a.num_parts || 0) - (b.num_parts || 0));
+            sets.sort((a, b) => (a.num_parts || 0) - (b.num_parts || 0));
+        }
+        
+        // Render Minifigs Grid
+        homeSearchMinifigsGrid.innerHTML = '';
+        if (minifigs.length === 0) {
+            homeSearchMinifigsGrid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 60px;">
+                    <i class="fas fa-folder-open" style="font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5;"></i>
+                    <p>在数据库中未找到匹配的乐高人仔，请换个词试试。</p>
+                </div>
+            `;
+        } else {
+            minifigs.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "gallery-card";
+                card.setAttribute("data-id", item.minifig_num);
+                card.innerHTML = `
+                    <div class="gallery-card-img">
+                        <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" decoding="async" 
+                             onerror="healMinifigImage(this, '${item.minifig_num}', '${item.official_id || ''}')">
+                    </div>
+                    <div class="gallery-card-info">
+                        <div class="gallery-card-meta">
+                            <span class="gallery-card-id">${(item.official_id || item.minifig_num).toUpperCase()}</span>
+                            <span class="gallery-card-theme">${item.theme_name || '人仔系列'}</span>
+                        </div>
+                        <h4 class="gallery-card-name" title="${item.name}">${item.name}</h4>
+                        <span class="gallery-card-parts"><i class="fas fa-puzzle-piece"></i> ${item.num_parts} 核心部件</span>
+                    </div>
+                `;
+                card.addEventListener("click", () => {
+                    showDetailPage(item.minifig_num, item.name, item.img_url);
+                });
+                homeSearchMinifigsGrid.appendChild(card);
+            });
+        }
+        
+        // Render Sets Grid
+        homeSearchSetsGrid.innerHTML = '';
+        if (sets.length === 0) {
+            homeSearchSetsGrid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 60px;">
+                    <i class="fas fa-folder-open" style="font-size: 2.5rem; margin-bottom: 12px; opacity: 0.5;"></i>
+                    <p>在数据库中未找到符合特征的套装，请换个词试试。</p>
+                </div>
+            `;
+        } else {
+            sets.forEach(set => {
+                const card = document.createElement("div");
+                card.className = "set-card-gallery";
+                const imgUrl = set.img_url || `https://cdn.rebrickable.com/media/sets/${set.set_num}.jpg`;
+                card.innerHTML = `
+                    <div class="set-card-gallery-img">
+                        <img src="${imgUrl}" alt="${set.name}" loading="lazy" decoding="async"
+                             onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><rect width=\\'100\\' height=\\'100\\' fill=\\'rgba(0,0,0,0.05)\\'/><path d=\\'M30,30 L70,70 M70,30 L30,70\\' stroke=\\'rgba(0,0,0,0.2)\\' stroke-width=\\'2\\'/></svg>';">
+                    </div>
+                    <div class="set-card-gallery-info">
+                        <div class="set-card-gallery-meta">
+                            <span class="set-card-gallery-id">${set.set_num.toUpperCase()}</span>
+                            <span class="set-card-gallery-theme">${set.theme_name || '套装系列'}</span>
+                        </div>
+                        <h4 class="set-card-gallery-name" title="${set.name}">${set.name}</h4>
+                        <span class="set-card-gallery-parts">
+                            <i class="fas fa-puzzle-piece"></i> ${set.num_parts} 核心部件 | ${set.year} 年
+                        </span>
+                    </div>
+                `;
+                card.addEventListener('click', () => {
+                    openInstructionManual(set.set_num, set.name);
+                });
+                homeSearchSetsGrid.appendChild(card);
+            });
+        }
+        
+        // Toggle view display
+        if (currentHomeSearchCategory === 'minifigs') {
+            homeSearchMinifigsGrid.style.display = 'grid';
+            homeSearchSetsGrid.style.display = 'none';
+        } else {
+            homeSearchMinifigsGrid.style.display = 'none';
+            homeSearchSetsGrid.style.display = 'grid';
+        }
+    }
 
     // Gallery Elements
     const galleryContainer = document.getElementById('gallery-container');
@@ -480,6 +608,11 @@ document.addEventListener('DOMContentLoaded', () => {
             clearBtn.classList.remove('visible');
             suggestionsContainer.classList.remove('active');
             suggestionsContainer.innerHTML = '';
+            
+            // Restore default home page state
+            if (homeLogoWrapper) homeLogoWrapper.style.display = 'block';
+            if (homeDefaultSections) homeDefaultSections.style.display = 'block';
+            if (homeSearchResultsSection) homeSearchResultsSection.style.display = 'none';
         }
     });
 
@@ -489,6 +622,12 @@ document.addEventListener('DOMContentLoaded', () => {
         clearBtn.classList.remove('visible');
         suggestionsContainer.classList.remove('active');
         suggestionsContainer.innerHTML = '';
+        
+        // Restore default home page state
+        if (homeLogoWrapper) homeLogoWrapper.style.display = 'block';
+        if (homeDefaultSections) homeDefaultSections.style.display = 'block';
+        if (homeSearchResultsSection) homeSearchResultsSection.style.display = 'none';
+        
         searchInput.focus();
     });
 
@@ -644,20 +783,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 // If there is exactly one minifig match and no sets, open it directly!
                 showDetailPage(minifigs[0].minifig_num, minifigs[0].name, minifigs[0].img_url);
             } else if (minifigs.length > 0 || sets.length > 0) {
-                // If there are multiple matches, switch to the gallery view and search!
-                if (navGalleryBtn) {
-                    navGalleryBtn.click();
-                }
-                if (gallerySearchInput) {
-                    gallerySearchInput.value = query;
-                }
-                gallerySearch = query;
-                if (galleryThemeFilter) {
-                    galleryThemeFilter.value = "";
-                }
-                galleryTheme = "";
+                // Stay on search page, show dedicated results panel!
+                currentHomeSearchResults = data;
+                currentHomeSearchCategory = 'minifigs';
+                currentHomeSearchSort = 'id';
                 
-                renderSearchResultsInGallery(data);
+                // Update tab counts
+                if (homeTabCountMinifigs) homeTabCountMinifigs.textContent = `(${minifigs.length})`;
+                if (homeTabCountSets) homeTabCountSets.textContent = `(${sets.length})`;
+                
+                // Toggle active classes on tabs
+                if (homeTabMinifigs) homeTabMinifigs.classList.add('active');
+                if (homeTabSets) homeTabSets.classList.remove('active');
+                
+                // Toggle sorting row active tab (default to 'id')
+                document.querySelectorAll('.search-sorting-bar .sort-tab-btn').forEach(btn => btn.classList.remove('active'));
+                if (homeSortId) homeSortId.classList.add('active');
+                
+                // Hide home page components and show search panel
+                if (homeLogoWrapper) homeLogoWrapper.style.display = 'none';
+                if (homeDefaultSections) homeDefaultSections.style.display = 'none';
+                if (homeSearchResultsSection) homeSearchResultsSection.style.display = 'flex';
+                
+                renderHomeSearchResults();
             } else {
                 alert(`在全量数据库中未找到与 "${query}" 匹配的乐高人仔或套装。请换个词试试（如 "Vader"、"fig-000581"、"太空"）`);
             }
@@ -3075,4 +3223,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateGlowPosition();
     }
+    // Home search category tab switching
+    if (homeTabMinifigs && homeTabSets) {
+        [homeTabMinifigs, homeTabSets].forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const category = e.currentTarget.getAttribute('data-category');
+                currentHomeSearchCategory = category;
+                
+                // Toggle active tab class
+                homeTabMinifigs.classList.remove('active');
+                homeTabSets.classList.remove('active');
+                e.currentTarget.classList.add('active');
+                
+                renderHomeSearchResults();
+            });
+        });
+    }
+
+    // Home search results sorting buttons
+    const homeSortBtns = [homeSortPopularity, homeSortPrice, homeSortId];
+    homeSortBtns.forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                const sortType = e.currentTarget.id.replace('home-sort-', '');
+                currentHomeSearchSort = sortType;
+                
+                // Toggle active sort button class
+                homeSortBtns.forEach(b => { if (b) b.classList.remove('active'); });
+                e.currentTarget.classList.add('active');
+                
+                renderHomeSearchResults();
+            });
+        }
+    });
 });
