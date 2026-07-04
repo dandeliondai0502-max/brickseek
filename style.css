@@ -2577,14 +2577,37 @@ footer {
 }
 
 .suggestion-item {
-    padding: 8px 14px;
+    padding: 6px 12px;
     margin: 2px 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
     cursor: pointer;
     border-radius: 10px;
     transition: background-color 0.15s, color 0.15s;
+}
+
+.sug-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+.sug-img {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+}
+
+.light-theme .sug-img {
+    background: rgba(0, 0, 0, 0.03);
 }
 
 .suggestion-item:hover {

@@ -551,9 +551,15 @@ document.addEventListener('DOMContentLoaded', () => {
         items.forEach(item => {
             const div = document.createElement('div');
             div.className = 'suggestion-item';
+            
+            const displayId = (item.official_id || item.minifig_num).toUpperCase();
+            
             div.innerHTML = `
-                <span class="sug-name">${item.name}</span>
-                <span class="sug-id">${item.official_id || item.minifig_num}</span>
+                <div class="sug-left">
+                    <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" class="sug-img" alt="${item.name}" onerror="this.style.display='none';">
+                    <span class="sug-name">${item.name}</span>
+                </div>
+                <span class="sug-id">${displayId}</span>
             `;
             
             div.addEventListener('click', () => {
@@ -631,9 +637,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 searchCache.set(cacheKey, data);
             }
             
-            if (data.length > 0) {
-                // If there is an exact or first match, open it directly!
+            if (data.length === 1) {
+                // If there is exactly one match, open it directly!
                 showDetailPage(data[0].minifig_num, data[0].name, data[0].img_url);
+            } else if (data.length > 1) {
+                // If there are multiple matches, switch to the gallery view and search!
+                if (navGalleryBtn) {
+                    navGalleryBtn.click();
+                }
+                if (gallerySearchInput) {
+                    gallerySearchInput.value = query;
+                }
+                gallerySearch = query;
+                if (galleryThemeFilter) {
+                    galleryThemeFilter.value = "";
+                }
+                galleryTheme = "";
+                fetchGalleryItems(true);
             } else {
                 alert(`在全量数据库中未找到与 "${query}" 匹配的乐高人仔。请换个词试试（如 "Vader"、"fig-000581"、"太空"）`);
             }

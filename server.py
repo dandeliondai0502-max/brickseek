@@ -482,7 +482,15 @@ def translate_query(q):
 SORTED_TRANSLATION_KEYS = sorted(EN_TO_ZH_MAP.keys(), key=len, reverse=True)
 
 def translate_to_zh(name_en):
-    return name_en
+    if not name_en:
+        return ""
+    import re
+    res = name_en
+    for en in SORTED_TRANSLATION_KEYS:
+        zh = EN_TO_ZH_MAP[en]
+        pattern = re.compile(rf'\b{re.escape(en)}\b', re.IGNORECASE)
+        res = pattern.sub(zh, res)
+    return res
 
 def fuzzy_match_minifig(conn, name_en):
     import re
