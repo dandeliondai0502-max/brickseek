@@ -5465,59 +5465,67 @@ footer {
 }
 
 /* Search Category Tabs */
+/* Search Category Tabs - Capsule Segment Control style */
 .search-category-tabs {
-    display: flex;
-    gap: 15px;
-    margin: 15px 0 20px 0;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 8px;
+    display: inline-flex;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 4px;
+    border-radius: 30px;
+    gap: 4px;
+    margin: 20px 0 15px 0;
+    align-self: flex-start;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .search-category-tabs {
+    background: rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.08);
 }
 
 .category-tab {
     background: none;
     border: none;
-    padding: 8px 16px;
-    font-size: 0.95rem;
-    font-weight: 700;
+    padding: 8px 20px;
+    font-size: 0.9rem;
+    font-weight: 600;
     color: var(--text-muted);
     cursor: pointer;
-    position: relative;
-    transition: var(--transition-smooth);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
     gap: 6px;
-    border-radius: 8px;
+    border-radius: 20px;
+    position: relative;
 }
 
 .category-tab:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.03);
-}
-
-.light-theme .category-tab:hover {
-    background: rgba(0, 0, 0, 0.03);
 }
 
 .category-tab.active {
-    color: var(--accent-color);
+    background: var(--accent-gradient);
+    color: #111318 !important; /* Dark text on bright accent color for perfect contrast */
+    font-weight: 700;
+    box-shadow: 0 4px 12px var(--accent-glow);
 }
 
-.category-tab.active::after {
-    content: '';
-    position: absolute;
-    bottom: -9px;
-    left: 0;
-    width: 100%;
-    height: 3px;
-    background: var(--accent-gradient);
-    border-radius: 3px;
-    box-shadow: 0 2px 10px var(--accent-glow);
+.light-theme .category-tab.active {
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(255, 153, 0, 0.4);
 }
 
 .tab-count {
     font-size: 0.8rem;
-    font-weight: 500;
+    font-weight: 600;
     opacity: 0.85;
+}
+
+.category-tab.active .tab-count {
+    font-weight: 800;
+    opacity: 1;
 }
 
 /* Set Cards styling inside Gallery Grid */
@@ -5615,39 +5623,62 @@ footer {
     font-weight: 500;
 }
 
-/* Custom Search Sorting Bar */
+/* Custom Search Sorting Bar - Sleek Glass Chip style */
 .search-sorting-bar {
     display: flex;
-    gap: 24px;
-    margin: 0 0 15px 0;
-    padding: 4px 6px;
+    gap: 12px;
+    margin: 10px 0 22px 0;
+    padding: 4px 0;
     align-items: center;
 }
 
 .sort-tab-btn {
-    background: none;
-    border: none;
-    font-size: 0.88rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 6px 16px;
+    font-size: 0.82rem;
     font-weight: 600;
     color: var(--text-muted);
     cursor: pointer;
-    transition: var(--transition-smooth);
-    padding: 4px 0;
-    position: relative;
+    border-radius: 30px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.light-theme .sort-tab-btn {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.05);
 }
 
 .sort-tab-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
     color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.light-theme .sort-tab-btn:hover {
+    background: rgba(0, 0, 0, 0.04);
 }
 
 .sort-tab-btn.active {
+    background: rgba(255, 213, 0, 0.12);
+    border-color: rgba(255, 213, 0, 0.35);
     color: var(--accent-color);
     font-weight: 700;
+    box-shadow: 0 4px 10px rgba(255, 213, 0, 0.06);
+}
+
+.light-theme .sort-tab-btn.active {
+    background: rgba(255, 153, 0, 0.08);
+    border-color: rgba(255, 153, 0, 0.3);
+    color: #ff9900;
 }
 
 /* Home Search Results Section animation */
 .home-search-results-section {
-    animation: fadeIn 0.3s ease-out;
+    animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 
