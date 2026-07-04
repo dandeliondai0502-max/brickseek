@@ -1710,8 +1710,138 @@ def init_users_db():
     except Exception as e:
         print(f"[Database Error] Failed to initialize users table: {e}")
 
+def run_background_precacher():
+    import threading
+    import socket
+    import ssl
+    import urllib.request
+    import urllib.parse
+    import time
+    
+    def _worker():
+        time.sleep(12)  # Wait for server to bind and start accepting connections
+        print("[Pre-Cacher] Starting gallery pre-resolver worker...")
+        
+        ssl_ctx = ssl._create_for_unverified_context() if hasattr(ssl, '_create_unverified_context') else ssl.create_default_context()
+        if hasattr(ssl, '_create_unverified_context'):
+            ssl_ctx = ssl._create_unverified_context()
+            
+        socket.setdefaulttimeout(6)
+        
+        def head_ok(url):
+            try:
+                req = urllib.request.Request(
+                    url, 
+                    method='HEAD',
+                    headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                )
+                with urllib.request.urlopen(req, context=ssl_ctx) as r:
+                    return r.status == 200
+            except Exception:
+                return False
+
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            sql = """
+                SELECT m.minifig_num, m.name, m.num_parts
+                FROM minifigs m
+                WHERE m.num_parts BETWEEN 3 AND 12
+                  AND LOWER(m.name) NOT LIKE '%keychain%'
+                  AND LOWER(m.name) NOT LIKE '%key chain%'
+                  AND LOWER(m.name) NOT LIKE '%magnet%'
+                  AND LOWER(m.name) NOT LIKE '%watch%'
+                  AND LOWER(m.name) NOT LIKE '%clock%'
+                  AND LOWER(m.name) NOT LIKE '%book%'
+                  AND LOWER(m.name) NOT LIKE '%sticker%'
+                  AND LOWER(m.name) NOT LIKE '%card%'
+                  AND LOWER(m.name) NOT LIKE '%giant%'
+                  AND LOWER(m.name) NOT LIKE '%maxifigure%'
+                  AND LOWER(m.name) NOT LIKE '%brick-built%'
+                  AND LOWER(m.name) NOT LIKE '%pen%'
+                  AND LOWER(m.name) NOT LIKE '%torch%'
+                  AND LOWER(m.name) NOT LIKE '%light%'
+                  AND LOWER(m.name) NOT LIKE '%plush%'
+                  AND LOWER(m.name) NOT LIKE '%notebook%'
+                  AND LOWER(m.name) NOT LIKE '%tag%'
+                  AND LOWER(m.name) NOT LIKE '%bag%'
+                  AND LOWER(m.name) NOT LIKE '%frame%'
+                  AND LOWER(m.name) NOT LIKE '%display%'
+                  AND LOWER(m.name) NOT LIKE '%scale%'
+                  AND EXISTS (
+                      SELECT 1
+                      FROM inventories i
+                      JOIN inventory_parts ip ON i.id = ip.inventory_id
+                      JOIN parts p ON ip.part_num = p.part_num
+                      WHERE i.set_num = m.minifig_num
+                        AND p.part_cat_id IN (60, 61, 13)
+                      LIMIT 1
+                  )
+                ORDER BY m.num_parts DESC
+                LIMIT 500
+            """
+            cursor.execute(sql)
+            figs = cursor.fetchall()
+            conn.close()
+            
+            print(f"[Pre-Cacher] Loaded {len(figs)} gallery minifigures to scan.")
+            
+            for idx, fig in enumerate(figs):
+                m_id = fig["minifig_num"]
+                name = fig["name"]
+                
+                # Check mapping
+                conn_check = sqlite3.connect(DB_PATH)
+                cursor_check = conn_check.cursor()
+                cursor_check.execute("SELECT official_id FROM minifig_mappings WHERE rebrickable_id = ?", (m_id,))
+                mapping = cursor_check.fetchone()
+                conn_check.close()
+                
+                if mapping:
+                    continue
+                    
+                # Check Rebrickable image
+                rb_url = f"https://cdn.rebrickable.com/media/sets/{m_id}.jpg"
+                if head_ok(rb_url):
+                    continue
+                    
+                print(f"[Pre-Cacher] [{idx+1}/500] Resolving missing image for {m_id} ({name})...")
+                official_id = resolve_name_to_official_id_via_brickset(name)
+                if official_id:
+                    try:
+                        w_conn = sqlite3.connect(DB_PATH)
+                        w_cursor = w_conn.cursor()
+                        w_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (m_id, official_id))
+                        w_conn.commit()
+                        w_conn.close()
+                        print(f"[Pre-Cacher] Successfully mapped {m_id} to BrickLink: {official_id}")
+                    except Exception as err:
+                        print(f"[Pre-Cacher] DB write error for {m_id}: {err}")
+                else:
+                    # Write self-mapping to avoid repeatedly querying failed names
+                    try:
+                        w_conn = sqlite3.connect(DB_PATH)
+                        w_cursor = w_conn.cursor()
+                        w_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (m_id, m_id))
+                        w_conn.commit()
+                        w_conn.close()
+                    except Exception:
+                        pass
+                
+                # Protect Brickset with friendly rate limit
+                time.sleep(1.5)
+                
+            print("[Pre-Cacher] Pre-resolver scan finished.")
+        except Exception as e:
+            print(f"[Pre-Cacher] General worker error: {e}")
+
+    threading.Thread(target=_worker, daemon=True).start()
+
 def main():
     init_users_db()
+    run_background_precacher()
     handler = LegoAPIHandler
     socketserver.ThreadingTCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer(("", PORT), handler) as httpd:
