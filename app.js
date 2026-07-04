@@ -2879,6 +2879,7 @@ document.addEventListener('DOMContentLoaded', () => {
             card.setAttribute("data-id", item.minifig_num);
             
             card.innerHTML = `
+                <div class="gallery-card-img">
                     <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" decoding="async" 
                          onerror="healMinifigImage(this, '${item.minifig_num}', '${item.official_id || ''}')">
                 </div>
