@@ -750,6 +750,9 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             elif path == "/api/scan-candidates":
                 self.api_scan_candidates(conn, body)
                 
+            elif path == "/api/prices":
+                self.api_prices(conn, body)
+                
             else:
                 self.send_json_response({"error": "Endpoint not found"}, status=404)
                 
@@ -1558,6 +1561,45 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             "description": "⚠️ No exact match found. Recommending figures with similar dominant colors.",
             "results": color_matches
         })
+
+    def api_prices(self, conn, body):
+        ids = body.get("ids", [])
+        results = {}
+        
+        # Parallel fetch with ThreadPoolExecutor
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_id = {}
+            for idx in ids:
+                clean_id = resolve_minifig_id(idx, conn=conn)
+                resolved_official_id = MINIFIG_MAPPINGS.get(clean_id, clean_id)
+                norm_id = resolved_official_id.strip().split("-")[0]
+                
+                # Check memory cache first to keep it super fast
+                if norm_id in PRICE_CACHE:
+                    results[idx] = {
+                        "new_price_usd": PRICE_CACHE[norm_id][0],
+                        "used_price_usd": PRICE_CACHE[norm_id][1]
+                    }
+                else:
+                    future = executor.submit(get_minifig_prices, resolved_official_id)
+                    future_to_id[future] = idx
+                    
+            for future in concurrent.futures.as_completed(future_to_id):
+                idx = future_to_id[future]
+                try:
+                    new_pr, used_pr = future.result()
+                    results[idx] = {
+                        "new_price_usd": new_pr,
+                        "used_price_usd": used_pr
+                    }
+                except Exception:
+                    results[idx] = {
+                        "new_price_usd": None,
+                        "used_price_usd": None
+                    }
+                    
+        self.send_json_response({"prices": results})
 
     def api_minifig_details(self, conn, params):
         minifig_id = params.get("id", [""])[0].strip()

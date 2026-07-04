@@ -2988,19 +2988,59 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const favs = preferences.favorites || [];
         
-        // Update stats
+        // Update stats (Immediate estimate fallback)
         if (favCountLabel) favCountLabel.textContent = favs.length;
-        if (favValueLabel) {
-            let totalValue = 0;
-            favs.forEach(f => {
-                const partsVal = (f.num_parts || 4) * 25.5;
-                totalValue += partsVal + (f.num_parts >= 7 ? 450 : (f.num_parts >= 5 ? 120 : 15));
-            });
-            favValueLabel.textContent = totalValue.toFixed(2);
-        }
         if (favRatioLabel) {
             const ratio = (favs.length / 84921) * 100;
             favRatioLabel.textContent = ratio >= 0.01 ? `${ratio.toFixed(2)}%` : `${ratio.toFixed(4)}%`;
+        }
+        
+        // Render fallback pricing first
+        let fallbackTotal = 0;
+        favs.forEach(f => {
+            const parts = f.num_parts || f.parts_count || 4;
+            if (parts >= 7) {
+                fallbackTotal += 85;
+            } else if (parts >= 4) {
+                fallbackTotal += 28;
+            } else {
+                fallbackTotal += 12;
+            }
+        });
+        if (favValueLabel) favValueLabel.textContent = fallbackTotal.toFixed(2);
+        
+        // Trigger async live prices update
+        const favIds = favs.map(f => f.minifig_num || f.id).filter(Boolean);
+        if (favIds.length > 0) {
+            fetch('/api/prices', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: favIds })
+            })
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+                if (data && data.prices) {
+                    let liveTotal = 0;
+                    favs.forEach(f => {
+                        const favId = f.minifig_num || f.id;
+                        const priceObj = data.prices[favId] || {};
+                        if (priceObj.used_price_usd) {
+                            liveTotal += priceObj.used_price_usd * 7.25;
+                        } else {
+                            const parts = f.num_parts || 4;
+                            if (parts >= 7) {
+                                liveTotal += 85;
+                            } else if (parts >= 4) {
+                                liveTotal += 28;
+                            } else {
+                                liveTotal += 12;
+                            }
+                        }
+                    });
+                    if (favValueLabel) favValueLabel.textContent = liveTotal.toFixed(2);
+                }
+            })
+            .catch(err => console.error("Error fetching live fav prices:", err));
         }
         
         if (favs.length === 0) {
