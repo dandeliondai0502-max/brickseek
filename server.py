@@ -72,6 +72,16 @@ def set_cached_api_response(cache_key, payload):
         API_CACHE.popitem(last=False)
 
 TRANSLATION_MAP = {
+    # Prefix mapping shortcuts for quick search
+    "njo": "ninjago",
+    "sw": "star wars",
+    "sh": "super heroes",
+    "hp": "harry potter",
+    "atl": "atlantis",
+    "loc": "chima",
+    "bio": "bionicle",
+    "cty": "city",
+    
     "黑武士": "darth vader",
     "达斯维达": "darth vader",
     "达斯·维达": "darth vader",
@@ -729,13 +739,37 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         args = []
         if theme:
             translated_theme = translate_query(theme).lower()
-            sql_select += " AND (LOWER(m.name) LIKE ? OR LOWER(m.minifig_num) LIKE ?)"
-            args.extend([f"%{translated_theme}%", f"%{translated_theme}%"])
+            orig_theme = theme.lower()
+            sql_select += """
+                AND (
+                    LOWER(m.name) LIKE ? 
+                    OR LOWER(m.minifig_num) LIKE ? 
+                    OR EXISTS (
+                        SELECT 1 FROM minifig_mappings map 
+                        WHERE map.rebrickable_id = m.minifig_num 
+                          AND (LOWER(map.official_id) LIKE ? OR LOWER(map.official_id) LIKE ?)
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM inventory_minifigs im
+                        JOIN inventories i ON im.inventory_id = i.id
+                        JOIN sets s ON i.set_num = s.set_num
+                        JOIN themes t ON s.theme_id = t.id
+                        WHERE im.minifig_num = m.minifig_num
+                          AND (LOWER(t.name) LIKE ? OR LOWER(t.name) LIKE ?)
+                    )
+                )
+            """
+            args.extend([
+                f"%{translated_theme}%", 
+                f"%{translated_theme}%", 
+                f"%{orig_theme}%", f"%{translated_theme}%",
+                f"%{orig_theme}%", f"%{translated_theme}%"
+            ])
             
         order_by = {
             "num_parts_desc": "m.num_parts DESC",
             "num_parts_asc": "m.num_parts ASC",
-            "minifig_num_asc": "m.minifig_num ASC",
+            "minifig_num_asc": "COALESCE((SELECT official_id FROM minifig_mappings WHERE rebrickable_id = m.minifig_num), m.minifig_num) ASC",
         }.get(sort, "m.num_parts DESC")
         sql_select += f" ORDER BY {order_by} LIMIT ? OFFSET ?"
         args.extend([limit, offset])
@@ -817,11 +851,37 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             sets = [r[0] for r in cursor.fetchall()]
             
         # Step 2: Query minifigs matching either all minifig attributes or containing matching parts
+        # For search suggestions, try to match either: name, minifig_num, official_id, theme (orig and translated word)
         minifig_clauses = []
         minifig_args = []
         for qw in query_words:
-            minifig_clauses.append("(m.minifig_num LIKE ? OR m.name LIKE ?)")
-            minifig_args.extend([f"%{qw}%", f"%{qw}%"])
+            # For each query word, also check the prefix mappings
+            tr_word = translate_query(qw)
+            minifig_clauses.append("""
+                (
+                    m.minifig_num LIKE ? 
+                    OR m.name LIKE ? 
+                    OR EXISTS (
+                        SELECT 1 FROM minifig_mappings map 
+                        WHERE map.rebrickable_id = m.minifig_num 
+                          AND (map.official_id LIKE ? OR map.official_id LIKE ?)
+                    )
+                    OR EXISTS (
+                        SELECT 1 FROM inventory_minifigs im
+                        JOIN inventories i ON im.inventory_id = i.id
+                        JOIN sets s ON i.set_num = s.set_num
+                        JOIN themes t ON s.theme_id = t.id
+                        WHERE im.minifig_num = m.minifig_num
+                          AND (LOWER(t.name) LIKE ? OR LOWER(t.name) LIKE ?)
+                    )
+                )
+            """)
+            minifig_args.extend([
+                f"%{qw}%", 
+                f"%{qw}%", 
+                f"%{qw}%", f"%{tr_word}%",
+                f"%{qw}%", f"%{tr_word}%"
+            ])
         name_matching_clause = " AND ".join(minifig_clauses)
         
         set_clause = ""
@@ -850,7 +910,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                   LIMIT 1
               )
             ORDER BY m.num_parts DESC 
-            LIMIT 15
+            LIMIT 40
         """
         cursor.execute(sql, args)
         rows = cursor.fetchall()

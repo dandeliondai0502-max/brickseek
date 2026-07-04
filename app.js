@@ -134,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const activateCameraBtn = document.getElementById('activate-camera-btn');
     
     const cameraViewport = document.getElementById('camera-viewport');
+    const cameraControls = document.querySelector('.camera-controls');
     const webcam = document.getElementById('webcam');
     const cameraCanvas = document.getElementById('camera-canvas');
     const cancelCameraBtn = document.getElementById('cancel-camera-btn');
@@ -648,6 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (dropZone) dropZone.style.display = 'none';
         if (cameraViewport) cameraViewport.style.display = 'flex';
+        if (cameraControls) cameraControls.style.display = 'flex';
         const loader = document.getElementById('camera-loading');
         if (loader) loader.classList.remove('hidden');
         
@@ -1098,6 +1100,7 @@ document.addEventListener('DOMContentLoaded', () => {
             webcam.srcObject = webcamStream;
             dropZone.style.display = 'none';
             cameraViewport.style.display = 'flex';
+            if (cameraControls) cameraControls.style.display = 'flex';
             
             const loader = document.getElementById('camera-loading');
             if (loader) loader.classList.add('hidden');
@@ -1135,6 +1138,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addLog('⚠️ 无法直接访问镜头，请从相册选择照片识别...', 'warning');
             dropZone.style.display = 'block';
             cameraViewport.style.display = 'none';
+            if (cameraControls) cameraControls.style.display = 'none';
             const loader = document.getElementById('camera-loading');
             if (loader) loader.classList.add('hidden');
             fileInput.click();
@@ -1236,6 +1240,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         stopWebcam();
         cameraViewport.style.display = 'none';
+        if (cameraControls) cameraControls.style.display = 'none';
         
         previewImage.onload = () => {
             const hexColor = getAverageColorFromImage(previewImage);
@@ -1257,6 +1262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearInterval(scanInterval);
         dropZone.style.display = 'block';
         cameraViewport.style.display = 'none';
+        if (cameraControls) cameraControls.style.display = 'none';
         scanPreviewContainer.style.display = 'none';
         scanResultContainer.style.display = 'none';
         progressBarFill.style.width = '0%';
@@ -1287,6 +1293,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function startScanning(color, query, imageInput) {
         dropZone.style.display = 'none';
         cameraViewport.style.display = 'none';
+        if (cameraControls) cameraControls.style.display = 'none';
         scanPreviewContainer.style.display = 'flex';
         scanResultContainer.style.display = 'none';
         
