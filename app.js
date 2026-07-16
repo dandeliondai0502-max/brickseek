@@ -2312,8 +2312,19 @@ document.addEventListener('DOMContentLoaded', () => {
             // SVG / Image Holder bubble
             const holder = document.createElement('div');
             holder.className = 'lego-svg-holder';
-            const partImgUrl = part.img_url || `https://cdn.rebrickable.com/media/parts/ldraw/${part.color_id}/${part.part_num}.png`;
-            holder.innerHTML = `<img src="${partImgUrl}" alt="${part.part_name}" loading="lazy" decoding="async" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-puzzle-piece\\' style=\\'font-size: 1.8rem; color: var(--text-muted);\\'></i>';">`;
+            let partImgUrl = part.img_url;
+            if (!partImgUrl || partImgUrl === 'undefined' || partImgUrl === 'null') {
+                if (part.element_id) {
+                    partImgUrl = `https://cdn.rebrickable.com/media/parts/elements/${part.element_id}.jpg`;
+                } else {
+                    partImgUrl = '';
+                }
+            }
+            if (partImgUrl) {
+                holder.innerHTML = `<img src="${partImgUrl}" alt="${part.part_name}" onerror="this.onerror=null; this.parentElement.innerHTML='<i class=\\'fas fa-puzzle-piece\\' style=\\'font-size: 1.8rem; color: var(--text-muted);\\'></i>';">`;
+            } else {
+                holder.innerHTML = `<i class="fas fa-puzzle-piece" style="font-size: 1.8rem; color: var(--text-muted);"></i>`;
+            }
             layer.appendChild(holder);
             
             // Bind click event dynamically
@@ -2540,6 +2551,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (closePartModalBtn) {
         closePartModalBtn.addEventListener('click', closePartModal);
+    }
+    const backPartModalBtn = document.getElementById('back-part-modal-btn');
+    if (backPartModalBtn) {
+        backPartModalBtn.addEventListener('click', closePartModal);
     }
     if (partDetailModal) {
         partDetailModal.addEventListener('click', (e) => {
@@ -3331,4 +3346,29 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     });
+
+    // Fetch dynamic themes list from server and populate dropdown
+    async function loadDynamicThemes() {
+        try {
+            const res = await fetch('/api/themes');
+            if (res.ok) {
+                const themes = await res.json();
+                if (themes && themes.length > 0) {
+                    // Clear hardcoded list except the first option "全部系列"
+                    galleryThemeFilter.innerHTML = '<option value="">全部系列</option>';
+                    themes.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.name;
+                        opt.textContent = `${t.display_name} (${t.count})`;
+                        galleryThemeFilter.appendChild(opt);
+                    });
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load themes dropdown:", e);
+        }
+    }
+
+    // Initial fetch of dynamic themes
+    loadDynamicThemes();
 });

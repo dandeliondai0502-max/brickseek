@@ -71,6 +71,38 @@ def set_cached_api_response(cache_key, payload):
     while len(API_CACHE) > API_CACHE_MAX_ITEMS:
         API_CACHE.popitem(last=False)
 
+THEME_ZH_MAP = {
+    "Star Wars": "星球大战 (Star Wars)",
+    "Ninjago": "忍者系列 (Ninjago)",
+    "Friends": "好朋友系列 (Friends)",
+    "Harry Potter": "哈利波特 (Harry Potter)",
+    "Classic Town": "经典城镇 (Classic Town)",
+    "City": "城市系列 (City)",
+    "Police": "城市警察 (Police)",
+    "Minecraft": "我的世界 (Minecraft)",
+    "Spider-Man": "蜘蛛侠 (Spider-Man)",
+    "Batman": "蝙蝠侠 (Batman)",
+    "Legends of Chima": "气功传奇 (Chima)",
+    "Monkie Kid": "悟空小侠 (Monkie Kid)",
+    "Pirates I": "经典海盗 (Pirates)",
+    "Castle": "城堡系列 (Castle)",
+    "Space": "太空系列 (Space)",
+    "Super Heroes": "超级英雄 (Super Heroes)",
+    "Nexo Knights": "未来骑士团 (Nexo Knights)",
+    "Technic": "科技系列 (Technic)",
+    "Creator": "创意百变 (Creator)",
+    "SpongeBob SquarePants": "海绵宝宝 (SpongeBob)",
+    "Toy Story": "玩具总动员 (Toy Story)",
+    "The LEGO Movie": "乐高大电影 (The LEGO Movie)",
+    "Jurassic World": "侏罗纪世界 (Jurassic World)",
+    "Marvel Super Heroes": "漫威超级英雄 (Marvel)",
+    "DC Super Heroes": "DC超级英雄 (DC Heroes)",
+    "The Hobbit": "霍比特人 (The Hobbit)",
+    "The Lord of the Rings": "指环王 (Lord of the Rings)",
+    "Indiana Jones": "印第安纳琼斯 (Indiana Jones)",
+    "Speed Champions": "超级双雄 (Speed Champions)"
+}
+
 TRANSLATION_MAP = {
     "黑武士": "darth vader",
     "达斯维达": "darth vader",
@@ -780,6 +812,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 payload = self.api_resolve_image(conn, params)
             elif path == "/api/shared-part":
                 payload = self.api_shared_part(conn, params)
+            elif path == "/api/themes":
+                payload = self.api_themes(conn)
             else:
                 self.send_json_response({"error": "Endpoint not found"}, status=404)
                 conn.close()
@@ -1916,8 +1950,33 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
             row_dict["img_url"] = f"https://cdn.rebrickable.com/media/sets/{row_dict['minifig_num']}.jpg"
             results.append(row_dict)
-            
         return results
+
+    def api_themes(self, conn):
+        cursor = conn.cursor()
+        sql = """
+            SELECT t.name, COUNT(DISTINCT m.minifig_num) as cnt
+            FROM inventory_minifigs im
+            JOIN inventories i ON im.inventory_id = i.id
+            JOIN sets s ON i.set_num = s.set_num
+            JOIN themes t ON s.theme_id = t.id
+            JOIN minifigs m ON im.minifig_num = m.minifig_num
+            GROUP BY t.name
+            HAVING cnt >= 10
+            ORDER BY cnt DESC
+        """
+        cursor.execute(sql)
+        themes = []
+        for row in cursor.fetchall():
+            name_en = row["name"]
+            name_zh = THEME_ZH_MAP.get(name_en, name_en)
+            themes.append({
+                "name": name_en,
+                "display_name": name_zh,
+                "count": row["cnt"]
+            })
+        return themes
+
 
     def send_json_response(self, data, status=200):
         payload = json.dumps(data, ensure_ascii=False).encode('utf-8')
