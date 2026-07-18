@@ -1,11 +1,11 @@
 window.healMinifigImage = function(imgElement, minifigNum, officialId) {
     if (imgElement.dataset.triedHeal) return;
     imgElement.dataset.triedHeal = "true";
-    
+
     // If we already have a resolved official ID, try BrickLink directly first
     if (officialId && officialId !== minifigNum) {
         imgElement.src = `https://img.bricklink.com/ItemImage/MN/0/${officialId.toLowerCase()}.png`;
-        
+
         // If the BrickLink image also fails, trigger fallback to silhouette
         imgElement.onerror = () => {
             imgElement.onerror = null;
@@ -21,7 +21,7 @@ window.healMinifigImage = function(imgElement, minifigNum, officialId) {
             .then(data => {
                 if (data.img_url) {
                     imgElement.src = data.img_url;
-                    
+
                     // If the resolved BrickLink image also fails, trigger fallback to silhouette
                     imgElement.onerror = () => {
                         imgElement.onerror = null;
@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const authSwitchPrompt = document.getElementById('auth-switch-prompt');
     const loginModalTitle = document.getElementById('login-modal-title');
     const favoriteBtn = document.getElementById('favorite-btn');
-    
+
     // User Profile Modal (Personal Center) DOM Elements
     const userProfileModal = document.getElementById('user-profile-modal');
     const closeProfileBtn = document.getElementById('close-profile-btn');
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileSyncStatus = document.getElementById('profile-sync-status');
     const syncCloudBtn = document.getElementById('btn-sync-cloud');
     const syncCloudIcon = document.getElementById('sync-cloud-icon');
-    
+
     // Dynamic Suggestions Dropdown
     const suggestionsContainer = document.createElement('div');
     suggestionsContainer.className = 'search-suggestions';
@@ -121,10 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderHomeSearchResults() {
         if (!currentHomeSearchResults) return;
-        
+
         let minifigs = [...(currentHomeSearchResults.minifigs || [])];
         let sets = [...(currentHomeSearchResults.sets || [])];
-        
+
         // Sorting logic
         if (currentHomeSearchSort === 'id') {
             // Sort by ID / numerical sorting
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
             minifigs.sort((a, b) => (a.num_parts || 0) - (b.num_parts || 0));
             sets.sort((a, b) => (a.num_parts || 0) - (b.num_parts || 0));
         }
-        
+
         // Render Minifigs Grid
         homeSearchMinifigsGrid.innerHTML = '';
         if (minifigs.length === 0) {
@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.setAttribute("data-id", item.minifig_num);
                 card.innerHTML = `
                     <div class="gallery-card-img">
-                        <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" decoding="async" 
+                        <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" decoding="async"
                              onerror="healMinifigImage(this, '${item.minifig_num}', '${item.official_id || ''}')">
                     </div>
                     <div class="gallery-card-info">
@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 homeSearchMinifigsGrid.appendChild(card);
             });
         }
-        
+
         // Render Sets Grid
         homeSearchSetsGrid.innerHTML = '';
         if (sets.length === 0) {
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 homeSearchSetsGrid.appendChild(card);
             });
         }
-        
+
         // Toggle view display
         if (currentHomeSearchCategory === 'minifigs') {
             homeSearchMinifigsGrid.style.display = 'grid';
@@ -253,44 +253,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const backFromAboutBtn = document.getElementById('back-from-about-btn');
     const legalTabs = document.querySelectorAll('.legal-tab');
     const legalTabContents = document.querySelectorAll('.legal-tab-content');
-    
+
     // Scanner Elements
     const scanModal = document.getElementById('scan-modal');
     const closeModalBtn = document.getElementById('close-modal-btn');
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const activateCameraBtn = document.getElementById('activate-camera-btn');
-    
+
     const cameraViewport = document.getElementById('camera-viewport');
     const cameraControls = document.querySelector('.camera-controls');
     const webcam = document.getElementById('webcam');
     const cameraCanvas = document.getElementById('camera-canvas');
     const cancelCameraBtn = document.getElementById('cancel-camera-btn');
     const shutterBtn = document.getElementById('shutter-btn');
-    
+
     const scanPreviewContainer = document.getElementById('scan-preview-container');
     const previewImage = document.getElementById('preview-image');
     const progressBarFill = document.getElementById('progress-bar-fill');
     const statusPercent = document.getElementById('status-percent');
     const scanLogs = document.getElementById('scan-logs');
-    
+
     const boxHead = document.getElementById('box-head');
     const boxTorso = document.getElementById('box-torso');
     const boxLegs = document.getElementById('box-legs');
-    
+
     const scanResultContainer = document.getElementById('scan-result-container');
     const rescanBtn = document.getElementById('rescan-btn');
     const viewDetailedPartsBtn = document.querySelector('.btn-card-primary');
-    
+
     // Assembly Player Stage
     const legoAssemblyStage = document.getElementById('lego-assembly-stage');
     const btnExplode = document.getElementById('btn-explode');
     const btnAssemble = document.getElementById('btn-assemble');
-    
+
     // Parts Layer Elements
     const selectedPartLabel = document.getElementById('selected-part-name');
     const sharedListResults = document.getElementById('shared-list-results');
-    
+
     // Detail Data Elements
     const detailSeriesBadge = document.getElementById('detail-series-badge');
     const detailTitle = document.getElementById('detail-title');
@@ -301,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const infoPriceNew = document.getElementById('info-price-new');
     const infoPriceUsed = document.getElementById('info-price-used');
     const detailSetsGrid = document.getElementById('detail-sets-grid');
-    
+
     // Instruction Manual Modal
     const manualModal = document.getElementById('manual-modal');
     const closeManualBtn = document.getElementById('close-manual-btn');
@@ -311,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnManualPrev = document.getElementById('btn-manual-prev');
     const btnManualNext = document.getElementById('btn-manual-next');
     const manualPageNumLabel = document.getElementById('manual-page-num');
-    
+
     let webcamStream = null;
     let scanInterval = null;
     let currentMinifigId = 'fig-000581';
@@ -456,10 +456,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 return;
             }
-            
+
             let devices = await navigator.mediaDevices.enumerateDevices();
             let hasLabels = devices.some(d => d.label);
-            
+
             // Only request camera permission from explicit camera actions, never from opening Settings.
             if (!hasLabels && requestLabels) {
                 try {
@@ -470,10 +470,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.warn("请求媒体权限被拒绝或取消:", e);
                 }
             }
-            
+
             const videoDevices = devices.filter(d => d.kind === 'videoinput');
             availableVideoDevices = videoDevices;
-            
+
             if (!settingCameraSelect) return;
             settingCameraSelect.innerHTML = '';
             if (videoDevices.length === 0) {
@@ -483,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 settingCameraSelect.appendChild(opt);
                 return;
             }
-            
+
             videoDevices.forEach((device, index) => {
                 const opt = document.createElement('option');
                 opt.value = device.deviceId;
@@ -493,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 settingCameraSelect.appendChild(opt);
             });
-            
+
             // Auto select first device if none is selected
             if (!preferences.cameraId && videoDevices.length > 0) {
                 preferences.cameraId = videoDevices[0].deviceId;
@@ -513,12 +513,12 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsFavoritesList.innerHTML = '';
         const favs = preferences.favorites || [];
         favCountSpan.textContent = favs.length;
-        
+
         if (favs.length === 0) {
             settingsFavoritesList.innerHTML = '<p class="empty-fav-text">暂无收藏，快去人仔详情页标星吧！</p>';
             return;
         }
-        
+
         favs.forEach(item => {
             const card = document.createElement('div');
             card.className = 'fav-item-card';
@@ -550,14 +550,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            
+
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(480, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(70, audioCtx.currentTime + 0.09);
-            
+
             gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.09);
-            
+
             osc.start();
             osc.stop(audioCtx.currentTime + 0.09);
         } catch (e) {
@@ -610,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clearBtn.classList.remove('visible');
             suggestionsContainer.classList.remove('active');
             suggestionsContainer.innerHTML = '';
-            
+
             // Restore default home page state
             if (homeLogoWrapper) homeLogoWrapper.style.display = 'block';
             if (homeDefaultSections) homeDefaultSections.style.display = 'block';
@@ -624,12 +624,12 @@ document.addEventListener('DOMContentLoaded', () => {
         clearBtn.classList.remove('visible');
         suggestionsContainer.classList.remove('active');
         suggestionsContainer.innerHTML = '';
-        
+
         // Restore default home page state
         if (homeLogoWrapper) homeLogoWrapper.style.display = 'block';
         if (homeDefaultSections) homeDefaultSections.style.display = 'block';
         if (homeSearchResultsSection) homeSearchResultsSection.style.display = 'none';
-        
+
         searchInput.focus();
     });
 
@@ -692,9 +692,9 @@ document.addEventListener('DOMContentLoaded', () => {
         items.forEach(item => {
             const div = document.createElement('div');
             div.className = 'suggestion-item';
-            
+
             const displayId = (item.official_id || item.minifig_num).toUpperCase();
-            
+
             div.innerHTML = `
                 <div class="sug-left">
                     <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" class="sug-img" alt="${item.name}" onerror="this.style.display='none';">
@@ -702,16 +702,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <span class="sug-id">${displayId}</span>
             `;
-            
+
             div.addEventListener('click', () => {
                 searchInput.value = item.name;
                 suggestionsContainer.classList.remove('active');
                 showDetailPage(item.minifig_num, item.name);
             });
-            
+
             suggestionsContainer.appendChild(div);
         });
-        
+
         suggestionsContainer.classList.add('active');
     }
 
@@ -720,7 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.addEventListener('keydown', (e) => {
         const isOpen = suggestionsContainer.classList.contains('active');
         const items = suggestionsContainer.querySelectorAll('.suggestion-item');
-        
+
         if (isOpen && items.length > 0) {
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
@@ -760,14 +760,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    
+
     async function performTextSearch() {
         const query = searchInput.value.trim();
         if (!query) {
             searchInput.focus();
             return;
         }
-        
+
         try {
             const cacheKey = query.toLowerCase() + "_full";
             let data = searchCache.get(cacheKey);
@@ -777,10 +777,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 data = await res.json();
                 searchCache.set(cacheKey, data);
             }
-            
+
             const minifigs = data.minifigs || [];
             const sets = data.sets || [];
-            
+
             if (minifigs.length === 1 && sets.length === 0) {
                 // If there is exactly one minifig match and no sets, open it directly!
                 showDetailPage(minifigs[0].minifig_num, minifigs[0].name, minifigs[0].img_url);
@@ -789,24 +789,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentHomeSearchResults = data;
                 currentHomeSearchCategory = 'minifigs';
                 currentHomeSearchSort = 'id';
-                
+
                 // Update tab counts
                 if (homeTabCountMinifigs) homeTabCountMinifigs.textContent = `(${minifigs.length})`;
                 if (homeTabCountSets) homeTabCountSets.textContent = `(${sets.length})`;
-                
+
                 // Toggle active classes on tabs
                 if (homeTabMinifigs) homeTabMinifigs.classList.add('active');
                 if (homeTabSets) homeTabSets.classList.remove('active');
-                
+
                 // Toggle sorting row active tab (default to 'id')
                 document.querySelectorAll('.search-sorting-bar .sort-tab-btn').forEach(btn => btn.classList.remove('active'));
                 if (homeSortId) homeSortId.classList.add('active');
-                
+
                 // Hide home page components and show search panel
                 if (homeLogoWrapper) homeLogoWrapper.style.display = 'none';
                 if (homeDefaultSections) homeDefaultSections.style.display = 'none';
                 if (homeSearchResultsSection) homeSearchResultsSection.style.display = 'flex';
-                
+
                 renderHomeSearchResults();
             } else {
                 alert(`在全量数据库中未找到与 "${query}" 匹配的乐高人仔或套装。请换个词试试（如 "Vader"、"fig-000581"、"太空"）`);
@@ -820,13 +820,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const openModal = async () => {
         scanModal.classList.add('open');
         resetScannerState();
-        
+
         if (dropZone) dropZone.style.display = 'none';
         if (cameraViewport) cameraViewport.style.display = 'flex';
         if (cameraControls) cameraControls.style.display = 'flex';
         const loader = document.getElementById('camera-loading');
         if (loader) loader.classList.remove('hidden');
-        
+
         await startWebcamStream();
     };
 
@@ -838,7 +838,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     cameraTrigger.addEventListener('click', openModal);
     closeModalBtn.addEventListener('click', closeModal);
-    
+
     if (rescanBtn) {
         rescanBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -846,7 +846,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await startWebcamStream();
         });
     }
-    
+
     scanModal.addEventListener('click', (e) => {
         if (e.target === scanModal) {
             closeModal();
@@ -928,48 +928,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const dbSyncStatusText = document.getElementById('db-sync-status-text');
     const dbSyncPercentText = document.getElementById('db-sync-percent-text');
     const dbSyncProgressBar = document.getElementById('db-sync-progress-bar');
-    
+
     let isSyncing = false;
     let syncInterval = null;
-    
+
     if (btnSyncDb) {
         btnSyncDb.addEventListener('click', async () => {
             if (isSyncing) return;
-            
+
             if (!confirm("数据库同步包含多个大数据包下载（约20MB）和解密解析过程，可能需要 1~2 分钟。确定要开始云端同步吗？")) {
                 return;
             }
-            
+
             isSyncing = true;
             btnSyncDb.disabled = true;
             btnSyncDb.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在进行云端同步...';
             if (dbSyncStatusBox) dbSyncStatusBox.style.display = 'block';
-            
+
             try {
                 // 1. Trigger sync
                 const triggerRes = await fetch('/api/admin/update-db', { method: 'POST' });
                 const triggerData = await triggerRes.json();
-                
+
                 if (!triggerRes.ok) {
                     throw new Error(triggerData.error || "启动同步失败");
                 }
-                
+
                 // 2. Start status polling
                 syncInterval = setInterval(async () => {
                     try {
                         const statusRes = await fetch('/api/admin/sync-status');
                         if (statusRes.ok) {
                             const statusData = await statusRes.json();
-                            
+
                             // Update status messages
                             if (dbSyncStatusText) dbSyncStatusText.textContent = statusData.status || '正在同步中...';
                             if (dbSyncPercentText) dbSyncPercentText.textContent = `${statusData.percent}%`;
                             if (dbSyncProgressBar) dbSyncProgressBar.style.width = `${statusData.percent}%`;
-                            
+
                             if (statusData.error) {
                                 throw new Error(statusData.error);
                             }
-                            
+
                             if (!statusData.is_running && statusData.percent >= 100) {
                                 clearInterval(syncInterval);
                                 isSyncing = false;
@@ -992,7 +992,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         showNotification(`同步失败: ${pollErr.message}`, "error");
                     }
                 }, 2000);
-                
+
             } catch (err) {
                 isSyncing = false;
                 btnSyncDb.disabled = false;
@@ -1048,7 +1048,7 @@ document.addEventListener('DOMContentLoaded', () => {
             syncCloudBtn.disabled = true;
             syncCloudIcon.classList.add('fa-spin');
             syncCloudBtn.innerHTML = '<i class="fas fa-sync fa-spin"></i> 正在上传备份...';
-            
+
             setTimeout(() => {
                 syncCloudIcon.classList.remove('fa-spin');
                 syncCloudBtn.disabled = false;
@@ -1107,7 +1107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     closeLoginBtn.addEventListener('click', closeLoginModal);
-    
+
     loginSwitchLink.addEventListener('click', (e) => {
         e.preventDefault();
         setAuthMode(!isLoginMode);
@@ -1120,11 +1120,11 @@ document.addEventListener('DOMContentLoaded', () => {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         loginErrorMsg.style.display = 'none';
-        
+
         const username = authUsernameInput.value.trim();
         const password = authPasswordInput.value.trim();
         if (!username || !password) return;
-        
+
         const url = isLoginMode ? '/api/login' : '/api/register';
         try {
             const res = await fetch(url, {
@@ -1138,13 +1138,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 loginErrorMsg.style.display = 'block';
                 return;
             }
-            
+
             if (isLoginMode) {
                 currentUser = data.username;
                 localStorage.setItem('currentUser', currentUser);
                 preferences = normalizePreferences({ ...preferences, ...(data.preferences || {}) });
                 localStorage.setItem('preferences', JSON.stringify(preferences));
-                
+
                 applyTheme();
                 updateAccountUI();
                 renderSettingsFavorites();
@@ -1168,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnApple = document.getElementById('btn-apple-login');
     const btnPasskey = document.getElementById('btn-passkey-login');
     const passkeyBox = document.getElementById('passkey-verifying-box');
-    
+
     if (btnApple) {
         btnApple.addEventListener('click', () => {
             currentUser = "AppleUser";
@@ -1199,10 +1199,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const minifigId = currentMinifigId;
         if (!minifigId) return;
         preferences = normalizePreferences(preferences);
-        
+
         const nameEl = document.getElementById('detail-title');
         const nameText = nameEl ? nameEl.textContent : minifigId;
-        
+
         const index = preferences.favorites.findIndex(f => f.id === minifigId);
         if (index > -1) {
             preferences.favorites.splice(index, 1);
@@ -1220,7 +1220,7 @@ document.addEventListener('DOMContentLoaded', () => {
             favoriteBtn.classList.add('active');
             favoriteBtn.innerHTML = '<i class="fas fa-star"></i>';
         }
-        
+
         savePreferences();
         renderSettingsFavorites();
         updateProfileUI();
@@ -1315,7 +1315,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('请上传有效的图像文件！');
             return;
         }
-        
+
         let filenameQuery = '';
         if (file.name) {
             const nameLower = file.name.toLowerCase();
@@ -1357,7 +1357,7 @@ document.addEventListener('DOMContentLoaded', () => {
             dropZone.style.display = 'none';
             cameraViewport.style.display = 'flex';
             if (cameraControls) cameraControls.style.display = 'flex';
-            
+
             const loader = document.getElementById('camera-loading');
             if (loader) loader.classList.add('hidden');
 
@@ -1425,25 +1425,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('仅检测到一个摄像头，无法切换。');
                 return;
             }
-            
+
             let currentIndex = availableVideoDevices.findIndex(d => d.deviceId === preferences.cameraId);
             if (currentIndex === -1) {
                 currentIndex = 0;
             }
-            
+
             const nextIndex = (currentIndex + 1) % availableVideoDevices.length;
             preferences.cameraId = availableVideoDevices[nextIndex].deviceId;
             savePreferences();
-            
+
             if (settingCameraSelect) {
                 settingCameraSelect.value = preferences.cameraId;
             }
-            
+
             stopWebcam();
-            
+
             try {
-                let videoConstraints = { 
-                    width: 640, 
+                let videoConstraints = {
+                    width: 640,
                     height: 480,
                     deviceId: { exact: preferences.cameraId }
                 };
@@ -1469,18 +1469,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     shutterBtn.addEventListener('click', () => {
         if (!webcamStream) return;
-        
+
         const zoomSlider = document.getElementById('camera-zoom-slider');
         const zoomVal = zoomSlider ? parseFloat(zoomSlider.value) : 1.0;
 
         let width = webcam.videoWidth || 640;
         let height = webcam.videoHeight || 480;
-        
+
         cameraCanvas.width = width;
         cameraCanvas.height = height;
-        
+
         const ctx = cameraCanvas.getContext('2d');
-        
+
         if (zoomVal > 1) {
             const sw = width / zoomVal;
             const sh = height / zoomVal;
@@ -1490,9 +1490,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             ctx.drawImage(webcam, 0, 0, width, height, 0, 0, width, height);
         }
-        
+
         const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.95);
-        
+
         // Define onload FIRST to avoid data URL race conditions
         previewImage.onload = () => {
             const hexColor = getAverageColorFromImage(previewImage);
@@ -1500,7 +1500,7 @@ document.addEventListener('DOMContentLoaded', () => {
             previewImage.onload = null;
         };
         previewImage.src = dataUrl;
-        
+
         stopWebcam();
         cameraViewport.style.display = 'none';
         if (cameraControls) cameraControls.style.display = 'none';
@@ -1533,7 +1533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         scanAiDescription = '';
         isPartMatch = false;
         scannedPartInfo = null;
-        
+
         boxHead.style.display = 'none';
         boxTorso.style.display = 'none';
         boxLegs.style.display = 'none';
@@ -1557,22 +1557,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cameraControls) cameraControls.style.display = 'none';
         scanPreviewContainer.style.display = 'flex';
         scanResultContainer.style.display = 'none';
-        
+
         let progress = 0;
         progressBarFill.style.width = '0%';
         statusPercent.textContent = '0%';
         scanLogs.innerHTML = '';
         scanAiDescription = '';
-        
+
         const aiBox = document.getElementById('ai-analysis-box');
         if (aiBox) aiBox.style.display = 'none';
-        
+
         addLog('⚡ Initializing visual feature matrix analysis engine...', 'highlight');
-        
+
         // Fetch matching figures instantly in the background!
         scanResults = [];
         let isAiSuccessful = false;
-        
+
         function dataURLtoBlob(dataurl) {
             var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
                 bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
@@ -1580,6 +1580,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 u8arr[n] = bstr.charCodeAt(n);
             }
             return new Blob([u8arr], {type:mime});
+        }
+
+        function blobToDataURL(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
         }
 
         async function compressImageInput(input) {
@@ -1595,7 +1604,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             if (!dataUrl) return input;
-            
+
             return new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => {
@@ -1616,7 +1625,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    
+
                     canvas.toBlob((blob) => {
                         resolve(blob || input);
                     }, 'image/jpeg', 0.80);
@@ -1636,46 +1645,71 @@ document.addEventListener('DOMContentLoaded', () => {
                 compressedBlob = imageInput;
             }
 
-            addLog('🔍 Transmitting image bytes to Brickognize API gateway...', 'highlight');
+            addLog('🔍 Sending optimized image to local recognition gateway...', 'highlight');
             try {
-                const formData = new FormData();
-                if (typeof compressedBlob === 'string') {
-                    const blob = dataURLtoBlob(compressedBlob);
-                    formData.append('query_image', blob, 'image.jpg');
-                } else {
-                    formData.append('query_image', compressedBlob, 'image.jpg');
-                }
-                
-                const apiRes = await fetch('https://api.brickognize.com/predict/', {
+                const compressedDataUrl = typeof compressedBlob === 'string'
+                    ? compressedBlob
+                    : await blobToDataURL(compressedBlob);
+
+                const gatewayRes = await fetch('/api/scan-image', {
                     method: 'POST',
-                    body: formData
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image: compressedDataUrl,
+                        color: color
+                    })
                 });
-                
-                if (apiRes.ok) {
-                    const apiData = await apiRes.json();
-                    const items = apiData.items || [];
-                    
-                    const res = await fetch('/api/scan-candidates', {
+
+                if (gatewayRes.ok) {
+                    const data = await gatewayRes.json();
+                    if (data.results && data.results.length > 0) {
+                        scanResults = data.results;
+                        scanAiDescription = data.description || '';
+                        isAiSuccessful = true;
+                        isPartMatch = data.type === 'part';
+                        scannedPartInfo = data.part || null;
+                    }
+                }
+
+                if (!isAiSuccessful) {
+                    addLog('⚠️ Local gateway unavailable. Trying direct Brickognize request...', 'warning');
+                    const formData = new FormData();
+                    if (typeof compressedBlob === 'string') {
+                        formData.append('query_image', dataURLtoBlob(compressedBlob), 'image.jpg');
+                    } else {
+                        formData.append('query_image', compressedBlob, 'image.jpg');
+                    }
+
+                    const apiRes = await fetch('https://api.brickognize.com/predict/', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            items: items,
-                            color: color
-                        })
+                        body: formData
                     });
-                    
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.results && data.results.length > 0) {
-                            scanResults = data.results;
-                            scanAiDescription = data.description || '';
-                            isAiSuccessful = true;
-                            isPartMatch = data.type === 'part';
-                            scannedPartInfo = data.part || null;
+
+                    if (apiRes.ok) {
+                        const apiData = await apiRes.json();
+                        const items = apiData.items || [];
+                        const res = await fetch('/api/scan-candidates', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                items: items,
+                                color: color
+                            })
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.results && data.results.length > 0) {
+                                scanResults = data.results;
+                                scanAiDescription = data.description || '';
+                                isAiSuccessful = true;
+                                isPartMatch = data.type === 'part';
+                                scannedPartInfo = data.part || null;
+                            }
                         }
                     }
                 }
-                
+
                 if (!isAiSuccessful) {
                     addLog('⚠️ Recognition service offline. Falling back to visual proxy...', 'warning');
                 }
@@ -1684,7 +1718,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 addLog('⚠️ Connection timed out. Falling back to visual proxy...', 'warning');
             }
         }
-        
+
         // Fallback if AI not successful or not attempted
         if (!isAiSuccessful) {
             try {
@@ -1698,7 +1732,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Scan fetch error:", e);
             }
         }
-        
+
         // If fetch fails or returns empty, fallback to default popular figures
         if (!scanResults || scanResults.length === 0) {
             scanResults = [
@@ -1707,15 +1741,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 { minifig_num: 'fig-000516', name: 'Darth Vader (LBG Skin)', num_parts: 6, img_url: 'https://cdn.rebrickable.com/media/sets/fig-000516.jpg' }
             ];
         }
-        
+
         const bestMatch = scanResults[0];
         const matchName = bestMatch.name;
-        
+
         // Customize logs dynamically based on the best match character name!
         let characterType = 'Unknown Minifigure';
         let detail1 = `Head accessory with #${color.toUpperCase()} highlights`;
         let detail2 = `Standard torso with #${color.toUpperCase()} print patterns`;
-        
+
         const matchNameLower = matchName.toLowerCase();
         if (matchNameLower.includes('vader')) {
             characterType = 'Darth Vader';
@@ -1750,7 +1784,7 @@ document.addEventListener('DOMContentLoaded', () => {
             detail1 = 'Tatooine hair or rebel helmet contour';
             detail2 = 'Jedi Knight tunic or pilot flight suit pattern';
         }
-        
+
         const logsSchedule = [
             { threshold: 10, text: '🔍 Image bytes parsed. Commencing edge contour extraction...', type: '' },
             { threshold: 22, text: isAiSuccessful ? `🤖 API Match Confirmed: ${characterType}` : `🤖 Structural match identified: ${characterType}`, type: 'success' },
@@ -1767,7 +1801,7 @@ document.addEventListener('DOMContentLoaded', () => {
             progress += 1;
             progressBarFill.style.width = `${progress}%`;
             statusPercent.textContent = `${progress}%`;
-            
+
             if (progress >= 25 && progress < 85) {
                 boxHead.style.display = 'block';
                 boxHead.querySelector('.box-label').textContent = `Head [${Math.min(99, progress * 1.2).toFixed(1)}%]`;
@@ -1798,7 +1832,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showScanResults() {
         scanPreviewContainer.style.display = 'none';
         scanResultContainer.style.display = 'flex';
-        
+
         const aiBox = document.getElementById('ai-analysis-box');
         const aiText = document.getElementById('ai-analysis-text');
         if (aiBox && aiText) {
@@ -1809,12 +1843,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 aiBox.style.display = 'none';
             }
         }
-        
+
         const resultCardsContainer = document.querySelector('.result-cards');
         resultCardsContainer.innerHTML = '';
-        
+
         if (!scanResults || scanResults.length === 0) return;
-        
+
         if (isPartMatch && scannedPartInfo) {
             const partCard = document.createElement('div');
             partCard.className = 'result-card scanned-part-card';
@@ -1822,10 +1856,10 @@ document.addEventListener('DOMContentLoaded', () => {
             partCard.style.background = 'linear-gradient(135deg, rgba(13, 27, 42, 0.95), rgba(27, 38, 59, 0.95))';
             partCard.style.border = '2px solid #007bff';
             partCard.style.boxShadow = '0 8px 32px rgba(0, 123, 255, 0.25)';
-            
+
             const partImgUrl = scannedPartInfo.img_url || `https://cdn.rebrickable.com/media/parts/ldraw/0/${scannedPartInfo.part_num}.png`;
             const matchScoreText = scannedPartInfo.score ? `Match Confirmed ${(scannedPartInfo.score * 100).toFixed(1)}%` : 'Part Matched 98%';
-            
+
             partCard.innerHTML = `
                 <div class="badge-best" style="background: linear-gradient(135deg, #007bff, #0056b3); font-weight: 600; text-transform: uppercase;">${matchScoreText}</div>
                 <div class="result-image-box" style="background: rgba(0, 123, 255, 0.05); border-radius: 12px; padding: 15px;">
@@ -1840,7 +1874,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `;
-            
+
             const sharedContainer = document.createElement('div');
             sharedContainer.className = 'shared-minifigs-list';
             sharedContainer.style.display = 'none';
@@ -1850,7 +1884,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sharedContainer.style.background = 'rgba(10, 15, 25, 0.5)';
             sharedContainer.style.borderRadius = '12px';
             sharedContainer.style.border = '1px solid rgba(255, 255, 255, 0.05)';
-            
+
             const listTitle = document.createElement('h6');
             listTitle.style.marginBottom = '15px';
             listTitle.style.color = '#007bff';
@@ -1858,12 +1892,12 @@ document.addEventListener('DOMContentLoaded', () => {
             listTitle.style.fontWeight = '600';
             listTitle.innerHTML = `<i class="fas fa-users-cog" style="margin-right: 8px;"></i> 共享此零件的乐高人仔 (${scanResults.length}):`;
             sharedContainer.appendChild(listTitle);
-            
+
             const listGrid = document.createElement('div');
             listGrid.style.display = 'grid';
             listGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(220px, 1fr))';
             listGrid.style.gap = '15px';
-            
+
             scanResults.forEach((fig) => {
                 const figItem = document.createElement('div');
                 figItem.className = 'shared-fig-item';
@@ -1875,7 +1909,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 figItem.style.cursor = 'pointer';
                 figItem.style.transition = 'all 0.2s ease';
                 figItem.style.border = '1px solid rgba(255, 255, 255, 0.04)';
-                
+
                 figItem.addEventListener('mouseenter', () => {
                     figItem.style.background = 'rgba(0, 123, 255, 0.08)';
                     figItem.style.borderColor = 'rgba(0, 123, 255, 0.3)';
@@ -1888,7 +1922,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     figItem.style.transform = 'translateY(0)';
                     figItem.style.boxShadow = 'none';
                 });
-                
+
                 figItem.innerHTML = `
                     <img src="${fig.img_url}" alt="${fig.name}" style="width: 50px; height: 50px; object-fit: contain; border-radius: 6px; margin-right: 15px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);" onerror="healMinifigImage(this, '${fig.minifig_num}', '${fig.official_id || ''}')">
                     <div style="flex: 1; min-width: 0;">
@@ -1896,18 +1930,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div style="font-size: 0.9rem; color: var(--text-light); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px;">${fig.name}</div>
                     </div>
                 `;
-                
+
                 figItem.addEventListener('click', (e) => {
                     e.stopPropagation();
                     closeModal();
                     showDetailPage(fig.minifig_num, fig.name, fig.img_url);
                 });
-                
+
                 listGrid.appendChild(figItem);
             });
-            
+
             sharedContainer.appendChild(listGrid);
-            
+
             partCard.addEventListener('click', () => {
                 const icon = partCard.querySelector('.fa-chevron-down, .fa-chevron-up');
                 if (sharedContainer.style.display === 'none') {
@@ -1925,7 +1959,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             });
-            
+
             resultCardsContainer.appendChild(partCard);
             resultCardsContainer.appendChild(sharedContainer);
             return;
@@ -1934,7 +1968,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const best = scanResults[0];
         const item2 = scanResults[1];
         const item3 = scanResults[2];
-        
+
         const getRarityClass = (numParts) => {
             if (numParts >= 7) return 'rarity-legendary';
             if (numParts >= 5) return 'rarity-rare';
@@ -1968,19 +2002,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `;
-        
+
         bestCard.addEventListener('click', (e) => {
             if (e.target.classList.contains('btn-card-secondary')) return;
             closeModal();
             showDetailPage(best.minifig_num, best.name, best.img_url);
         });
-        
+
         resultCardsContainer.appendChild(bestCard);
-        
+
         if (item2 || item3) {
             const secondaryContainer = document.createElement('div');
             secondaryContainer.className = 'secondary-matches';
-            
+
             [item2, item3].forEach((item, index) => {
                 if (!item) return;
                 const percent = item.score ? `${(item.score * 100).toFixed(1)}% Match` : (index === 0 ? '88.5% Match' : '65.2% Match');
@@ -1997,15 +2031,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         <p class="fig-meta">${item.num_parts} 个零件</p>
                     </div>
                 `;
-                
+
                 miniCard.addEventListener('click', () => {
                     closeModal();
                     showDetailPage(item.minifig_num, item.name, item.img_url);
                 });
-                
+
                 secondaryContainer.appendChild(miniCard);
             });
-            
+
             resultCardsContainer.appendChild(secondaryContainer);
         }
     }
@@ -2026,7 +2060,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     detailPageHistory = [];
                 }
             }
-            
+
             currentMinifigState = { id, name, imgUrl };
 
             // Control visual visibility of "返回上一步" button
@@ -2075,7 +2109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const seriesName = data.sets.length > 0 ? data.sets[0].theme_name : "乐高系列人仔";
         detailSeriesBadge.textContent = seriesName;
         detailTitle.textContent = minifig.name;
-        
+
         // Update Favorite Star state
         const isFav = preferences.favorites.some(f => f.id === minifig.minifig_num);
         if (isFav) {
@@ -2085,9 +2119,9 @@ document.addEventListener('DOMContentLoaded', () => {
             favoriteBtn.classList.remove('active');
             favoriteBtn.innerHTML = '<i class="far fa-star"></i>';
         }
-        
+
         infoId.textContent = minifig.official_id || minifig.minifig_num;
-        
+
         // Year calculation
         const year = data.sets.length > 0 ? Math.min(...data.sets.map(s => s.year)) : "历史典藏";
         infoYear.textContent = year + " 年";
@@ -2123,7 +2157,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        
+
         if (infoPriceUsed) {
             if (pricing.used_price_usd) {
                 const usedCny = Math.round(pricing.used_price_usd * 7.25);
@@ -2156,32 +2190,32 @@ document.addEventListener('DOMContentLoaded', () => {
         const weaponsCard = document.getElementById('detail-weapons-card');
         const weaponsGrid = document.getElementById('detail-weapons-grid');
         const weaponsCount = document.getElementById('weapons-count-badge');
-        
+
         if (!weaponsCard || !weaponsGrid || !weaponsCount) return;
-        
+
         if (!weapons || weapons.length === 0) {
             weaponsCard.style.display = 'none';
             return;
         }
-        
+
         weaponsCard.style.display = 'block';
         weaponsCount.textContent = weapons.length;
         weaponsGrid.innerHTML = '';
-        
+
         weapons.forEach(wp => {
             const card = document.createElement('div');
             card.className = 'weapon-item-card';
-            
+
             const imgHTML = wp.img_url
                 ? `<img src="${wp.img_url}" alt="${wp.part_name}" loading="lazy" decoding="async" class="weapon-item-img">`
                 : `<div class="weapon-item-placeholder"><i class="fas fa-shield-alt" style="color: var(--text-muted); font-size: 1.2rem;"></i></div>`;
-                
+
             let displayName = wp.part_name;
             const bracketMatch = wp.part_name.match(/(.+?)\s*\[(.+?)\]$/);
             if (bracketMatch) {
                 displayName = bracketMatch[1].trim();
             }
-            
+
             card.innerHTML = `
                 ${imgHTML}
                 <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
@@ -2192,11 +2226,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `;
-            
+
             card.addEventListener('click', (e) => {
                 e.stopPropagation();
                 document.querySelectorAll('.lego-part-layer').forEach(l => l.classList.remove('selected-part'));
-                
+
                 showPartDetailFullscreen({
                     part_num: wp.part_num,
                     color_id: wp.color_id,
@@ -2206,7 +2240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     quantity: wp.quantity
                 }, wp.quantity);
             });
-            
+
             weaponsGrid.appendChild(card);
         });
     }
@@ -2225,10 +2259,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let hatPart = null;
 
         // Step 0: Check for Integrated Giant Body (Big Fig / Gollum / Creature)
-        const giantBodyPart = parts.find(p => p.part_cat_id === 13 || 
-                                              p.part_name.toLowerCase().includes('body giant') || 
+        const giantBodyPart = parts.find(p => p.part_cat_id === 13 ||
+                                              p.part_name.toLowerCase().includes('body giant') ||
                                               p.part_name.toLowerCase().includes('giant body'));
-        
+
         if (giantBodyPart) {
             torsoPart = giantBodyPart;
             legsPart = null; // Big Figs have integrated legs
@@ -2240,21 +2274,21 @@ document.addEventListener('DOMContentLoaded', () => {
             legsPart = parts.find(p => p.part_cat_id === 61);
             if (legsPart) assignedPartNums.add(legsPart.part_num);
         }
-        
+
         if (!torsoPart) {
-            torsoPart = parts.find(p => p.part_cat_id === 60 && 
-                !p.part_name.toLowerCase().includes('arm') && 
-                !p.part_name.toLowerCase().includes('hand') && 
+            torsoPart = parts.find(p => p.part_cat_id === 60 &&
+                !p.part_name.toLowerCase().includes('arm') &&
+                !p.part_name.toLowerCase().includes('hand') &&
                 !assignedPartNums.has(p.part_num));
             if (torsoPart) assignedPartNums.add(torsoPart.part_num);
         }
-        
+
         headPart = parts.find(p => p.part_cat_id === 59 && !assignedPartNums.has(p.part_num));
         if (headPart) assignedPartNums.add(headPart.part_num);
-        
+
         hatPart = parts.find(p => (p.part_cat_id === 65 || p.part_cat_id === 72) && !assignedPartNums.has(p.part_num));
         if (hatPart) assignedPartNums.add(hatPart.part_num);
-        
+
         // Pass 2: Fallback to translated keyword checking for missing core parts
         if (!legsPart && !giantBodyPart) {
             legsPart = parts.find(p => {
@@ -2293,12 +2327,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Pass 3: Map remaining accessories only if they are not spurious
         const isSpuriousPart = (p) => {
             const name = p.part_name.toLowerCase();
-            return name.includes('arm') || 
-                   name.includes('hand') || 
-                   (name.includes('pin') && !name.includes('hole')) || 
-                   name.includes('horn') || 
-                   name.includes('axle') || 
-                   name.includes('tentacle') || 
+            return name.includes('arm') ||
+                   name.includes('hand') ||
+                   (name.includes('pin') && !name.includes('hole')) ||
+                   name.includes('horn') ||
+                   name.includes('axle') ||
+                   name.includes('tentacle') ||
                    name.includes('branch') ||
                    name.includes('animal body part');
         };
@@ -2339,12 +2373,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderAssemblyComponents(parts, minifig) {
         const minifigId = minifig.minifig_num;
         // Reset stage filters
-        legoAssemblyStage.className = 'lego-figure-canvas exploded'; 
+        legoAssemblyStage.className = 'lego-figure-canvas exploded';
         const isBigfig = parts.some(p => p.part_cat_id === 13);
         if (isBigfig) {
             legoAssemblyStage.classList.add('is-bigfig');
         }
-        
+
         if (selectedPartLabel) {
             selectedPartLabel.textContent = '当前零件: 点击左侧人仔部件';
             selectedPartLabel.classList.remove('active');
@@ -2371,16 +2405,16 @@ document.addEventListener('DOMContentLoaded', () => {
         parts.forEach(part => {
             const layer = document.createElement('div');
             layer.className = 'lego-part-layer';
-            
+
             // Set attributes for click listeners
             layer.setAttribute('data-part-num', part.part_num);
             layer.setAttribute('data-color-id', part.color_id);
             layer.setAttribute('data-part-name', part.part_name);
-            
+
             // Label tag (slides in on hover)
             const labelTag = document.createElement('div');
             labelTag.className = 'part-label-tag';
-            
+
             // Format name nicely
             let displayName = part.part_name;
             const bracketMatch = part.part_name.match(/(.+?)\s*\[(.+?)\]$/);
@@ -2389,7 +2423,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             labelTag.textContent = displayName;
             layer.appendChild(labelTag);
-            
+
             // SVG / Image Holder bubble
             const holder = document.createElement('div');
             holder.className = 'lego-svg-holder';
@@ -2407,16 +2441,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 holder.innerHTML = `<i class="fas fa-puzzle-piece" style="font-size: 1.8rem; color: var(--text-muted);"></i>`;
             }
             layer.appendChild(holder);
-            
+
             // Bind click event dynamically
             layer.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                
+
                 // Highlight part
                 legoAssemblyStage.classList.add('part-filtering');
                 legoAssemblyStage.querySelectorAll('.lego-part-layer').forEach(l => l.classList.remove('selected-part'));
                 layer.classList.add('selected-part');
-                
+
                 // Highlight label with ID/Number
                 let displayName = part.part_name;
                 let originalName = '';
@@ -2428,7 +2462,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 showPartDetailFullscreen(part);
             });
-            
+
             legoAssemblyStage.appendChild(layer);
         });
 
@@ -2456,9 +2490,9 @@ document.addEventListener('DOMContentLoaded', () => {
         sets.forEach(set => {
             const card = document.createElement('div');
             card.className = 'set-card';
-            
+
             // Set image rendering (Real URL if available, else box placeholder)
-            const imgHTML = set.img_url 
+            const imgHTML = set.img_url
                 ? `<img src="${set.img_url}" alt="${set.set_name}" loading="lazy" decoding="async" style="max-width: 90%; max-height: 90%; object-fit: contain;">`
                 : `<svg viewBox="0 0 100 100" width="80" height="80"><rect width="100" height="100" fill="var(--bg-secondary)" rx="10" stroke="var(--border-color)"/><rect x="15" y="15" width="70" height="70" fill="var(--accent-glow)" rx="6"/><text x="50" y="55" font-family="var(--font-outfit)" font-size="12" font-weight="bold" fill="var(--accent-color)" text-anchor="middle">SET</text></svg>`;
 
@@ -2476,7 +2510,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </button>
                 </div>
             `;
-            
+
             card.querySelector('.btn-view-manual').addEventListener('click', (e) => {
                 const setNum = e.currentTarget.getAttribute('data-setid');
                 const setName = e.currentTarget.getAttribute('data-setname');
@@ -2532,7 +2566,7 @@ document.addEventListener('DOMContentLoaded', () => {
         detailTouchStartY = touch.clientY;
         isSwipingBack = false;
         hasDecidedSwipeDirection = false;
-        
+
         // Only trigger if starting near left edge (within 80px)
         if (detailTouchStartX < 80) {
             detailContainer.style.transition = 'none';
@@ -2541,11 +2575,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     detailContainer.addEventListener('touchmove', (e) => {
         if (detailTouchStartX >= 80) return;
-        
+
         const touch = e.touches[0];
         const diffX = touch.clientX - detailTouchStartX;
         const diffY = touch.clientY - detailTouchStartY;
-        
+
         if (!hasDecidedSwipeDirection) {
             // Decide direction on first movement of > 10px
             if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
@@ -2555,7 +2589,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        
+
         if (isSwipingBack && diffX > 0) {
             // Prevent default scroll when actively swiping back
             if (e.cancelable) {
@@ -2568,12 +2602,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     detailContainer.addEventListener('touchend', (e) => {
         if (!isSwipingBack) return;
-        
+
         const touch = e.changedTouches[0];
         const diffX = touch.clientX - detailTouchStartX;
-        
+
         detailContainer.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)';
-        
+
         if (diffX > 120) {
             // Swiped far enough, complete the exit animation
             detailContainer.style.transform = `translate3d(100%, 0, 0)`;
@@ -2625,11 +2659,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Full-Screen Part Detail Modal Overlay (Apple Style)
     const partDetailModal = document.getElementById('part-detail-fullscreen-modal');
     const closePartModalBtn = document.getElementById('close-part-modal-btn');
-    
+
     const closePartModal = () => {
         if (partDetailModal) partDetailModal.classList.remove('open');
     };
-    
+
     if (closePartModalBtn) {
         closePartModalBtn.addEventListener('click', closePartModal);
     }
@@ -2652,9 +2686,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const fullscreenColor = document.getElementById('part-fullscreen-color');
         const fullscreenQuantity = document.getElementById('part-fullscreen-quantity');
         const sharedGallery = document.getElementById('part-shared-gallery');
-        
+
         if (!partDetailModal) return;
-        
+
         // Parse name translations
         let displayName = part.part_name || part.name || '乐高零部件';
         let originalName = '';
@@ -2663,7 +2697,7 @@ document.addEventListener('DOMContentLoaded', () => {
             displayName = bracketMatch[1].trim();
             originalName = bracketMatch[2].trim();
         }
-        
+
         // Update details
         if (fullscreenImg) {
             fullscreenImg.src = part.img_url || `https://cdn.rebrickable.com/media/parts/ldraw/${part.color_id}/${part.part_num}.png`;
@@ -2680,10 +2714,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (fullscreenElementId) fullscreenElementId.textContent = part.element_id || '暂无官方 Element ID';
         if (fullscreenColor) fullscreenColor.textContent = part.color_name || '原色';
         if (fullscreenQuantity) fullscreenQuantity.textContent = part.quantity || quantityVal;
-        
+
         // Open modal
         partDetailModal.classList.add('open');
-        
+
         // Clear and show loading state in gallery
         if (sharedGallery) {
             sharedGallery.innerHTML = `
@@ -2693,13 +2727,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         }
-        
+
         // Fetch shared characters
         try {
             const res = await fetch(`/api/shared-part?part_num=${part.part_num}&color_id=${part.color_id}&exclude=${encodeURIComponent(currentMinifigId)}`);
             if (!res.ok) return;
             const data = await res.json();
-            
+
             if (sharedGallery) {
                 sharedGallery.innerHTML = '';
                 if (data.length === 0) {
@@ -2711,13 +2745,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                     return;
                 }
-                
+
                 data.forEach(item => {
                     const card = document.createElement('div');
                     card.className = 'shared-figure-card';
                     card.innerHTML = `
                         <div class="shared-figure-img-box">
-                            <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" 
+                            <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy"
                                  onerror="
                                     const officialId = '${item.official_id || ''}';
                                     const minifigNum = '${item.minifig_num}';
@@ -2760,11 +2794,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function openInstructionManual(setNum, setName) {
         currentManualPageIdx = 0;
         manualModal.classList.add('open');
-        
+
         // Build direct PDF download link
         const baseSetNum = setNum.split('-')[0];
         btnDownloadPdf.href = `https://www.lego.com/zh-cn/service/buildinginstructions/search?q=${encodeURIComponent(baseSetNum)}`;
-        
+
         // Build custom simulated steps for this specific minifigure!
         buildDynamicManualSteps(setName);
         renderManualPages();
@@ -2787,7 +2821,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentManualSteps = [
             {
                 step: '1',
-                desc: legsPart && torsoPart 
+                desc: legsPart && torsoPart
                     ? `从零件盒中取出腿部部件 <code>${legsPart.part_num}</code> 与印花躯干 <code>${torsoPart.part_num}</code>，进行垂直对齐插紧。`
                     : (torsoPart ? `取出一体化巨型躯干部件 <code>${torsoPart.part_num}</code>，将其立于展示台上。` : '拼搭腿部与躯干零件。'),
                 qty: '1',
@@ -2796,7 +2830,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             {
                 step: '2',
-                desc: headPart 
+                desc: headPart
                     ? `拿出面部表情印花头部 <code>${headPart.part_num}</code>，注意眼鼻方向，套入躯干顶部的卡销。`
                     : '安插人仔头部，注意表情方向。',
                 qty: '1',
@@ -2805,7 +2839,7 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             {
                 step: '3',
-                desc: hatPart 
+                desc: hatPart
                     ? `将头部配件（发饰/头盔）<code>${hatPart.part_num}</code> 扣在头部上方，直至听到轻微响声。`
                     : '带上面罩/发饰，完成拼装。',
                 qty: '1',
@@ -2825,16 +2859,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderManualPages() {
         const pages = currentManualSteps;
         const maxPages = pages.length;
-        
+
         // Update page number label
         manualPageNumLabel.textContent = `第 ${currentManualPageIdx + 1} / ${maxPages} 步`;
 
         const pageData = pages[currentManualPageIdx];
-        
+
         // Add flip animations
         manualLeftPage.classList.add('flipping');
         manualRightPage.classList.add('flipping');
-        
+
         setTimeout(() => {
             manualLeftPage.classList.remove('flipping');
             manualRightPage.classList.remove('flipping');
@@ -2898,7 +2932,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeManualBtn.addEventListener('click', () => {
         manualModal.classList.remove('open');
     });
-    
+
     manualModal.addEventListener('click', (e) => {
         if (e.target === manualModal) {
             manualModal.classList.remove('open');
@@ -2916,16 +2950,16 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchGalleryItems(clearGrid = false) {
         if (isLoadingGallery) return;
         isLoadingGallery = true;
-        
+
         if (clearGrid) {
             galleryGrid.innerHTML = "";
             galleryPage = 1;
             endOfGallery = false;
             btnLoadMore.style.display = "none";
         }
-        
+
         galleryLoadingIndicator.style.display = "flex";
-        
+
         try {
             // Merge filters theme or gallery search
             const queryTheme = gallerySearch ? gallerySearch : galleryTheme;
@@ -2933,14 +2967,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(url);
             if (!res.ok) throw new Error("API error");
             const items = await res.json();
-            
+
             if (items.length < 24) {
                 endOfGallery = true;
                 btnLoadMore.style.display = "none";
             } else {
                 btnLoadMore.style.display = "flex";
             }
-            
+
             renderGalleryItems(items);
         } catch (e) {
             console.error("Gallery load error:", e);
@@ -2973,10 +3007,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const card = document.createElement("div");
             card.className = "gallery-card";
             card.setAttribute("data-id", item.minifig_num);
-            
+
             card.innerHTML = `
                 <div class="gallery-card-img">
-                    <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" decoding="async" 
+                    <img src="https://cdn.rebrickable.com/media/sets/${item.minifig_num}.jpg" alt="${item.name}" loading="lazy" decoding="async"
                          onerror="healMinifigImage(this, '${item.minifig_num}', '${item.official_id || ''}')">
                 </div>
                 <div class="gallery-card-info">
@@ -2988,12 +3022,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="gallery-card-parts"><i class="fas fa-puzzle-piece"></i> ${item.num_parts} 核心部件</span>
                 </div>
             `;
-            
+
             card.addEventListener("click", () => {
                 galleryContainer.style.display = "none";
                 showDetailPage(item.minifig_num, item.name, item.img_url);
             });
-            
+
             galleryGrid.appendChild(card);
         });
     }
@@ -3009,12 +3043,12 @@ document.addEventListener('DOMContentLoaded', () => {
         aboutContainer.style.display = "none";
         if (favoritesContainer) favoritesContainer.style.display = "none";
         galleryContainer.style.display = "flex";
-        
+
         navSearchBtn.classList.remove("active");
         navGalleryBtn.classList.add("active");
         if (navFavBtn) navFavBtn.classList.remove("active");
         navAboutBtn.classList.remove("active");
-        
+
         // Reset filter inputs
         galleryThemeFilter.value = "";
         gallerySortFilter.value = "num_parts_desc";
@@ -3022,7 +3056,7 @@ document.addEventListener('DOMContentLoaded', () => {
         galleryTheme = "";
         gallerySort = "num_parts_desc";
         gallerySearch = "";
-        
+
         window.scrollTo({ top: 0, behavior: "smooth" });
         fetchGalleryItems(true);
     }
@@ -3033,12 +3067,12 @@ document.addEventListener('DOMContentLoaded', () => {
         galleryContainer.style.display = "none";
         if (favoritesContainer) favoritesContainer.style.display = "none";
         aboutContainer.style.display = "flex";
-        
+
         navSearchBtn.classList.remove("active");
         navGalleryBtn.classList.remove("active");
         if (navFavBtn) navFavBtn.classList.remove("active");
         navAboutBtn.classList.add("active");
-        
+
         window.scrollTo({ top: 0, behavior: "smooth" });
         switchLegalTab(subTab);
     }
@@ -3049,12 +3083,12 @@ document.addEventListener('DOMContentLoaded', () => {
         aboutContainer.style.display = "none";
         if (favoritesContainer) favoritesContainer.style.display = "none";
         searchContainer.style.display = "flex";
-        
+
         navSearchBtn.classList.add("active");
         navGalleryBtn.classList.remove("active");
         if (navFavBtn) navFavBtn.classList.remove("active");
         navAboutBtn.classList.remove("active");
-        
+
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
@@ -3064,12 +3098,12 @@ document.addEventListener('DOMContentLoaded', () => {
         galleryContainer.style.display = "none";
         aboutContainer.style.display = "none";
         if (favoritesContainer) favoritesContainer.style.display = "flex";
-        
+
         navSearchBtn.classList.remove("active");
         navGalleryBtn.classList.remove("active");
         if (navFavBtn) navFavBtn.classList.add("active");
         navAboutBtn.classList.remove("active");
-        
+
         window.scrollTo({ top: 0, behavior: "smooth" });
         renderFavoritesDashboard();
     }
@@ -3079,19 +3113,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const favValueLabel = document.getElementById('fav-dashboard-value');
         const favRatioLabel = document.getElementById('fav-dashboard-ratio');
         const favGrid = document.getElementById('favorites-gallery-grid');
-        
+
         if (!favGrid) return;
         favGrid.innerHTML = '';
-        
+
         const favs = preferences.favorites || [];
-        
+
         // Update stats (Immediate estimate fallback)
         if (favCountLabel) favCountLabel.textContent = favs.length;
         if (favRatioLabel) {
             const ratio = (favs.length / 84921) * 100;
             favRatioLabel.textContent = ratio >= 0.01 ? `${ratio.toFixed(2)}%` : `${ratio.toFixed(4)}%`;
         }
-        
+
         // Render fallback pricing first
         let fallbackTotal = 0;
         favs.forEach(f => {
@@ -3105,7 +3139,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         if (favValueLabel) favValueLabel.textContent = fallbackTotal.toFixed(2);
-        
+
         // Trigger async live prices update
         const favIds = favs.map(f => f.minifig_num || f.id).filter(Boolean);
         if (favIds.length > 0) {
@@ -3139,7 +3173,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(err => console.error("Error fetching live fav prices:", err));
         }
-        
+
         if (favs.length === 0) {
             favGrid.innerHTML = `
                 <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);">
@@ -3151,7 +3185,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             return;
         }
-        
+
         favs.forEach(item => {
             const favId = item.minifig_num || item.id;
             if (!favId) return;
@@ -3213,7 +3247,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 tab.classList.remove("active");
             }
         });
-        
+
         legalTabContents.forEach(content => {
             if (content.id === targetId) {
                 content.classList.add("active");
@@ -3227,7 +3261,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         openSearchView();
     });
-    
+
     navGalleryBtn.addEventListener("click", (e) => {
         e.preventDefault();
         openGalleryView();
@@ -3239,7 +3273,7 @@ document.addEventListener('DOMContentLoaded', () => {
             openFavoritesView();
         });
     }
-    
+
     navAboutBtn.addEventListener("click", (e) => {
         e.preventDefault();
         openAboutView();
@@ -3286,12 +3320,12 @@ document.addEventListener('DOMContentLoaded', () => {
         [tabMinifigs, tabSets].forEach(tab => {
             tab.addEventListener('click', (e) => {
                 const category = e.currentTarget.getAttribute('data-category');
-                
+
                 // Toggle active class
                 tabMinifigs.classList.remove('active');
                 tabSets.classList.remove('active');
                 e.currentTarget.classList.add('active');
-                
+
                 // Toggle grids visibility
                 if (category === 'minifigs') {
                     galleryGrid.style.display = 'grid';
@@ -3377,19 +3411,19 @@ document.addEventListener('DOMContentLoaded', () => {
         let mouseY = window.innerHeight / 3;
         let glowX = mouseX;
         let glowY = mouseY;
-        
+
         window.addEventListener('mousemove', (e) => {
             mouseX = e.clientX;
             mouseY = e.clientY;
         });
-        
+
         function updateGlowPosition() {
             glowX += (mouseX - glowX) * 0.08;
             glowY += (mouseY - glowY) * 0.08;
-            
+
             bgGlow.style.left = `${glowX}px`;
             bgGlow.style.top = `${glowY}px`;
-            
+
             requestAnimationFrame(updateGlowPosition);
         }
         updateGlowPosition();
@@ -3400,12 +3434,12 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.addEventListener('click', (e) => {
                 const category = e.currentTarget.getAttribute('data-category');
                 currentHomeSearchCategory = category;
-                
+
                 // Toggle active tab class
                 homeTabMinifigs.classList.remove('active');
                 homeTabSets.classList.remove('active');
                 e.currentTarget.classList.add('active');
-                
+
                 renderHomeSearchResults();
             });
         });
@@ -3418,11 +3452,11 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', (e) => {
                 const sortType = e.currentTarget.id.replace('home-sort-', '');
                 currentHomeSearchSort = sortType;
-                
+
                 // Toggle active sort button class
                 homeSortBtns.forEach(b => { if (b) b.classList.remove('active'); });
                 e.currentTarget.classList.add('active');
-                
+
                 renderHomeSearchResults();
             });
         }

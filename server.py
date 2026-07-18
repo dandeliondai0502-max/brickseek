@@ -21,6 +21,12 @@ SCAN_CANDIDATE_CACHE_TTL_SECONDS = 3600
 
 API_CACHE = OrderedDict()
 SCAN_CANDIDATE_CACHE = {"loaded_at": 0, "rows": None}
+BRICKOGNIZE_CACHE = OrderedDict()
+BRICKOGNIZE_CACHE_MAX_ITEMS = 128
+BRICKOGNIZE_CACHE_TTL_SECONDS = 900
+SCAN_IMAGE_RESPONSE_CACHE = OrderedDict()
+SCAN_IMAGE_RESPONSE_CACHE_MAX_ITEMS = 128
+SCAN_IMAGE_RESPONSE_CACHE_TTL_SECONDS = 900
 
 DB_SYNC_STATUS = {
     "status": "idle",
@@ -154,7 +160,7 @@ TRANSLATION_MAP = {
     "绿色": "green",
     "金色": "gold",
     "银色": "silver",
-    
+
     # Weapons & Parts Chinese mappings
     "双筒望远镜": "binoculars",
     "望远镜": "binoculars",
@@ -250,7 +256,7 @@ EN_TO_ZH_MAP = {
     "green": "绿色",
     "gold": "金色",
     "silver": "银色",
-    
+
     # Weapons & Parts English to Chinese translations
     "lightsaber": "光剑",
     "blaster": "爆能枪",
@@ -302,12 +308,12 @@ def load_minifig_mappings():
     global MINIFIG_MAPPINGS, REVERSE_MINIFIG_MAPPINGS
     MINIFIG_MAPPINGS.clear()
     REVERSE_MINIFIG_MAPPINGS.clear()
-    
+
     # 1. Load hardcoded map
     MINIFIG_MAPPINGS.update(MINIFIG_ID_MAP)
     for k, v in MINIFIG_ID_MAP.items():
         REVERSE_MINIFIG_MAPPINGS[v.lower().strip()] = k
-        
+
     # 2. Load from JSON file if available
     json_path = os.path.join(os.path.dirname(DB_PATH), "minifig_mappings.json")
     if os.path.exists(json_path):
@@ -328,7 +334,7 @@ def resolve_official_id_via_brickset(o_id):
     import urllib.request
     import ssl
     import re
-    
+
     o_id_clean = o_id.strip().upper()
     url = f"https://brickset.com/minifigs/{o_id_clean}"
     try:
@@ -349,9 +355,9 @@ def resolve_name_to_official_id_via_brickset(name_en):
     import ssl
     import re
     import urllib.parse
-    
+
     ssl_context = ssl._create_unverified_context()
-    
+
     def _search_brickset(query):
         """Search Brickset minifigs directory and return the first official ID found."""
         url = f"https://brickset.com/minifigs?query={urllib.parse.quote(query)}"
@@ -368,17 +374,17 @@ def resolve_name_to_official_id_via_brickset(name_en):
         except Exception as e:
             print(f"[Name Resolver] Search error for '{query}': {e}")
         return None
-    
+
     # Strategy 1: Full cleaned name (preserve intra-word hyphens like Bob-omb)
     clean_name = re.sub(r'\(.*?\)', '', name_en)
     clean_name = clean_name.replace(" - ", " ").replace(", ", " ")
     clean_name = " ".join(w.strip() for w in clean_name.split() if w.strip())
-    
+
     result = _search_brickset(clean_name)
     if result:
         print(f"[Name Resolver] Resolved '{name_en}' via full name '{clean_name}': {result}")
         return result
-    
+
     # Strategy 2: Base character name (part before first separator " - " or ", ")
     segments = re.split(r'\s*[-–]\s+|\s*,\s*', name_en)
     base_name = re.sub(r'\(.*?\)', '', segments[0]).strip()
@@ -387,7 +393,7 @@ def resolve_name_to_official_id_via_brickset(name_en):
         if result:
             print(f"[Name Resolver] Resolved '{name_en}' via base name '{base_name}': {result}")
             return result
-    
+
     # Strategy 3: Second segment (for theme-prefixed names like "Trolls - Hickory")
     if len(segments) > 1:
         second = re.sub(r'\(.*?\)', '', segments[1]).strip()
@@ -399,7 +405,7 @@ def resolve_name_to_official_id_via_brickset(name_en):
             if result:
                 print(f"[Name Resolver] Resolved '{name_en}' via second segment '{second_short}': {result}")
                 return result
-    
+
     # Strategy 4: First significant word only (>3 chars, not a theme/common word)
     skip_words = {'city', 'lego', 'the', 'with', 'and', 'from', 'super', 'mario'}
     for word in name_en.split():
@@ -410,7 +416,7 @@ def resolve_name_to_official_id_via_brickset(name_en):
                 print(f"[Name Resolver] Resolved '{name_en}' via keyword '{word_clean}': {result}")
                 return result
             break  # Only try one keyword to avoid excessive requests
-    
+
     print(f"[Name Resolver] Could not resolve '{name_en}' via any strategy.")
     return None
 
@@ -418,11 +424,11 @@ def resolve_minifig_id(m_id, conn=None):
     if not m_id:
         return m_id
     m_id_lower = m_id.lower().strip()
-    
+
     # First check in-memory map
     if m_id_lower in REVERSE_MINIFIG_MAPPINGS:
         return REVERSE_MINIFIG_MAPPINGS[m_id_lower]
-        
+
     # Check SQLite minifig_mappings table
     db_conn = conn
     close_at_end = False
@@ -433,7 +439,7 @@ def resolve_minifig_id(m_id, conn=None):
             close_at_end = True
         except Exception:
             pass
-            
+
     if db_conn:
         try:
             cursor = db_conn.cursor()
@@ -446,7 +452,7 @@ def resolve_minifig_id(m_id, conn=None):
                 return res_id
         except Exception as e:
             print(f"[Resolve Error] Failed database lookup for {m_id}: {e}")
-            
+
     # If it looks like a BrickLink ID (e.g. sw0527, njo0298, sh087) but isn't mapped yet,
     # let's try to resolve it on-the-fly via Brickset!
     import re
@@ -526,23 +532,23 @@ def fuzzy_match_minifig(conn, name_en):
     # Normalize name
     name_clean = name_en.lower().replace("-", " ").replace(",", " ")
     words = [w.strip() for w in re.split(r'\s+', name_clean) if w.strip()]
-    
+
     # Extract core name: split only by ' - ' (hyphen with spaces) or ','
     core_parts = re.split(r'\s+[-–]\s+|,', name_en)
     core_name = core_parts[0].strip().lower()
-    
+
     # Remove parentheses and their contents from core name, e.g. "Luke Skywalker (Tatooine)" -> "Luke Skywalker"
     core_name = re.sub(r'\(.*?\)', '', core_name).strip()
-    
+
     core_words = [w for w in re.split(r'\s+', core_name) if w]
     if len(core_words) > 3:
         core_query = " ".join(core_words[:2])
     else:
         core_query = core_name
-        
+
     if not core_query:
         return None, 0
-        
+
     stop_words = {
         'with', 'and', 'the', 'of', 'for', 'in', 'on', 'at', 'by', 'from',
         'a', 'an', 'to', 'with', 'without', 'or', 'but', 'is', 'are', 'was',
@@ -550,13 +556,13 @@ def fuzzy_match_minifig(conn, name_en):
         'traditional', 'starched', 'fabric', 'robe', 'hem', 'skin', 'head',
         'body', 'legs', 'torso', 'hair', 'helmet', 'cape', 'type', 'version'
     }
-    
+
     descriptors = [w for w in words if w not in stop_words and len(w) > 2]
-    
+
     cursor = conn.cursor()
     sql = "SELECT minifig_num, name, num_parts FROM minifigs WHERE 1=1"
     params = []
-    
+
     # Strip common modifiers from the match list to increase match rate for simplified names
     ignore_prefixes = {
         "imperial", "lego", "official", "minifig", "minifigure",
@@ -567,7 +573,7 @@ def fuzzy_match_minifig(conn, name_en):
     match_words = [w for w in core_words if w.lower() not in ignore_prefixes]
     if not match_words:
         match_words = core_words
-        
+
     for cw in match_words[:2]:
         # Replace non-alphanumeric with '%' for SQL wildcard match (e.g. spider-man -> spider%man)
         cleaned_cw = re.sub(r'[^a-zA-Z0-9]', '%', cw)
@@ -575,14 +581,14 @@ def fuzzy_match_minifig(conn, name_en):
         if len(cleaned_cw.replace('%', '')) > 1:
             sql += " AND name LIKE ?"
             params.append(f"%{cleaned_cw}%")
-            
+
     if not params:
         sql += " AND name LIKE ?"
         params.append(f"%{core_query}%")
-        
+
     cursor.execute(sql, params)
     rows = cursor.fetchall()
-    
+
     if not rows and match_words:
         # Fallback: query using the single longest word in filtered match_words
         longest_word = max(match_words, key=len)
@@ -592,10 +598,10 @@ def fuzzy_match_minifig(conn, name_en):
             sql_fallback = "SELECT minifig_num, name, num_parts FROM minifigs WHERE name LIKE ?"
             cursor.execute(sql_fallback, (f"%{cleaned_lw}%",))
             rows = cursor.fetchall()
-    
+
     best_match = None
     best_score = -1
-    
+
     for row in rows:
         cand_name = row["name"].lower()
         score = 0
@@ -606,7 +612,7 @@ def fuzzy_match_minifig(conn, name_en):
                 continue
             if desc_clean in cand_name.replace("-", "").replace(" ", ""):
                 score += 1
-                
+
         # Boost if name matches closely or exactly
         cand_clean = cand_name.replace("-", "").replace(" ", "")
         core_clean = core_query.replace("-", "").replace(" ", "")
@@ -614,11 +620,11 @@ def fuzzy_match_minifig(conn, name_en):
             score += 10.0
         elif core_clean in cand_clean:
             score += 0.5 * (len(core_clean) / len(cand_clean))
-            
+
         if score > best_score:
             best_score = score
             best_match = row
-            
+
     return best_match, best_score
 
 PRICE_CACHE = {}
@@ -627,10 +633,10 @@ def get_minifig_prices(official_id_or_num):
     clean_id = official_id_or_num.strip().split("-")[0]
     if clean_id in PRICE_CACHE:
         return PRICE_CACHE[clean_id]
-        
+
     if clean_id.lower().startswith("fig"):
         return None, None
-        
+
     url = f"https://brickset.com/minifigs/{clean_id}"
     try:
         import urllib.request, ssl, re
@@ -638,10 +644,10 @@ def get_minifig_prices(official_id_or_num):
         ctx = ssl._create_unverified_context()
         with urllib.request.urlopen(req, context=ctx, timeout=1.5) as response:
             html = response.read().decode('utf-8', errors='ignore')
-            
+
             new_price = None
             used_price = None
-            
+
             # Match New Price
             new_match = re.search(r'New:\s*<a[^>]*>\s*~\$([\d\.]+)\s*</a>', html)
             if new_match:
@@ -650,7 +656,7 @@ def get_minifig_prices(official_id_or_num):
                 new_match = re.search(r'New:.*?\$([\d\.]+)', html)
                 if new_match:
                     new_price = float(new_match.group(1))
-                    
+
             # Match Used Price
             used_match = re.search(r'Used:\s*<a[^>]*>\s*~\$([\d\.]+)\s*</a>', html)
             if used_match:
@@ -659,13 +665,13 @@ def get_minifig_prices(official_id_or_num):
                 used_match = re.search(r'Used:.*?\$([\d\.]+)', html)
                 if used_match:
                     used_price = float(used_match.group(1))
-            
+
             if new_price is not None or used_price is not None:
                 PRICE_CACHE[clean_id] = (new_price, used_price)
                 return new_price, used_price
     except Exception as e:
         print(f"[Price Scraper] Failed to fetch prices for {clean_id}: {e}")
-        
+
     return None, None
 
 class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
@@ -712,7 +718,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             except Exception:
                 self.send_json_response({"error": "Invalid JSON"}, status=400)
                 return
-            
+
             self.handle_api_post(path, body)
         else:
             self.send_json_response({"error": "POST not supported for static files"}, status=405)
@@ -725,7 +731,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         try:
             conn = sqlite3.connect(DB_PATH)
             conn.row_factory = sqlite3.Row
-            
+
             if path == "/api/register":
                 username = body.get("username", "").strip()
                 password = body.get("password", "").strip()
@@ -733,18 +739,18 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_json_response({"error": "用户名和密码不能为空！"}, status=400)
                     conn.close()
                     return
-                
+
                 cursor = conn.cursor()
                 cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
                 if cursor.fetchone():
                     self.send_json_response({"error": "用户名已存在！"}, status=400)
                 else:
                     pwd_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
-                    cursor.execute("INSERT INTO users (username, password, preferences) VALUES (?, ?, ?)", 
+                    cursor.execute("INSERT INTO users (username, password, preferences) VALUES (?, ?, ?)",
                                    (username, pwd_hash, '{}'))
                     conn.commit()
                     self.send_json_response({"success": True, "message": "注册成功！"})
-                    
+
             elif path == "/api/login":
                 username = body.get("username", "").strip()
                 password = body.get("password", "").strip()
@@ -752,7 +758,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_json_response({"error": "用户名和密码不能为空！"}, status=400)
                     conn.close()
                     return
-                
+
                 pwd_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
                 cursor = conn.cursor()
                 cursor.execute("SELECT preferences FROM users WHERE username = ? AND password = ?", (username, pwd_hash))
@@ -766,7 +772,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     except Exception:
                         pass
                     self.send_json_response({"success": True, "username": username, "preferences": prefs})
-                    
+
             elif path == "/api/save-preferences":
                 username = body.get("username", "").strip()
                 preferences = body.get("preferences", {})
@@ -774,29 +780,29 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_json_response({"error": "未指定用户名！"}, status=400)
                     conn.close()
                     return
-                
+
                 cursor = conn.cursor()
                 prefs_str = json.dumps(preferences, ensure_ascii=False)
                 cursor.execute("UPDATE users SET preferences = ? WHERE username = ?", (prefs_str, username))
                 conn.commit()
                 self.send_json_response({"success": True})
-                
+
             elif path == "/api/admin/update-db":
                 global DB_SYNC_STATUS
                 if DB_SYNC_STATUS["is_running"]:
                     self.send_json_response({"error": "同步任务已经在运行中！"}, status=400)
                     conn.close()
                     return
-                    
+
                 import threading
                 import db_builder
-                
+
                 def sync_thread_task():
                     global DB_SYNC_STATUS
                     def callback(status_msg, pct):
                         DB_SYNC_STATUS["status"] = status_msg
                         DB_SYNC_STATUS["percent"] = pct
-                        
+
                     try:
                         db_builder.run_sync(callback)
                         DB_SYNC_STATUS["is_running"] = False
@@ -804,7 +810,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         DB_SYNC_STATUS["is_running"] = False
                         DB_SYNC_STATUS["error"] = str(e)
                         DB_SYNC_STATUS["status"] = f"同步出错: {e}"
-                        
+
                 DB_SYNC_STATUS = {
                     "status": "正在启动云端同步任务...",
                     "percent": 0,
@@ -818,16 +824,16 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 payload = self.api_scan_image(conn, body)
                 if payload is not None:
                     self.send_json_response(payload)
-                    
+
             elif path == "/api/scan-candidates":
                 self.api_scan_candidates(conn, body)
-                
+
             elif path == "/api/prices":
                 self.api_prices(conn, body)
-                
+
             else:
                 self.send_json_response({"error": "Endpoint not found"}, status=404)
-                
+
             conn.close()
         except Exception as e:
             self.send_json_response({"error": str(e)}, status=500)
@@ -839,7 +845,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
 
         try:
             conn = open_db()
-            
+
             if path == "/api/search":
                 payload = self.api_search(conn, params)
             elif path == "/api/gallery":
@@ -860,14 +866,14 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_json_response({"error": "Endpoint not found"}, status=404)
                 conn.close()
                 return
-                
+
             if payload is None:
                 conn.close()
                 return
             if cache_key:
                 set_cached_api_response(cache_key, payload)
             self.send_json_response(payload)
-                
+
             conn.close()
         except Exception as e:
             self.send_json_response({"error": str(e)}, status=500)
@@ -877,10 +883,10 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         limit = min(48, max(1, int(params.get("limit", ["24"])[0])))
         theme = params.get("theme", [""])[0].strip()
         sort = params.get("sort", ["num_parts_desc"])[0].strip()
-        
+
         offset = (page - 1) * limit
         cursor = conn.cursor()
-        
+
         sql_select = f"""
             SELECT m.minifig_num, m.name, m.num_parts
             FROM minifigs m
@@ -896,18 +902,18 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                   LIMIT 1
               )
         """
-        
+
         args = []
         if theme:
             translated_theme = translate_query(theme).lower()
             orig_theme = theme.lower()
             sql_select += """
                 AND (
-                    LOWER(m.name) LIKE ? 
-                    OR LOWER(m.minifig_num) LIKE ? 
+                    LOWER(m.name) LIKE ?
+                    OR LOWER(m.minifig_num) LIKE ?
                     OR EXISTS (
-                        SELECT 1 FROM minifig_mappings map 
-                        WHERE map.rebrickable_id = m.minifig_num 
+                        SELECT 1 FROM minifig_mappings map
+                        WHERE map.rebrickable_id = m.minifig_num
                           AND (LOWER(map.official_id) LIKE ? OR LOWER(map.official_id) LIKE ?)
                     )
                     OR EXISTS (
@@ -921,12 +927,12 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 )
             """
             args.extend([
-                f"%{translated_theme}%", 
-                f"%{translated_theme}%", 
+                f"%{translated_theme}%",
+                f"%{translated_theme}%",
                 f"%{orig_theme}%", f"%{translated_theme}%",
                 f"%{orig_theme}%", f"%{translated_theme}%"
             ])
-            
+
         order_by = {
             "num_parts_desc": "m.num_parts DESC",
             "num_parts_asc": "m.num_parts ASC",
@@ -934,17 +940,17 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         }.get(sort, "m.num_parts DESC")
         sql_select += f" ORDER BY {order_by} LIMIT ? OFFSET ?"
         args.extend([limit, offset])
-        
+
         cursor.execute(sql_select, args)
         rows = cursor.fetchall()
-        
+
         results = []
         for row in rows:
             row_dict = dict(row)
             row_dict["name"] = translate_to_zh(row_dict["name"])
-            
+
             sql_theme = """
-                SELECT t.name 
+                SELECT t.name
                 FROM inventory_minifigs im
                 JOIN inventories i ON im.inventory_id = i.id
                 JOIN sets s ON i.set_num = s.set_num
@@ -957,7 +963,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             row_dict["theme_name"] = translate_to_zh(theme_row["name"]) if theme_row else "收藏系列"
             row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
             results.append(row_dict)
-            
+
         return results
 
     def api_search(self, conn, params):
@@ -967,7 +973,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             return {"minifigs": [], "sets": []} if full_mode else []
 
         cursor = conn.cursor()
-        
+
         # Check if query is a direct Rebrickable ID or matches official ID(s)
         mapped_ids = []
         if query.lower().startswith("fig-"):
@@ -995,7 +1001,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             query_words = [w.strip() for w in translated_query.split() if w.strip()]
             if not query_words:
                 return {"minifigs": [], "sets": []} if full_mode else []
-                
+
             # Step 1: Find parts matching all query words (limit to 200 parts to prevent parameter list overflow)
             part_clauses = []
             part_args = []
@@ -1005,7 +1011,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             part_where = " AND ".join(part_clauses)
             cursor.execute(f"SELECT part_num FROM parts WHERE {part_where} LIMIT 200", part_args)
             parts = [r[0] for r in cursor.fetchall()]
-            
+
             sets = []
             if parts:
                 placeholders = ",".join(["?"] * len(parts))
@@ -1017,13 +1023,13 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     LIMIT 500
                 """, parts)
                 sets = [r[0] for r in cursor.fetchall()]
-                
+
             # Step 2: Query minifigs matching either all minifig attributes or containing matching parts
             # For search suggestions, try to match either: name, minifig_num, official_id, theme (orig and translated word)
             minifig_clauses = []
             minifig_args = []
             ID_PREFIXES = {'njo', 'sw', 'sh', 'hp', 'col', 'poc', 'toy', 'dis', 'bat', 'idea', 'sc', 'frnd', 'spd', 'lor', 'hob', 'adv', 'tnt'}
-            
+
             for qw in query_words:
                 qw_clean = qw.lower().strip()
                 import re
@@ -1033,33 +1039,33 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                     prefix = prefix_match.group(1)
                     if prefix in ID_PREFIXES:
                         is_id_search = True
-                        
+
                 tr_word = translate_query(qw)
                 if is_id_search:
                     minifig_clauses.append("""
                         (
-                            m.minifig_num LIKE ? 
-                            OR m.name LIKE ? 
+                            m.minifig_num LIKE ?
+                            OR m.name LIKE ?
                             OR EXISTS (
-                                SELECT 1 FROM minifig_mappings map 
-                                WHERE map.rebrickable_id = m.minifig_num 
+                                SELECT 1 FROM minifig_mappings map
+                                WHERE map.rebrickable_id = m.minifig_num
                                   AND (map.official_id LIKE ? OR map.official_id LIKE ?)
                             )
                         )
                     """)
                     minifig_args.extend([
-                        f"%{qw}%", 
-                        f"%{qw}%", 
+                        f"%{qw}%",
+                        f"%{qw}%",
                         f"%{qw}%", f"%{tr_word}%"
                     ])
                 else:
                     minifig_clauses.append("""
                         (
-                            m.minifig_num LIKE ? 
-                            OR m.name LIKE ? 
+                            m.minifig_num LIKE ?
+                            OR m.name LIKE ?
                             OR EXISTS (
-                                SELECT 1 FROM minifig_mappings map 
-                                WHERE map.rebrickable_id = m.minifig_num 
+                                SELECT 1 FROM minifig_mappings map
+                                WHERE map.rebrickable_id = m.minifig_num
                                   AND (map.official_id LIKE ? OR map.official_id LIKE ?)
                             )
                             OR EXISTS (
@@ -1073,13 +1079,13 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         )
                     """)
                     minifig_args.extend([
-                        f"%{qw}%", 
-                        f"%{qw}%", 
+                        f"%{qw}%",
+                        f"%{qw}%",
                         f"%{qw}%", f"%{tr_word}%",
                         f"%{qw}%", f"%{tr_word}%"
                     ])
             name_matching_clause = " AND ".join(minifig_clauses)
-            
+
             set_clause = ""
             if sets:
                 placeholders_set = ",".join(["?"] * len(sets))
@@ -1089,25 +1095,25 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 where_clause = name_matching_clause
                 args = minifig_args
-                
+
             limit_val = 500 if full_mode else 40
             sql = f"""
-                SELECT m.minifig_num, m.name, m.num_parts 
+                SELECT m.minifig_num, m.name, m.num_parts
                 FROM minifigs m
-                WHERE {where_clause} 
+                WHERE {where_clause}
                   {MINIFIG_EXCLUSION_SQL}
-                ORDER BY m.num_parts DESC 
+                ORDER BY m.num_parts DESC
                 LIMIT {limit_val}
             """
             cursor.execute(sql, args)
             rows = cursor.fetchall()
-            
+
             for row in rows:
                 row_dict = dict(row)
                 row_dict["name"] = translate_to_zh(row_dict["name"])
                 row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
                 minifigs_results.append(row_dict)
-                
+
         if not full_mode:
             return minifigs_results
 
@@ -1115,7 +1121,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         sets_results = []
         translated_query = translate_query(query)
         query_words = [w.strip() for w in translated_query.split() if w.strip()]
-        
+
         if query_words:
             set_clauses = []
             set_args = []
@@ -1123,7 +1129,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 set_clauses.append("(s.set_num LIKE ? OR s.name LIKE ? OR t.name LIKE ?)")
                 set_args.extend([f"%{qw}%", f"%{qw}%", f"%{qw}%"])
             set_where = " AND ".join(set_clauses)
-            
+
             fig_placeholder = ""
             fig_args = []
             matched_minifig_nums = [m["minifig_num"] for m in minifigs_results]
@@ -1131,7 +1137,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 placeholders = ",".join(["?"] * len(matched_minifig_nums[:100]))
                 fig_placeholder = f"OR s.set_num IN (SELECT DISTINCT i.set_num FROM inventories i JOIN inventory_minifigs im ON i.id = im.inventory_id WHERE im.minifig_num IN ({placeholders}))"
                 fig_args = matched_minifig_nums[:100]
-                
+
             sql_sets = f"""
                 SELECT DISTINCT s.set_num, s.name, s.year, s.num_parts, s.img_url, t.name AS theme_name
                 FROM sets s
@@ -1146,18 +1152,18 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 row_dict["name"] = translate_to_zh(row_dict["name"])
                 row_dict["theme_name"] = translate_to_zh(row_dict["theme_name"])
                 sets_results.append(row_dict)
-                
+
         return {
             "minifigs": minifigs_results,
             "sets": sets_results
         }
-            
+
     def api_scan(self, conn, params):
         target_color = params.get("color", ["ffffff"])[0].strip().lower()
         query = params.get("query", [""])[0].strip().lower()
-        
+
         rows = self.get_scan_candidate_rows(conn)
-        
+
         # Group by minifigure
         minifigs = {}
         for row in rows:
@@ -1173,7 +1179,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             rgb = row["rgb"]
             if rgb:
                 minifigs[num]["colors"].append(rgb.lower())
-                
+
         # Parse target RGB
         try:
             tr = int(target_color[0:2], 16)
@@ -1181,18 +1187,18 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             tb = int(target_color[4:6], 16)
         except:
             tr, tg, tb = 255, 255, 255
-            
+
         matches = []
         for num, fig in minifigs.items():
             name_lower = fig["name"].lower()
             num_lower = fig["minifig_num"].lower()
-            
+
             # Query keyword matching score
             query_score = 0
             official_id = MINIFIG_MAPPINGS.get(num_lower, num_lower)
             if query and (query in name_lower or query in num_lower or query in official_id):
                 query_score = 1000000  # huge boost
-                
+
             # Color matching score
             min_color_dist = 3 * (255**2)
             for color_hex in fig["colors"]:
@@ -1205,14 +1211,14 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         min_color_dist = dist
                 except:
                     continue
-                    
+
             # Total distance metric (smaller is better)
             total_dist = min_color_dist - query_score
             matches.append((total_dist, fig))
-            
+
         # Sort by distance
         matches.sort(key=lambda x: x[0])
-        
+
         # Take top 3 and translate their names
         top_matches = []
         for m in matches[:3]:
@@ -1250,7 +1256,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         cursor = conn.cursor()
         for item in brick_items:
             itype = str(item.get("type", "")).strip().lower()
-            
+
             # Option A: Direct minifigure match
             if itype in ("fig", "minifig") or item.get("id", "").startswith("fig-"):
                 candidates = {item.get("id", "").strip().lower()}
@@ -1267,7 +1273,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                             sub = parts[1].split("/")[0]
                             if sub:
                                 candidates.add(sub.strip().lower())
-                                
+
                 found_direct = False
                 for cand in candidates:
                     if not cand:
@@ -1297,7 +1303,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                             "official_id": cand
                         })
                         found_direct = True
-                        
+
                 if not found_direct and item.get("name"):
                     matched_row, match_score = fuzzy_match_minifig(conn, item["name"])
                     if matched_row and match_score >= 1.0:
@@ -1323,7 +1329,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                             "official_id": bricklink_id or fig_num
                         })
                         found_direct = True
-                        
+
                 if not found_direct:
                     matched_figs.append({
                         "minifig_num": item["id"],
@@ -1333,7 +1339,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         "score": item.get("score", 0.8),
                         "official_id": item["id"]
                     })
-            
+
             # Option B: Partial part match (torso, head, accessories)
             else:
                 part_candidates = {item.get("id", "").strip().lower()}
@@ -1350,7 +1356,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                             sub = parts[1].split("/")[0]
                             if sub:
                                 part_candidates.add(sub.strip().lower())
-                                
+
                 found_part_figs = False
                 for pcand in part_candidates:
                     if not pcand:
@@ -1398,7 +1404,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                             "official_id": MINIFIG_MAPPINGS.get(row["minifig_num"], row["minifig_num"])
                         })
                         found_part_figs = True
-                        
+
                 if not found_part_figs:
                     matched_figs.append({
                         "minifig_num": item["id"],
@@ -1408,7 +1414,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                         "score": item.get("score", 0.8),
                         "official_id": item["id"]
                     })
-        
+
         # Deduplicate final list of matches and resolve official_ids
         unique_figs = []
         seen = set()
@@ -1423,16 +1429,16 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
 def call_gemini_vision(img_b64, m_type, api_key):
     import urllib.request
     import json
-    
+
     if not api_key:
         return []
-        
+
     clean_mime = "image/jpeg"
     if "png" in m_type:
         clean_mime = "image/png"
     elif "webp" in m_type:
         clean_mime = "image/webp"
-        
+
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     payload = {
         "contents": [
@@ -1466,7 +1472,7 @@ def call_gemini_vision(img_b64, m_type, api_key):
             "responseMimeType": "application/json"
         }
     }
-    
+
     try:
         req = urllib.request.Request(
             url,
@@ -1475,7 +1481,7 @@ def call_gemini_vision(img_b64, m_type, api_key):
         )
         with urllib.request.urlopen(req, timeout=12) as response:
             res = json.loads(response.read().decode('utf-8'))
-            
+
         text = res["candidates"][0]["content"]["parts"][0]["text"].strip()
         items = json.loads(text)
         if isinstance(items, list):
@@ -1497,555 +1503,217 @@ def call_gemini_vision(img_b64, m_type, api_key):
         return []
     return []
 
-    def api_scan_image(self, conn, body):
-        import urllib.request
-        import urllib.error
-        import base64
-        import uuid
-        import io
-        from PIL import Image
-        
-        base64_image = body.get("image", "").strip()
-        target_color = body.get("color", "ffffff").strip().lower()
-        api_key = body.get("api_key", "").strip()
-        if not api_key:
-            api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-            
-        if not base64_image:
-            self.send_json_response({
-                "error": "INVALID_IMAGE",
-                "message": "无有效的图像数据。"
-            }, status=400)
-            return
+def api_scan_image(self, conn, body):
+    import urllib.request
+    import urllib.error
+    import base64
+    import uuid
+    import ssl
 
-        # Extract mime type and raw base64 data
-        mime_type = "image/jpeg"
-        image_data = base64_image
-        if "," in base64_image:
-            header, image_data = base64_image.split(",", 1)
-            if "image/png" in header:
-                mime_type = "image/png"
-            elif "image/webp" in header:
-                mime_type = "image/webp"
-            elif "image/gif" in header:
-                mime_type = "image/gif"
+    base64_image = body.get("image", "").strip()
+    target_color = body.get("color", "ffffff").strip().lower()
+    api_key = body.get("api_key", "").strip()
+    if not api_key:
+        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
 
-        # Helper function to call Brickognize Predict API
-        def call_brickognize(img_b64, m_type):
-            try:
-                raw_bytes = base64.b64decode(img_b64)
-                bound = f"Boundary-{uuid.uuid4().hex}"
-                body_parts = [
-                    f"--{bound}".encode('utf-8'),
-                    f'Content-Disposition: form-data; name="query_image"; filename="image.jpg"'.encode('utf-8'),
-                    f'Content-Type: {m_type}'.encode('utf-8'),
-                    b'',
-                    raw_bytes,
-                    f"--{bound}--".encode('utf-8'),
-                    b''
-                ]
-                req_bytes = b'\r\n'.join(body_parts)
-                req = urllib.request.Request(
-                    "https://api.brickognize.com/predict/",
-                    data=req_bytes,
-                    headers={
-                        'Content-Type': f'multipart/form-data; boundary={bound}',
-                        'Accept': 'application/json',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-                    },
-                    method='POST'
-                )
-                with urllib.request.urlopen(req, timeout=15) as response:
-                    res = json.loads(response.read().decode('utf-8'))
-                return res.get("items", [])
-            except urllib.error.HTTPError as he:
-                print(f"Brickognize API HTTPError {he.code}: {he.read().decode('utf-8', errors='ignore')}")
-                return []
-            except Exception as ex:
-                import traceback
-                print("Brickognize API call failed exception:")
-                traceback.print_exc()
-                return []
-
-        # Try Gemini Vision if API key is provided
-        gemini_items = []
-        if api_key:
-            print("[Scanner] Calling Gemini Flash Vision engine...")
-            gemini_items = call_gemini_vision(image_data, mime_type, api_key)
-            print(f"[Scanner] Gemini matched {len(gemini_items)} candidate figures.")
-
-        # Directly call Brickognize predict API on the uploaded image
-        print("[Scanner] Calling Brickognize parts engine...")
-        brick_items = call_brickognize(image_data, mime_type)
-        
-        # Combine predictions: Gemini results take priority!
-        combined_items = gemini_items + brick_items
-        matches = self.lookup_candidates(conn, combined_items)
-        
-        # Translate names for top matches
-        top_matches = matches[:3]
-        for fig in top_matches:
-            fig["name"] = translate_to_zh(fig["name"])
-
-        # If matches are found, return them directly!
-        if top_matches:
-            ai_desc = f"Match confirmed with {(top_matches[0].get('score', 0.9)*100):.1f}% confidence."
-            self.send_json_response({
-                "description": ai_desc,
-                "results": top_matches
-            })
-            return
-
-        # Fallback to color distance if still no matches found
-        print("Brickognize returned no matches. Falling back to traditional color distance match...")
-        params = {"color": [target_color], "query": [""]}
-        color_matches = self.api_scan(conn, params)
-        
+    if not base64_image:
         self.send_json_response({
-            "description": "⚠️ No exact match found. Recommending figures with similar dominant colors.",
-            "results": color_matches
-        })
+            "error": "INVALID_IMAGE",
+            "message": "无有效的图像数据。"
+        }, status=400)
+        return
 
-    def api_scan_candidates(self, conn, body):
-        brick_items = body.get("items", [])
-        target_color = body.get("color", "ffffff").strip().lower()
-        
-        recognized_parts = []
-        for item in brick_items:
-            itype = str(item.get("type", "")).strip().lower()
-            item_id = str(item.get("id", "")).strip()
-            if itype not in ("fig", "minifig") and not item_id.startswith("fig-"):
-                recognized_parts.append({
-                    "part_num": item_id,
-                    "name": translate_to_zh(item.get("name", "未知零件")),
-                    "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/parts/elements/{item_id}.jpg",
-                    "score": item.get("score", 0.9),
-                    "external_sites": item.get("external_sites", [])
-                })
-                
-        if recognized_parts:
-            part_candidates = set()
-            for part in recognized_parts:
-                part_id = part["part_num"].strip().lower()
-                part_candidates.add(part_id)
-                
-                for ext in part.get("external_sites", []):
-                    url = ext.get("url", "")
-                    if "bricklink.com/" in url and ("?P=" in url or "&P=" in url or "?p=" in url or "&p=" in url):
-                        import re
-                        match = re.search(r'[?&][Pp]=([^&#]+)', url)
-                        if match:
-                            part_candidates.add(match.group(1).strip().lower())
-                    if "rebrickable.com/parts/" in url:
-                        parts = url.split("parts/")
-                        if len(parts) > 1:
-                            sub = parts[1].split("/")[0]
-                            if sub:
-                                part_candidates.add(sub.strip().lower())
-            
-            cursor = conn.cursor()
-            clean_candidates = [c.replace("part-", "") for c in part_candidates]
-            all_candidates = list(part_candidates) + clean_candidates
-            all_candidates = list(set(all_candidates))
-            
-            placeholders = ", ".join("?" for _ in all_candidates)
-            
-            sql_figs_by_part = f"""
-                SELECT m.minifig_num, m.name, m.num_parts, COUNT(DISTINCT ip.part_num) as match_count
-                FROM inventory_parts ip
-                JOIN inventories i ON ip.inventory_id = i.id
-                JOIN minifigs m ON i.set_num = m.minifig_num
-                WHERE (LOWER(ip.part_num) IN ({placeholders}))
-                  AND m.num_parts BETWEEN 3 AND 12
-                  AND LOWER(m.name) NOT LIKE '%keychain%'
-                  AND LOWER(m.name) NOT LIKE '%key chain%'
-                  AND LOWER(m.name) NOT LIKE '%magnet%'
-                  AND LOWER(m.name) NOT LIKE '%watch%'
-                  AND LOWER(m.name) NOT LIKE '%clock%'
-                  AND LOWER(m.name) NOT LIKE '%book%'
-                  AND LOWER(m.name) NOT LIKE '%sticker%'
-                  AND LOWER(m.name) NOT LIKE '%card%'
-                  AND LOWER(m.name) NOT LIKE '%giant%'
-                  AND LOWER(m.name) NOT LIKE '%maxifigure%'
-                  AND LOWER(m.name) NOT LIKE '%brick-built%'
-                  AND LOWER(m.name) NOT LIKE '%pen%'
-                  AND LOWER(m.name) NOT LIKE '%torch%'
-                  AND LOWER(m.name) NOT LIKE '%light%'
-                  AND LOWER(m.name) NOT LIKE '%plush%'
-                  AND LOWER(m.name) NOT LIKE '%notebook%'
-                  AND LOWER(m.name) NOT LIKE '%tag%'
-                  AND LOWER(m.name) NOT LIKE '%bag%'
-                  AND LOWER(m.name) NOT LIKE '%frame%'
-                  AND LOWER(m.name) NOT LIKE '%display%'
-                  AND LOWER(m.name) NOT LIKE '%scale%'
-                GROUP BY m.minifig_num
-                ORDER BY match_count DESC, m.num_parts ASC
-                LIMIT 24
-            """
-            cursor.execute(sql_figs_by_part, all_candidates)
-            rows = cursor.fetchall()
-            
-            shared_figs = []
-            for row in rows:
-                fig_num = row["minifig_num"]
-                official_id_val = MINIFIG_MAPPINGS.get(fig_num, fig_num)
-                
-                shared_figs.append({
-                    "minifig_num": fig_num,
-                    "name": translate_to_zh(row["name"]),
-                    "num_parts": row["num_parts"],
-                    "img_url": f"https://cdn.rebrickable.com/media/sets/{fig_num}.jpg",
-                    "official_id": official_id_val,
-                    "match_count": row["match_count"]
-                })
-                
-            part_names = [p["name"] for p in recognized_parts]
-            joined_names = " + ".join(part_names[:3])
-            ai_desc = f"智能识别到组合特征件：[{joined_names}]。已为您优先推荐匹配度最高（包含多项特征）的乐高人仔。"
-            
-            self.send_json_response({
-                "type": "part",
-                "part": recognized_parts[0],
-                "description": ai_desc,
-                "results": shared_figs
-            })
+    # Extract mime type and raw base64 data
+    mime_type = "image/jpeg"
+    image_data = base64_image
+    if "," in base64_image:
+        header, image_data = base64_image.split(",", 1)
+        if "image/png" in header:
+            mime_type = "image/png"
+        elif "image/webp" in header:
+            mime_type = "image/webp"
+        elif "image/gif" in header:
+            mime_type = "image/gif"
+
+    response_cache_key = hashlib.sha256(f"{target_color}:{image_data}".encode("utf-8")).hexdigest()
+    cached_response = SCAN_IMAGE_RESPONSE_CACHE.get(response_cache_key)
+    if cached_response:
+        expires_at, payload = cached_response
+        if expires_at >= time.time():
+            SCAN_IMAGE_RESPONSE_CACHE.move_to_end(response_cache_key)
+            self.send_json_response(payload)
             return
-            
-        matches = self.lookup_candidates(conn, brick_items)
-        
-        top_matches = matches[:3]
-        for fig in top_matches:
-            fig["name"] = translate_to_zh(fig["name"])
-            
-        if top_matches:
-            ai_desc = f"Match confirmed with {(top_matches[0].get('score', 0.9)*100):.1f}% confidence."
-            self.send_json_response({
-                "type": "minifig",
-                "description": ai_desc,
-                "results": top_matches
-            })
-            return
-            
-        # Fallback to color distance if still no matches found
-        print("Brickognize returned no matches. Falling back to traditional color distance match...")
-        params = {"color": [target_color], "query": [""]}
-        color_matches = self.api_scan(conn, params)
-        
-        self.send_json_response({
+        SCAN_IMAGE_RESPONSE_CACHE.pop(response_cache_key, None)
+
+    def finish_scan(payload):
+        SCAN_IMAGE_RESPONSE_CACHE[response_cache_key] = (
+            time.time() + SCAN_IMAGE_RESPONSE_CACHE_TTL_SECONDS,
+            payload
+        )
+        SCAN_IMAGE_RESPONSE_CACHE.move_to_end(response_cache_key)
+        while len(SCAN_IMAGE_RESPONSE_CACHE) > SCAN_IMAGE_RESPONSE_CACHE_MAX_ITEMS:
+            SCAN_IMAGE_RESPONSE_CACHE.popitem(last=False)
+        self.send_json_response(payload)
+
+    def get_brickognize_cache(cache_key):
+        cached = BRICKOGNIZE_CACHE.get(cache_key)
+        if not cached:
+            return None
+        expires_at, payload = cached
+        if expires_at < time.time():
+            BRICKOGNIZE_CACHE.pop(cache_key, None)
+            return None
+        BRICKOGNIZE_CACHE.move_to_end(cache_key)
+        return payload
+
+    def set_brickognize_cache(cache_key, payload):
+        BRICKOGNIZE_CACHE[cache_key] = (time.time() + BRICKOGNIZE_CACHE_TTL_SECONDS, payload)
+        BRICKOGNIZE_CACHE.move_to_end(cache_key)
+        while len(BRICKOGNIZE_CACHE) > BRICKOGNIZE_CACHE_MAX_ITEMS:
+            BRICKOGNIZE_CACHE.popitem(last=False)
+
+    # Brickognize expects multipart/form-data with a query_image file field.
+    def call_brickognize(img_b64, m_type):
+        cache_key = hashlib.sha256(img_b64.encode("utf-8")).hexdigest()
+        cached_items = get_brickognize_cache(cache_key)
+        if cached_items is not None:
+            print("[Scanner] Brickognize cache hit.")
+            return cached_items
+
+        try:
+            raw_bytes = base64.b64decode(img_b64)
+            bound = f"Boundary-{uuid.uuid4().hex}"
+            body_parts = [
+                f"--{bound}".encode('utf-8'),
+                f'Content-Disposition: form-data; name="query_image"; filename="image.jpg"'.encode('utf-8'),
+                f'Content-Type: {m_type}'.encode('utf-8'),
+                b'',
+                raw_bytes,
+                f"--{bound}--".encode('utf-8'),
+                b''
+            ]
+            req_bytes = b'\r\n'.join(body_parts)
+            req = urllib.request.Request(
+                "https://api.brickognize.com/predict/",
+                data=req_bytes,
+                headers={
+                    'Content-Type': f'multipart/form-data; boundary={bound}',
+                    'Accept': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+                },
+                method='POST'
+            )
+            ssl_context = ssl._create_unverified_context()
+            with urllib.request.urlopen(req, timeout=10, context=ssl_context) as response:
+                res = json.loads(response.read().decode('utf-8'))
+            items = res.get("items", [])[:12]
+            set_brickognize_cache(cache_key, items)
+            return items
+        except urllib.error.HTTPError as he:
+            print(f"Brickognize API HTTPError {he.code}: {he.read().decode('utf-8', errors='ignore')}")
+            return []
+        except Exception as ex:
+            import traceback
+            print("Brickognize API call failed exception:")
+            traceback.print_exc()
+            return []
+
+    print("[Scanner] Calling Brickognize recognition engine...")
+    brick_items = call_brickognize(image_data, mime_type)
+    best_brick_score = 0
+    if brick_items:
+        try:
+            best_brick_score = max(float(item.get("score", 0) or 0) for item in brick_items)
+        except Exception:
+            best_brick_score = 0
+
+    gemini_items = []
+    if api_key and best_brick_score < 0.86:
+        print("[Scanner] Brickognize confidence is low; calling Gemini validator...")
+        gemini_items = call_gemini_vision(image_data, mime_type, api_key)
+        print(f"[Scanner] Gemini matched {len(gemini_items)} candidate figures.")
+
+    combined_items = brick_items + gemini_items
+    matches = self.lookup_candidates(conn, combined_items)
+
+    # Translate names for top matches
+    top_matches = matches[:3]
+    for fig in top_matches:
+        fig["name"] = translate_to_zh(fig["name"])
+
+    # If matches are found, return them directly!
+    if top_matches:
+        ai_desc = f"Match confirmed with {(top_matches[0].get('score', 0.9)*100):.1f}% confidence."
+        finish_scan({
             "type": "minifig",
-            "description": "⚠️ No exact match found. Recommending figures with similar dominant colors.",
-            "results": color_matches
+            "description": ai_desc,
+            "results": top_matches,
+            "source": "brickognize" if brick_items else "gemini"
         })
+        return
 
-    def api_prices(self, conn, body):
-        ids = body.get("ids", [])
-        results = {}
-        
-        # Parallel fetch with ThreadPoolExecutor
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_id = {}
-            for idx in ids:
-                clean_id = resolve_minifig_id(idx, conn=conn)
-                resolved_official_id = MINIFIG_MAPPINGS.get(clean_id, clean_id)
-                norm_id = resolved_official_id.strip().split("-")[0]
-                
-                # Check memory cache first to keep it super fast
-                if norm_id in PRICE_CACHE:
-                    results[idx] = {
-                        "new_price_usd": PRICE_CACHE[norm_id][0],
-                        "used_price_usd": PRICE_CACHE[norm_id][1]
-                    }
-                else:
-                    future = executor.submit(get_minifig_prices, resolved_official_id)
-                    future_to_id[future] = idx
-                    
-            for future in concurrent.futures.as_completed(future_to_id):
-                idx = future_to_id[future]
-                try:
-                    new_pr, used_pr = future.result()
-                    results[idx] = {
-                        "new_price_usd": new_pr,
-                        "used_price_usd": used_pr
-                    }
-                except Exception:
-                    results[idx] = {
-                        "new_price_usd": None,
-                        "used_price_usd": None
-                    }
-                    
-        self.send_json_response({"prices": results})
+    # Fallback to color distance if still no matches found
+    print("Brickognize returned no matches. Falling back to traditional color distance match...")
+    params = {"color": [target_color], "query": [""]}
+    color_matches = self.api_scan(conn, params)
 
-    def api_minifig_details(self, conn, params):
-        minifig_id = params.get("id", [""])[0].strip()
-        if not minifig_id:
-            self.send_json_response({"error": "Missing 'id' parameter"}, status=400)
-            return None
+    finish_scan({
+        "type": "minifig",
+        "description": "⚠️ No exact match found. Recommending figures with similar dominant colors.",
+        "results": color_matches,
+        "source": "color-fallback"
+    })
 
-        cursor = conn.cursor()
-        
-        minifig_id = resolve_minifig_id(minifig_id)
-        norm_id = minifig_id.lower()
-        norm_id_suffix = f"{norm_id}-1" if "-" not in norm_id else norm_id
+def api_scan_candidates(self, conn, body):
+    brick_items = body.get("items", [])
+    target_color = body.get("color", "ffffff").strip().lower()
 
-        sql_minifig = """
-            SELECT minifig_num, name, num_parts 
-            FROM minifigs 
-            WHERE minifig_num = ? OR minifig_num = ?
-        """
-        cursor.execute(sql_minifig, (norm_id, norm_id_suffix))
-        minifig_row = cursor.fetchone()
-        
-        if not minifig_row:
-            param_name = params.get("name", [""])[0].strip()
-            param_img = params.get("img_url", [""])[0].strip()
-            if param_name:
-                matched_row, match_score = fuzzy_match_minifig(conn, param_name)
-                if matched_row and match_score >= 1.0:
-                    minifig_row = matched_row
-                    minifig_id = matched_row["minifig_num"]
-                    norm_id = minifig_id.lower()
-                    norm_id_suffix = f"{norm_id}-1" if "-" not in norm_id else norm_id
+    recognized_parts = []
+    for item in brick_items:
+        itype = str(item.get("type", "")).strip().lower()
+        item_id = str(item.get("id", "")).strip()
+        if itype not in ("fig", "minifig") and not item_id.startswith("fig-"):
+            recognized_parts.append({
+                "part_num": item_id,
+                "name": translate_to_zh(item.get("name", "未知零件")),
+                "img_url": item.get("img_url") or f"https://cdn.rebrickable.com/media/parts/elements/{item_id}.jpg",
+                "score": item.get("score", 0.9),
+                "external_sites": item.get("external_sites", [])
+            })
 
-        if not minifig_row:
-            param_name = params.get("name", [""])[0].strip()
-            param_img = params.get("img_url", [""])[0].strip()
-            if param_img.lower() in ("undefined", "null", ""):
-                param_img = ""
-            if param_name:
-                official_id_val = MINIFIG_MAPPINGS.get(minifig_id, minifig_id)
-                minifig_data = {
-                    "minifig_num": minifig_id,
-                    "name": translate_to_zh(param_name),
-                    "num_parts": 4,
-                    "img_url": param_img or f"https://cdn.rebrickable.com/media/sets/{minifig_id}.jpg",
-                    "official_id": official_id_val
-                }
-                parts_list = [
-                    {
-                        "part_num": "973",
-                        "color_id": 0,
-                        "quantity": 1,
-                        "part_name": "Minifigure Torso & Arms (Printed)",
-                        "color_name": "Official Multicolored",
-                        "color_rgb": "FFFFFF",
-                        "img_url": "",
-                        "part_cat_id": 60,
-                        "element_id": "973"
-                    },
-                    {
-                        "part_num": "970",
-                        "color_id": 0,
-                        "quantity": 1,
-                        "part_name": "Minifigure Legs & Hips Assembly",
-                        "color_name": "Official Standard",
-                        "color_rgb": "000000",
-                        "img_url": "",
-                        "part_cat_id": 61,
-                        "element_id": "970"
-                    },
-                    {
-                        "part_num": "3626",
-                        "color_id": 0,
-                        "quantity": 1,
-                        "part_name": "Minifigure Head (Printed Face)",
-                        "color_name": "Yellow / Flesh",
-                        "color_rgb": "F2CD37",
-                        "img_url": "",
-                        "part_cat_id": 59,
-                        "element_id": "3626"
-                    },
-                    {
-                        "part_num": "accessory",
-                        "color_id": 0,
-                        "quantity": 1,
-                        "part_name": "Minifigure Hair / Helmet / Accessory",
-                        "color_name": "Assorted Colors",
-                        "color_rgb": "333333",
-                        "img_url": "",
-                        "part_cat_id": 65,
-                        "element_id": "accessory"
-                    }
-                ]
-                return {
-                    "minifig": minifig_data,
-                    "parts": parts_list,
-                    "sets": [],
-                    "weapons": [],
-                    "pricing": {"new_price_usd": None, "used_price_usd": None}
-                }
-            else:
-                self.send_json_response({"error": "Minifigure not found"}, status=404)
-                return None
-            
-        minifig_data = dict(minifig_row)
-        eng_name = minifig_data["name"]
-        minifig_data["name"] = translate_to_zh(eng_name)
-        minifig_num = minifig_data["minifig_num"]
-        if minifig_num in MINIFIG_MAPPINGS:
-            minifig_data["official_id"] = MINIFIG_MAPPINGS[minifig_num]
-        else:
-            resolved_official_id = resolve_name_to_official_id_via_brickset(eng_name)
-            if resolved_official_id:
-                try:
-                    write_conn = sqlite3.connect(DB_PATH)
-                    write_cursor = write_conn.cursor()
-                    write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (minifig_num, resolved_official_id))
-                    write_conn.commit()
-                    write_conn.close()
-                    MINIFIG_MAPPINGS[minifig_num] = resolved_official_id
-                    REVERSE_MINIFIG_MAPPINGS[resolved_official_id.lower().strip()] = minifig_num
-                    minifig_data["official_id"] = resolved_official_id
-                except Exception as write_err:
-                    print(f"[Resolve Error] Failed to write resolved mapping: {write_err}")
-                    minifig_data["official_id"] = minifig_num
-            else:
-                minifig_data["official_id"] = minifig_num
-        
-        # For database minifigures, always ignore client-side provided image URL (which could be a scanned part image like a helmet, or some mismatched preview)
-        # and use the high-resolution official assembled set image CDN URL.
-        minifig_data["img_url"] = f"https://cdn.rebrickable.com/media/sets/{minifig_num}.jpg"
+    if recognized_parts:
+        part_candidates = set()
+        for part in recognized_parts:
+            part_id = part["part_num"].strip().lower()
+            part_candidates.add(part_id)
 
-        # Get parts list
-        cursor.execute("SELECT id FROM inventories WHERE set_num = ?", (minifig_num,))
-        inventory_row = cursor.fetchone()
-        
-        parts_list = []
-        if inventory_row:
-            inv_id = inventory_row["id"]
-            
-            sql_parts = """
-                SELECT ip.part_num, ip.color_id, ip.quantity, p.name AS part_name, 
-                       c.name AS color_name, c.rgb AS color_rgb, ip.img_url, p.part_cat_id,
-                       (SELECT element_id FROM elements WHERE part_num = ip.part_num AND color_id = ip.color_id LIMIT 1) AS element_id
-                FROM inventory_parts ip
-                JOIN parts p ON ip.part_num = p.part_num
-                JOIN colors c ON ip.color_id = c.id
-                WHERE ip.inventory_id = ?
-            """
-            cursor.execute(sql_parts, (inv_id,))
-            for row in cursor.fetchall():
-                row_dict = dict(row)
-                row_dict["part_name"] = translate_to_zh(row_dict["part_name"])
-                row_dict["color_name"] = translate_to_zh(row_dict["color_name"])
-                parts_list.append(row_dict)
-
-        # Get Sets containing minifig
-        sql_sets = """
-            SELECT s.set_num, s.name AS set_name, s.year, s.theme_id, s.num_parts, s.img_url, t.name AS theme_name
-            FROM inventory_minifigs im
-            JOIN inventories i ON im.inventory_id = i.id
-            JOIN sets s ON i.set_num = s.set_num
-            JOIN themes t ON s.theme_id = t.id
-            WHERE im.minifig_num = ?
-        """
-        cursor.execute(sql_sets, (minifig_num,))
-        sets_list = []
-        for row in cursor.fetchall():
-            row_dict = dict(row)
-            row_dict["set_name"] = translate_to_zh(row_dict["set_name"])
-            row_dict["theme_name"] = translate_to_zh(row_dict["theme_name"])
-            sets_list.append(row_dict)
-
-        # Get compatible weapons list (from co-occurring sets)
-        sql_weapons = """
-            SELECT DISTINCT ip.part_num, ip.color_id, p.name AS part_name, c.name AS color_name, c.rgb AS color_rgb, ip.img_url, p.part_cat_id
-            FROM inventory_minifigs im
-            JOIN inventories i_set ON im.inventory_id = i_set.id
-            JOIN inventory_parts ip ON i_set.id = ip.inventory_id
-            JOIN parts p ON ip.part_num = p.part_num
-            JOIN colors c ON ip.color_id = c.id
-            WHERE im.minifig_num = ? 
-              AND (p.part_cat_id = 73 OR p.name LIKE '%Weapon%' OR p.name LIKE '%Sword%' OR p.name LIKE '%Blaster%' OR p.name LIKE '%Lightsaber%' OR p.name LIKE '%Shield%' OR p.name LIKE '%Bow%' OR p.name LIKE '%Dagger%' OR p.name LIKE '%Axe%' OR p.name LIKE '%Spear%' OR p.name LIKE '%Gun%' OR p.name LIKE '%Pistol%' OR p.name LIKE '%Rifle%')
-              AND LOWER(p.name) NOT LIKE '%tile%'
-              AND LOWER(p.name) NOT LIKE '%book%'
-              AND LOWER(p.name) NOT LIKE '%sticker%'
-              AND LOWER(p.name) NOT LIKE '%magnet%'
-              AND LOWER(p.name) NOT LIKE '%keychain%'
-              AND LOWER(p.name) NOT LIKE '%keyring%'
-              AND LOWER(p.name) NOT LIKE '%poster%'
-              AND LOWER(p.name) NOT LIKE '%card%'
-              AND LOWER(p.name) NOT LIKE '%wear%'
-            LIMIT 12
-        """
-        cursor.execute(sql_weapons, (minifig_num,))
-        weapons_list = []
-        for row in cursor.fetchall():
-            row_dict = dict(row)
-            row_dict["part_name"] = translate_to_zh(row_dict["part_name"])
-            row_dict["color_name"] = translate_to_zh(row_dict["color_name"])
-            weapons_list.append(row_dict)
-
-        # Fetch pricing details
-        target_id = minifig_data.get("official_id") or minifig_num
-        new_price, used_price = get_minifig_prices(target_id)
-        pricing = {
-            "new_price_usd": new_price,
-            "used_price_usd": used_price
-        }
-
-        return {
-            "minifig": minifig_data,
-            "parts": parts_list,
-            "sets": sets_list,
-            "weapons": weapons_list,
-            "pricing": pricing
-        }
-
-    def api_resolve_image(self, conn, params):
-        minifig_id = params.get("id", [""])[0].strip()
-        if not minifig_id:
-            self.send_json_response({"error": "Missing 'id' parameter"}, status=400)
-            return None
-            
-        cursor = conn.cursor()
-        # Check if already resolved
-        if minifig_id in MINIFIG_MAPPINGS:
-            official_id = MINIFIG_MAPPINGS[minifig_id]
-            if official_id != minifig_id:
-                img_url = f"https://img.bricklink.com/ItemImage/MN/0/{official_id.lower()}.png"
-                return {"img_url": img_url, "official_id": official_id}
-                
-        # If not resolved yet, fetch name from database and resolve via Brickset
-        cursor.execute("SELECT name FROM minifigs WHERE minifig_num = ?", (minifig_id,))
-        fig_row = cursor.fetchone()
-        if fig_row:
-            eng_name = fig_row["name"]
-            resolved_official_id = resolve_name_to_official_id_via_brickset(eng_name)
-            if resolved_official_id:
-                try:
-                    write_conn = sqlite3.connect(DB_PATH)
-                    write_cursor = write_conn.cursor()
-                    write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (minifig_id, resolved_official_id))
-                    write_conn.commit()
-                    write_conn.close()
-                    MINIFIG_MAPPINGS[minifig_id] = resolved_official_id
-                    REVERSE_MINIFIG_MAPPINGS[resolved_official_id.lower().strip()] = minifig_id
-                    img_url = f"https://img.bricklink.com/ItemImage/MN/0/{resolved_official_id.lower()}.png"
-                    return {"img_url": img_url, "official_id": resolved_official_id}
-                except Exception as write_err:
-                    print(f"[Resolve Error] Failed to write resolved mapping: {write_err}")
-                    
-        return {"error": "Could not resolve image"}
-
-    def api_shared_part(self, conn, params):
-        part_num = params.get("part_num", [""])[0].strip()
-        color_id = params.get("color_id", [""])[0].strip()
-        exclude_id = params.get("exclude", [""])[0].strip()
-
-        if not part_num or not color_id:
-            self.send_json_response({"error": "Missing 'part_num' or 'color_id'"}, status=400)
-            return None
+            for ext in part.get("external_sites", []):
+                url = ext.get("url", "")
+                if "bricklink.com/" in url and ("?P=" in url or "&P=" in url or "?p=" in url or "&p=" in url):
+                    import re
+                    match = re.search(r'[?&][Pp]=([^&#]+)', url)
+                    if match:
+                        part_candidates.add(match.group(1).strip().lower())
+                if "rebrickable.com/parts/" in url:
+                    parts = url.split("parts/")
+                    if len(parts) > 1:
+                        sub = parts[1].split("/")[0]
+                        if sub:
+                            part_candidates.add(sub.strip().lower())
 
         cursor = conn.cursor()
-        
-        # Exclude non-minifigures in shared parts check as well!
-        sql_shared = """
-            SELECT DISTINCT m.minifig_num, m.name
+        clean_candidates = [c.replace("part-", "") for c in part_candidates]
+        all_candidates = list(part_candidates) + clean_candidates
+        all_candidates = list(set(all_candidates))
+
+        placeholders = ", ".join("?" for _ in all_candidates)
+
+        sql_figs_by_part = f"""
+            SELECT m.minifig_num, m.name, m.num_parts, COUNT(DISTINCT ip.part_num) as match_count
             FROM inventory_parts ip
             JOIN inventories i ON ip.inventory_id = i.id
             JOIN minifigs m ON i.set_num = m.minifig_num
-            WHERE ip.part_num = ? AND ip.color_id = ? AND LOWER(m.minifig_num) != ?
+            WHERE (LOWER(ip.part_num) IN ({placeholders}))
               AND m.num_parts BETWEEN 3 AND 12
               AND LOWER(m.name) NOT LIKE '%keychain%'
               AND LOWER(m.name) NOT LIKE '%key chain%'
@@ -2068,64 +1736,464 @@ def call_gemini_vision(img_b64, m_type, api_key):
               AND LOWER(m.name) NOT LIKE '%frame%'
               AND LOWER(m.name) NOT LIKE '%display%'
               AND LOWER(m.name) NOT LIKE '%scale%'
-            LIMIT 10
+            GROUP BY m.minifig_num
+            ORDER BY match_count DESC, m.num_parts ASC
+            LIMIT 24
         """
-        cursor.execute(sql_shared, (part_num, int(color_id), exclude_id.lower()))
+        cursor.execute(sql_figs_by_part, all_candidates)
         rows = cursor.fetchall()
-        
-        results = []
+
+        shared_figs = []
         for row in rows:
-            row_dict = dict(row)
-            row_dict["name"] = translate_to_zh(row_dict["name"])
-            row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
-            row_dict["img_url"] = f"https://cdn.rebrickable.com/media/sets/{row_dict['minifig_num']}.jpg"
-            results.append(row_dict)
-        return results
+            fig_num = row["minifig_num"]
+            official_id_val = MINIFIG_MAPPINGS.get(fig_num, fig_num)
 
-    def api_themes(self, conn):
-        cursor = conn.cursor()
-        sql = """
-            SELECT t.name, COUNT(DISTINCT m.minifig_num) as cnt
-            FROM inventory_minifigs im
-            JOIN inventories i ON im.inventory_id = i.id
-            JOIN sets s ON i.set_num = s.set_num
-            JOIN themes t ON s.theme_id = t.id
-            JOIN minifigs m ON im.minifig_num = m.minifig_num
-            GROUP BY t.name
-            HAVING cnt >= 10
-            ORDER BY cnt DESC
-        """
-        cursor.execute(sql)
-        themes = []
-        for row in cursor.fetchall():
-            name_en = row["name"]
-            name_zh = THEME_ZH_MAP.get(name_en, name_en)
-            themes.append({
-                "name": name_en,
-                "display_name": name_zh,
-                "count": row["cnt"]
+            shared_figs.append({
+                "minifig_num": fig_num,
+                "name": translate_to_zh(row["name"]),
+                "num_parts": row["num_parts"],
+                "img_url": f"https://cdn.rebrickable.com/media/sets/{fig_num}.jpg",
+                "official_id": official_id_val,
+                "match_count": row["match_count"]
             })
-        return themes
 
+        part_names = [p["name"] for p in recognized_parts]
+        joined_names = " + ".join(part_names[:3])
+        ai_desc = f"智能识别到组合特征件：[{joined_names}]。已为您优先推荐匹配度最高（包含多项特征）的乐高人仔。"
 
-    def send_json_response(self, data, status=200):
-        payload = json.dumps(data, ensure_ascii=False).encode('utf-8')
-        accepts_gzip = "gzip" in self.headers.get("Accept-Encoding", "")
-        if accepts_gzip and len(payload) > 1024:
-            payload = gzip.compress(payload, compresslevel=5)
-            use_gzip = True
+        self.send_json_response({
+            "type": "part",
+            "part": recognized_parts[0],
+            "description": ai_desc,
+            "results": shared_figs
+        })
+        return
+
+    matches = self.lookup_candidates(conn, brick_items)
+
+    top_matches = matches[:3]
+    for fig in top_matches:
+        fig["name"] = translate_to_zh(fig["name"])
+
+    if top_matches:
+        ai_desc = f"Match confirmed with {(top_matches[0].get('score', 0.9)*100):.1f}% confidence."
+        self.send_json_response({
+            "type": "minifig",
+            "description": ai_desc,
+            "results": top_matches
+        })
+        return
+
+    # Fallback to color distance if still no matches found
+    print("Brickognize returned no matches. Falling back to traditional color distance match...")
+    params = {"color": [target_color], "query": [""]}
+    color_matches = self.api_scan(conn, params)
+
+    self.send_json_response({
+        "type": "minifig",
+        "description": "⚠️ No exact match found. Recommending figures with similar dominant colors.",
+        "results": color_matches
+    })
+
+def api_prices(self, conn, body):
+    ids = body.get("ids", [])
+    results = {}
+
+    # Parallel fetch with ThreadPoolExecutor
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_id = {}
+        for idx in ids:
+            clean_id = resolve_minifig_id(idx, conn=conn)
+            resolved_official_id = MINIFIG_MAPPINGS.get(clean_id, clean_id)
+            norm_id = resolved_official_id.strip().split("-")[0]
+
+            # Check memory cache first to keep it super fast
+            if norm_id in PRICE_CACHE:
+                results[idx] = {
+                    "new_price_usd": PRICE_CACHE[norm_id][0],
+                    "used_price_usd": PRICE_CACHE[norm_id][1]
+                }
+            else:
+                future = executor.submit(get_minifig_prices, resolved_official_id)
+                future_to_id[future] = idx
+
+        for future in concurrent.futures.as_completed(future_to_id):
+            idx = future_to_id[future]
+            try:
+                new_pr, used_pr = future.result()
+                results[idx] = {
+                    "new_price_usd": new_pr,
+                    "used_price_usd": used_pr
+                }
+            except Exception:
+                results[idx] = {
+                    "new_price_usd": None,
+                    "used_price_usd": None
+                }
+
+    self.send_json_response({"prices": results})
+
+def api_minifig_details(self, conn, params):
+    minifig_id = params.get("id", [""])[0].strip()
+    if not minifig_id:
+        self.send_json_response({"error": "Missing 'id' parameter"}, status=400)
+        return None
+
+    cursor = conn.cursor()
+
+    minifig_id = resolve_minifig_id(minifig_id)
+    norm_id = minifig_id.lower()
+    norm_id_suffix = f"{norm_id}-1" if "-" not in norm_id else norm_id
+
+    sql_minifig = """
+        SELECT minifig_num, name, num_parts
+        FROM minifigs
+        WHERE minifig_num = ? OR minifig_num = ?
+    """
+    cursor.execute(sql_minifig, (norm_id, norm_id_suffix))
+    minifig_row = cursor.fetchone()
+
+    if not minifig_row:
+        param_name = params.get("name", [""])[0].strip()
+        param_img = params.get("img_url", [""])[0].strip()
+        if param_name:
+            matched_row, match_score = fuzzy_match_minifig(conn, param_name)
+            if matched_row and match_score >= 1.0:
+                minifig_row = matched_row
+                minifig_id = matched_row["minifig_num"]
+                norm_id = minifig_id.lower()
+                norm_id_suffix = f"{norm_id}-1" if "-" not in norm_id else norm_id
+
+    if not minifig_row:
+        param_name = params.get("name", [""])[0].strip()
+        param_img = params.get("img_url", [""])[0].strip()
+        if param_img.lower() in ("undefined", "null", ""):
+            param_img = ""
+        if param_name:
+            official_id_val = MINIFIG_MAPPINGS.get(minifig_id, minifig_id)
+            minifig_data = {
+                "minifig_num": minifig_id,
+                "name": translate_to_zh(param_name),
+                "num_parts": 4,
+                "img_url": param_img or f"https://cdn.rebrickable.com/media/sets/{minifig_id}.jpg",
+                "official_id": official_id_val
+            }
+            parts_list = [
+                {
+                    "part_num": "973",
+                    "color_id": 0,
+                    "quantity": 1,
+                    "part_name": "Minifigure Torso & Arms (Printed)",
+                    "color_name": "Official Multicolored",
+                    "color_rgb": "FFFFFF",
+                    "img_url": "",
+                    "part_cat_id": 60,
+                    "element_id": "973"
+                },
+                {
+                    "part_num": "970",
+                    "color_id": 0,
+                    "quantity": 1,
+                    "part_name": "Minifigure Legs & Hips Assembly",
+                    "color_name": "Official Standard",
+                    "color_rgb": "000000",
+                    "img_url": "",
+                    "part_cat_id": 61,
+                    "element_id": "970"
+                },
+                {
+                    "part_num": "3626",
+                    "color_id": 0,
+                    "quantity": 1,
+                    "part_name": "Minifigure Head (Printed Face)",
+                    "color_name": "Yellow / Flesh",
+                    "color_rgb": "F2CD37",
+                    "img_url": "",
+                    "part_cat_id": 59,
+                    "element_id": "3626"
+                },
+                {
+                    "part_num": "accessory",
+                    "color_id": 0,
+                    "quantity": 1,
+                    "part_name": "Minifigure Hair / Helmet / Accessory",
+                    "color_name": "Assorted Colors",
+                    "color_rgb": "333333",
+                    "img_url": "",
+                    "part_cat_id": 65,
+                    "element_id": "accessory"
+                }
+            ]
+            return {
+                "minifig": minifig_data,
+                "parts": parts_list,
+                "sets": [],
+                "weapons": [],
+                "pricing": {"new_price_usd": None, "used_price_usd": None}
+            }
         else:
-            use_gzip = False
+            self.send_json_response({"error": "Minifigure not found"}, status=404)
+            return None
 
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(payload)))
-        if use_gzip:
-            self.send_header("Content-Encoding", "gzip")
-            self.send_header("Vary", "Accept-Encoding")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(payload)
+    minifig_data = dict(minifig_row)
+    eng_name = minifig_data["name"]
+    minifig_data["name"] = translate_to_zh(eng_name)
+    minifig_num = minifig_data["minifig_num"]
+    if minifig_num in MINIFIG_MAPPINGS:
+        minifig_data["official_id"] = MINIFIG_MAPPINGS[minifig_num]
+    else:
+        resolved_official_id = resolve_name_to_official_id_via_brickset(eng_name)
+        if resolved_official_id:
+            try:
+                write_conn = sqlite3.connect(DB_PATH)
+                write_cursor = write_conn.cursor()
+                write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (minifig_num, resolved_official_id))
+                write_conn.commit()
+                write_conn.close()
+                MINIFIG_MAPPINGS[minifig_num] = resolved_official_id
+                REVERSE_MINIFIG_MAPPINGS[resolved_official_id.lower().strip()] = minifig_num
+                minifig_data["official_id"] = resolved_official_id
+            except Exception as write_err:
+                print(f"[Resolve Error] Failed to write resolved mapping: {write_err}")
+                minifig_data["official_id"] = minifig_num
+        else:
+            minifig_data["official_id"] = minifig_num
+
+    # For database minifigures, always ignore client-side provided image URL (which could be a scanned part image like a helmet, or some mismatched preview)
+    # and use the high-resolution official assembled set image CDN URL.
+    minifig_data["img_url"] = f"https://cdn.rebrickable.com/media/sets/{minifig_num}.jpg"
+
+    # Get parts list
+    cursor.execute("SELECT id FROM inventories WHERE set_num = ?", (minifig_num,))
+    inventory_row = cursor.fetchone()
+
+    parts_list = []
+    if inventory_row:
+        inv_id = inventory_row["id"]
+
+        sql_parts = """
+            SELECT ip.part_num, ip.color_id, ip.quantity, p.name AS part_name,
+                   c.name AS color_name, c.rgb AS color_rgb, ip.img_url, p.part_cat_id,
+                   (SELECT element_id FROM elements WHERE part_num = ip.part_num AND color_id = ip.color_id LIMIT 1) AS element_id
+            FROM inventory_parts ip
+            JOIN parts p ON ip.part_num = p.part_num
+            JOIN colors c ON ip.color_id = c.id
+            WHERE ip.inventory_id = ?
+        """
+        cursor.execute(sql_parts, (inv_id,))
+        for row in cursor.fetchall():
+            row_dict = dict(row)
+            row_dict["part_name"] = translate_to_zh(row_dict["part_name"])
+            row_dict["color_name"] = translate_to_zh(row_dict["color_name"])
+            parts_list.append(row_dict)
+
+    # Get Sets containing minifig
+    sql_sets = """
+        SELECT s.set_num, s.name AS set_name, s.year, s.theme_id, s.num_parts, s.img_url, t.name AS theme_name
+        FROM inventory_minifigs im
+        JOIN inventories i ON im.inventory_id = i.id
+        JOIN sets s ON i.set_num = s.set_num
+        JOIN themes t ON s.theme_id = t.id
+        WHERE im.minifig_num = ?
+    """
+    cursor.execute(sql_sets, (minifig_num,))
+    sets_list = []
+    for row in cursor.fetchall():
+        row_dict = dict(row)
+        row_dict["set_name"] = translate_to_zh(row_dict["set_name"])
+        row_dict["theme_name"] = translate_to_zh(row_dict["theme_name"])
+        sets_list.append(row_dict)
+
+    # Get compatible weapons list (from co-occurring sets)
+    sql_weapons = """
+        SELECT DISTINCT ip.part_num, ip.color_id, p.name AS part_name, c.name AS color_name, c.rgb AS color_rgb, ip.img_url, p.part_cat_id
+        FROM inventory_minifigs im
+        JOIN inventories i_set ON im.inventory_id = i_set.id
+        JOIN inventory_parts ip ON i_set.id = ip.inventory_id
+        JOIN parts p ON ip.part_num = p.part_num
+        JOIN colors c ON ip.color_id = c.id
+        WHERE im.minifig_num = ?
+          AND (p.part_cat_id = 73 OR p.name LIKE '%Weapon%' OR p.name LIKE '%Sword%' OR p.name LIKE '%Blaster%' OR p.name LIKE '%Lightsaber%' OR p.name LIKE '%Shield%' OR p.name LIKE '%Bow%' OR p.name LIKE '%Dagger%' OR p.name LIKE '%Axe%' OR p.name LIKE '%Spear%' OR p.name LIKE '%Gun%' OR p.name LIKE '%Pistol%' OR p.name LIKE '%Rifle%')
+          AND LOWER(p.name) NOT LIKE '%tile%'
+          AND LOWER(p.name) NOT LIKE '%book%'
+          AND LOWER(p.name) NOT LIKE '%sticker%'
+          AND LOWER(p.name) NOT LIKE '%magnet%'
+          AND LOWER(p.name) NOT LIKE '%keychain%'
+          AND LOWER(p.name) NOT LIKE '%keyring%'
+          AND LOWER(p.name) NOT LIKE '%poster%'
+          AND LOWER(p.name) NOT LIKE '%card%'
+          AND LOWER(p.name) NOT LIKE '%wear%'
+        LIMIT 12
+    """
+    cursor.execute(sql_weapons, (minifig_num,))
+    weapons_list = []
+    for row in cursor.fetchall():
+        row_dict = dict(row)
+        row_dict["part_name"] = translate_to_zh(row_dict["part_name"])
+        row_dict["color_name"] = translate_to_zh(row_dict["color_name"])
+        weapons_list.append(row_dict)
+
+    # Fetch pricing details
+    target_id = minifig_data.get("official_id") or minifig_num
+    new_price, used_price = get_minifig_prices(target_id)
+    pricing = {
+        "new_price_usd": new_price,
+        "used_price_usd": used_price
+    }
+
+    return {
+        "minifig": minifig_data,
+        "parts": parts_list,
+        "sets": sets_list,
+        "weapons": weapons_list,
+        "pricing": pricing
+    }
+
+def api_resolve_image(self, conn, params):
+    minifig_id = params.get("id", [""])[0].strip()
+    if not minifig_id:
+        self.send_json_response({"error": "Missing 'id' parameter"}, status=400)
+        return None
+
+    cursor = conn.cursor()
+    # Check if already resolved
+    if minifig_id in MINIFIG_MAPPINGS:
+        official_id = MINIFIG_MAPPINGS[minifig_id]
+        if official_id != minifig_id:
+            img_url = f"https://img.bricklink.com/ItemImage/MN/0/{official_id.lower()}.png"
+            return {"img_url": img_url, "official_id": official_id}
+
+    # If not resolved yet, fetch name from database and resolve via Brickset
+    cursor.execute("SELECT name FROM minifigs WHERE minifig_num = ?", (minifig_id,))
+    fig_row = cursor.fetchone()
+    if fig_row:
+        eng_name = fig_row["name"]
+        resolved_official_id = resolve_name_to_official_id_via_brickset(eng_name)
+        if resolved_official_id:
+            try:
+                write_conn = sqlite3.connect(DB_PATH)
+                write_cursor = write_conn.cursor()
+                write_cursor.execute("INSERT OR REPLACE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (minifig_id, resolved_official_id))
+                write_conn.commit()
+                write_conn.close()
+                MINIFIG_MAPPINGS[minifig_id] = resolved_official_id
+                REVERSE_MINIFIG_MAPPINGS[resolved_official_id.lower().strip()] = minifig_id
+                img_url = f"https://img.bricklink.com/ItemImage/MN/0/{resolved_official_id.lower()}.png"
+                return {"img_url": img_url, "official_id": resolved_official_id}
+            except Exception as write_err:
+                print(f"[Resolve Error] Failed to write resolved mapping: {write_err}")
+
+    return {"error": "Could not resolve image"}
+
+def api_shared_part(self, conn, params):
+    part_num = params.get("part_num", [""])[0].strip()
+    color_id = params.get("color_id", [""])[0].strip()
+    exclude_id = params.get("exclude", [""])[0].strip()
+
+    if not part_num or not color_id:
+        self.send_json_response({"error": "Missing 'part_num' or 'color_id'"}, status=400)
+        return None
+
+    cursor = conn.cursor()
+
+    # Exclude non-minifigures in shared parts check as well!
+    sql_shared = """
+        SELECT DISTINCT m.minifig_num, m.name
+        FROM inventory_parts ip
+        JOIN inventories i ON ip.inventory_id = i.id
+        JOIN minifigs m ON i.set_num = m.minifig_num
+        WHERE ip.part_num = ? AND ip.color_id = ? AND LOWER(m.minifig_num) != ?
+          AND m.num_parts BETWEEN 3 AND 12
+          AND LOWER(m.name) NOT LIKE '%keychain%'
+          AND LOWER(m.name) NOT LIKE '%key chain%'
+          AND LOWER(m.name) NOT LIKE '%magnet%'
+          AND LOWER(m.name) NOT LIKE '%watch%'
+          AND LOWER(m.name) NOT LIKE '%clock%'
+          AND LOWER(m.name) NOT LIKE '%book%'
+          AND LOWER(m.name) NOT LIKE '%sticker%'
+          AND LOWER(m.name) NOT LIKE '%card%'
+          AND LOWER(m.name) NOT LIKE '%giant%'
+          AND LOWER(m.name) NOT LIKE '%maxifigure%'
+          AND LOWER(m.name) NOT LIKE '%brick-built%'
+          AND LOWER(m.name) NOT LIKE '%pen%'
+          AND LOWER(m.name) NOT LIKE '%torch%'
+          AND LOWER(m.name) NOT LIKE '%light%'
+          AND LOWER(m.name) NOT LIKE '%plush%'
+          AND LOWER(m.name) NOT LIKE '%notebook%'
+          AND LOWER(m.name) NOT LIKE '%tag%'
+          AND LOWER(m.name) NOT LIKE '%bag%'
+          AND LOWER(m.name) NOT LIKE '%frame%'
+          AND LOWER(m.name) NOT LIKE '%display%'
+          AND LOWER(m.name) NOT LIKE '%scale%'
+        LIMIT 10
+    """
+    cursor.execute(sql_shared, (part_num, int(color_id), exclude_id.lower()))
+    rows = cursor.fetchall()
+
+    results = []
+    for row in rows:
+        row_dict = dict(row)
+        row_dict["name"] = translate_to_zh(row_dict["name"])
+        row_dict["official_id"] = MINIFIG_MAPPINGS.get(row_dict["minifig_num"], row_dict["minifig_num"])
+        row_dict["img_url"] = f"https://cdn.rebrickable.com/media/sets/{row_dict['minifig_num']}.jpg"
+        results.append(row_dict)
+    return results
+
+def api_themes(self, conn):
+    cursor = conn.cursor()
+    sql = """
+        SELECT t.name, COUNT(DISTINCT m.minifig_num) as cnt
+        FROM inventory_minifigs im
+        JOIN inventories i ON im.inventory_id = i.id
+        JOIN sets s ON i.set_num = s.set_num
+        JOIN themes t ON s.theme_id = t.id
+        JOIN minifigs m ON im.minifig_num = m.minifig_num
+        GROUP BY t.name
+        HAVING cnt >= 10
+        ORDER BY cnt DESC
+    """
+    cursor.execute(sql)
+    themes = []
+    for row in cursor.fetchall():
+        name_en = row["name"]
+        name_zh = THEME_ZH_MAP.get(name_en, name_en)
+        themes.append({
+            "name": name_en,
+            "display_name": name_zh,
+            "count": row["cnt"]
+        })
+    return themes
+
+
+def send_json_response(self, data, status=200):
+    payload = json.dumps(data, ensure_ascii=False).encode('utf-8')
+    accepts_gzip = "gzip" in self.headers.get("Accept-Encoding", "")
+    if accepts_gzip and len(payload) > 1024:
+        payload = gzip.compress(payload, compresslevel=5)
+        use_gzip = True
+    else:
+        use_gzip = False
+
+    self.send_response(status)
+    self.send_header("Content-Type", "application/json")
+    self.send_header("Content-Length", str(len(payload)))
+    if use_gzip:
+        self.send_header("Content-Encoding", "gzip")
+        self.send_header("Vary", "Accept-Encoding")
+    self.send_header("Access-Control-Allow-Origin", "*")
+    self.end_headers()
+    self.wfile.write(payload)
+
+
+LegoAPIHandler.api_scan_image = api_scan_image
+LegoAPIHandler.api_scan_candidates = api_scan_candidates
+LegoAPIHandler.api_prices = api_prices
+LegoAPIHandler.api_minifig_details = api_minifig_details
+LegoAPIHandler.api_resolve_image = api_resolve_image
+LegoAPIHandler.api_shared_part = api_shared_part
+LegoAPIHandler.api_themes = api_themes
+LegoAPIHandler.send_json_response = send_json_response
 
 def init_users_db():
     try:
@@ -2165,11 +2233,11 @@ def init_users_db():
             rebrickable_id TEXT PRIMARY KEY,
             official_id TEXT
         )""")
-        
+
         # Prepopulate MINIFIG_ID_MAP mappings
         for r_id, o_id in MINIFIG_ID_MAP.items():
             cursor.execute("INSERT OR IGNORE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (r_id, o_id))
-            
+
         # Load and prepopulate from db/minifig_mappings.json if available
         json_path = os.path.join(os.path.dirname(DB_PATH), "minifig_mappings.json")
         if os.path.exists(json_path):
@@ -2182,7 +2250,7 @@ def init_users_db():
                 print(f"[Database] Loaded {len(extra_mappings)} mappings from minifig_mappings.json")
             except Exception as json_err:
                 print(f"[Database Error] Failed to load minifig_mappings.json: {json_err}")
-            
+
         cursor.executescript("""
         CREATE INDEX IF NOT EXISTS idx_minifigs_num_parts ON minifigs(num_parts);
         CREATE INDEX IF NOT EXISTS idx_inventory_parts_part_color_inv ON inventory_parts(part_num, color_id, inventory_id);
@@ -2194,7 +2262,7 @@ def init_users_db():
         """)
         conn.commit()
         conn.close()
-        
+
         # Initialize memory caches
         load_minifig_mappings()
         print("[Database] Users and minifig_mappings tables initialized successfully.")
@@ -2208,21 +2276,21 @@ def run_background_precacher():
     import urllib.request
     import urllib.parse
     import time
-    
+
     def _worker():
         time.sleep(12)  # Wait for server to bind and start accepting connections
         print("[Pre-Cacher] Starting gallery pre-resolver worker...")
-        
+
         ssl_ctx = ssl._create_unverified_context() if hasattr(ssl, '_create_unverified_context') else ssl.create_default_context()
         if hasattr(ssl, '_create_unverified_context'):
             ssl_ctx = ssl._create_unverified_context()
-            
+
         socket.setdefaulttimeout(6)
-        
+
         def head_ok(url):
             try:
                 req = urllib.request.Request(
-                    url, 
+                    url,
                     method='HEAD',
                     headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
                 )
@@ -2235,7 +2303,7 @@ def run_background_precacher():
             conn = sqlite3.connect(DB_PATH)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            
+
             sql = """
                 SELECT m.minifig_num, m.name, m.num_parts
                 FROM minifigs m
@@ -2276,22 +2344,22 @@ def run_background_precacher():
             cursor.execute(sql)
             figs = cursor.fetchall()
             conn.close()
-            
+
             print(f"[Pre-Cacher] Loaded {len(figs)} gallery minifigures to scan.")
-            
+
             for idx, fig in enumerate(figs):
                 m_id = fig["minifig_num"]
                 name = fig["name"]
-                
+
                 # Check mapping in memory
                 if m_id in MINIFIG_MAPPINGS:
                     continue
-                    
+
                 # Check Rebrickable image
                 rb_url = f"https://cdn.rebrickable.com/media/sets/{m_id}.jpg"
                 if head_ok(rb_url):
                     continue
-                    
+
                 print(f"[Pre-Cacher] [{idx+1}/500] Resolving missing image for {m_id} ({name})...")
                 official_id = resolve_name_to_official_id_via_brickset(name)
                 if official_id:
@@ -2318,10 +2386,10 @@ def run_background_precacher():
                         REVERSE_MINIFIG_MAPPINGS[m_id.lower().strip()] = m_id
                     except Exception:
                         pass
-                
+
                 # Protect Brickset with friendly rate limit
                 time.sleep(1.5)
-                
+
             print("[Pre-Cacher] Pre-resolver scan finished.")
         except Exception as e:
             print(f"[Pre-Cacher] General worker error: {e}")
