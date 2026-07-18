@@ -22,6 +22,13 @@ SCAN_CANDIDATE_CACHE_TTL_SECONDS = 3600
 API_CACHE = OrderedDict()
 SCAN_CANDIDATE_CACHE = {"loaded_at": 0, "rows": None}
 
+DB_SYNC_STATUS = {
+    "status": "idle",
+    "percent": 0,
+    "is_running": False,
+    "error": None
+}
+
 MINIFIG_EXCLUSION_SQL = """
   AND LOWER(m.name) NOT LIKE '%keychain%'
   AND LOWER(m.name) NOT LIKE '%key chain%'
@@ -774,6 +781,39 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 conn.commit()
                 self.send_json_response({"success": True})
                 
+            elif path == "/api/admin/update-db":
+                global DB_SYNC_STATUS
+                if DB_SYNC_STATUS["is_running"]:
+                    self.send_json_response({"error": "同步任务已经在运行中！"}, status=400)
+                    conn.close()
+                    return
+                    
+                import threading
+                import db_builder
+                
+                def sync_thread_task():
+                    global DB_SYNC_STATUS
+                    def callback(status_msg, pct):
+                        DB_SYNC_STATUS["status"] = status_msg
+                        DB_SYNC_STATUS["percent"] = pct
+                        
+                    try:
+                        db_builder.run_sync(callback)
+                        DB_SYNC_STATUS["is_running"] = False
+                    except Exception as e:
+                        DB_SYNC_STATUS["is_running"] = False
+                        DB_SYNC_STATUS["error"] = str(e)
+                        DB_SYNC_STATUS["status"] = f"同步出错: {e}"
+                        
+                DB_SYNC_STATUS = {
+                    "status": "正在启动云端同步任务...",
+                    "percent": 0,
+                    "is_running": True,
+                    "error": None
+                }
+                threading.Thread(target=sync_thread_task, daemon=True).start()
+                self.send_json_response({"success": True, "message": "已成功启动云端同步任务！"})
+
             elif path == "/api/scan-image":
                 payload = self.api_scan_image(conn, body)
                 if payload is not None:
@@ -814,6 +854,8 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 payload = self.api_shared_part(conn, params)
             elif path == "/api/themes":
                 payload = self.api_themes(conn)
+            elif path == "/api/admin/sync-status":
+                payload = DB_SYNC_STATUS
             else:
                 self.send_json_response({"error": "Endpoint not found"}, status=404)
                 conn.close()
@@ -1378,6 +1420,83 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 unique_figs.append(fig)
         return unique_figs
 
+def call_gemini_vision(img_b64, m_type, api_key):
+    import urllib.request
+    import json
+    
+    if not api_key:
+        return []
+        
+    clean_mime = "image/jpeg"
+    if "png" in m_type:
+        clean_mime = "image/png"
+    elif "webp" in m_type:
+        clean_mime = "image/webp"
+        
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": (
+                            "You are a professional LEGO Minifigure cataloging and identification expert. "
+                            "Analyze this photo of a LEGO Minifigure. Identify the exact character. "
+                            "Return a JSON list of matching minifigures (up to 3 matches) with the following schema:\n"
+                            "[\n"
+                            "  {\n"
+                            "    \"id\": \"official BrickLink ID (e.g. njo0979, sw0107, sh012) or Rebrickable ID (e.g. fig-016380)\",\n"
+                            "    \"name\": \"character name\",\n"
+                            "    \"score\": confidence score between 0.0 and 1.0\n"
+                            "  }\n"
+                            "]\n"
+                            "Return ONLY the raw JSON array. No markdown code blocks."
+                        )
+                    },
+                    {
+                        "inlineData": {
+                            "mimeType": clean_mime,
+                            "data": img_b64
+                        }
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "responseMimeType": "application/json"
+        }
+    }
+    
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode('utf-8'),
+            headers={'Content-Type': 'application/json'}
+        )
+        with urllib.request.urlopen(req, timeout=12) as response:
+            res = json.loads(response.read().decode('utf-8'))
+            
+        text = res["candidates"][0]["content"]["parts"][0]["text"].strip()
+        items = json.loads(text)
+        if isinstance(items, list):
+            result = []
+            for item in items:
+                m_id = str(item.get("id", "")).strip()
+                m_name = str(item.get("name", "")).strip()
+                m_score = float(item.get("score", 0.85))
+                result.append({
+                    "id": m_id,
+                    "name": m_name,
+                    "score": m_score,
+                    "type": "minifig",
+                    "source": "gemini"
+                })
+            return result
+    except Exception as e:
+        print(f"[Gemini Vision Error] Failed to call Gemini API: {e}")
+        return []
+    return []
+
     def api_scan_image(self, conn, body):
         import urllib.request
         import urllib.error
@@ -1448,9 +1567,20 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 traceback.print_exc()
                 return []
 
+        # Try Gemini Vision if API key is provided
+        gemini_items = []
+        if api_key:
+            print("[Scanner] Calling Gemini Flash Vision engine...")
+            gemini_items = call_gemini_vision(image_data, mime_type, api_key)
+            print(f"[Scanner] Gemini matched {len(gemini_items)} candidate figures.")
+
         # Directly call Brickognize predict API on the uploaded image
+        print("[Scanner] Calling Brickognize parts engine...")
         brick_items = call_brickognize(image_data, mime_type)
-        matches = self.lookup_candidates(conn, brick_items)
+        
+        # Combine predictions: Gemini results take priority!
+        combined_items = gemini_items + brick_items
+        matches = self.lookup_candidates(conn, combined_items)
         
         # Translate names for top matches
         top_matches = matches[:3]

@@ -922,6 +922,87 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Database Cloud Sync Handler
+    const btnSyncDb = document.getElementById('btn-sync-db');
+    const dbSyncStatusBox = document.getElementById('db-sync-status-box');
+    const dbSyncStatusText = document.getElementById('db-sync-status-text');
+    const dbSyncPercentText = document.getElementById('db-sync-percent-text');
+    const dbSyncProgressBar = document.getElementById('db-sync-progress-bar');
+    
+    let isSyncing = false;
+    let syncInterval = null;
+    
+    if (btnSyncDb) {
+        btnSyncDb.addEventListener('click', async () => {
+            if (isSyncing) return;
+            
+            if (!confirm("数据库同步包含多个大数据包下载（约20MB）和解密解析过程，可能需要 1~2 分钟。确定要开始云端同步吗？")) {
+                return;
+            }
+            
+            isSyncing = true;
+            btnSyncDb.disabled = true;
+            btnSyncDb.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在进行云端同步...';
+            if (dbSyncStatusBox) dbSyncStatusBox.style.display = 'block';
+            
+            try {
+                // 1. Trigger sync
+                const triggerRes = await fetch('/api/admin/update-db', { method: 'POST' });
+                const triggerData = await triggerRes.json();
+                
+                if (!triggerRes.ok) {
+                    throw new Error(triggerData.error || "启动同步失败");
+                }
+                
+                // 2. Start status polling
+                syncInterval = setInterval(async () => {
+                    try {
+                        const statusRes = await fetch('/api/admin/sync-status');
+                        if (statusRes.ok) {
+                            const statusData = await statusRes.json();
+                            
+                            // Update status messages
+                            if (dbSyncStatusText) dbSyncStatusText.textContent = statusData.status || '正在同步中...';
+                            if (dbSyncPercentText) dbSyncPercentText.textContent = `${statusData.percent}%`;
+                            if (dbSyncProgressBar) dbSyncProgressBar.style.width = `${statusData.percent}%`;
+                            
+                            if (statusData.error) {
+                                throw new Error(statusData.error);
+                            }
+                            
+                            if (!statusData.is_running && statusData.percent >= 100) {
+                                clearInterval(syncInterval);
+                                isSyncing = false;
+                                btnSyncDb.disabled = false;
+                                btnSyncDb.innerHTML = '<i class="fas fa-sync-alt"></i> 一键同步最新数据 (17K+人仔)';
+                                showNotification("数据库已同步更新至最新状态！", "success");
+                            } else if (!statusData.is_running) {
+                                clearInterval(syncInterval);
+                                isSyncing = false;
+                                btnSyncDb.disabled = false;
+                                btnSyncDb.innerHTML = '<i class="fas fa-sync-alt"></i> 一键同步最新数据 (17K+人仔)';
+                            }
+                        }
+                    } catch (pollErr) {
+                        clearInterval(syncInterval);
+                        isSyncing = false;
+                        btnSyncDb.disabled = false;
+                        btnSyncDb.innerHTML = '<i class="fas fa-sync-alt"></i> 一键同步最新数据 (17K+人仔)';
+                        if (dbSyncStatusText) dbSyncStatusText.textContent = `同步失败: ${pollErr.message}`;
+                        showNotification(`同步失败: ${pollErr.message}`, "error");
+                    }
+                }, 2000);
+                
+            } catch (err) {
+                isSyncing = false;
+                btnSyncDb.disabled = false;
+                btnSyncDb.innerHTML = '<i class="fas fa-sync-alt"></i> 一键同步最新数据 (17K+人仔)';
+                if (dbSyncStatusText) dbSyncStatusText.textContent = `同步失败: ${err.message}`;
+                showNotification(`同步失败: ${err.message}`, "error");
+            }
+        });
+    }
+
     // User Profile Modal (Personal Center) Triggers & Events
     const openUserProfileModal = () => {
         userProfileModal.classList.add('open');

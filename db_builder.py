@@ -180,13 +180,17 @@ def create_indexes(conn):
     conn.commit()
     print(f"[Index] Completed in {time.time() - start_time:.2f} seconds.")
 
-def main():
+def run_sync(progress_callback=None):
+    def report(status, percent):
+        if progress_callback:
+            progress_callback(status, percent)
+        else:
+            print(f"[Sync Progress {percent}%] {status}")
+
     os.makedirs(DB_DIR, exist_ok=True)
-    
-    # Connect to SQLite
+    report("正在连接本地数据库...", 2)
     conn = sqlite3.connect(DB_PATH)
     
-    # SQLite optimization pragmas for faster bulk inserts
     cursor = conn.cursor()
     cursor.execute("PRAGMA synchronous = OFF")
     cursor.execute("PRAGMA journal_mode = MEMORY")
@@ -194,34 +198,40 @@ def main():
     
     setup_db(conn)
     
-    # Download and import each CSV file
-    # Format: (filename, url, table_name, number of fields)
     import_tasks = [
-        ("colors.csv.gz", CSV_FILES["colors.csv.gz"], "colors", 4),
-        ("themes.csv.gz", CSV_FILES["themes.csv.gz"], "themes", 3),
-        ("minifigs.csv.gz", CSV_FILES["minifigs.csv.gz"], "minifigs", 3),
-        ("sets.csv.gz", CSV_FILES["sets.csv.gz"], "sets", 6),
-        ("inventories.csv.gz", CSV_FILES["inventories.csv.gz"], "inventories", 3),
-        ("inventory_minifigs.csv.gz", CSV_FILES["inventory_minifigs.csv.gz"], "inventory_minifigs", 3),
-        ("inventory_parts.csv.gz", CSV_FILES["inventory_parts.csv.gz"], "inventory_parts", 6),
-        ("parts.csv.gz", CSV_FILES["parts.csv.gz"], "parts", 4),
-        ("elements.csv.gz", CSV_FILES["elements.csv.gz"], "elements", 3)
+        ("colors.csv.gz", CSV_FILES["colors.csv.gz"], "colors", 4, "颜色体系", 5),
+        ("themes.csv.gz", CSV_FILES["themes.csv.gz"], "themes", 3, "乐高系列主题", 12),
+        ("minifigs.csv.gz", CSV_FILES["minifigs.csv.gz"], "minifigs", 3, "人仔主库", 25),
+        ("sets.csv.gz", CSV_FILES["sets.csv.gz"], "sets", 6, "套装主库", 38),
+        ("inventories.csv.gz", CSV_FILES["inventories.csv.gz"], "inventories", 3, "零件清单索引", 50),
+        ("inventory_minifigs.csv.gz", CSV_FILES["inventory_minifigs.csv.gz"], "inventory_minifigs", 3, "套装人仔对应表", 62),
+        ("parts.csv.gz", CSV_FILES["parts.csv.gz"], "parts", 4, "基础零件明细", 74),
+        ("elements.csv.gz", CSV_FILES["elements.csv.gz"], "elements", 3, "官方零件Element-ID关系表", 86),
+        ("inventory_parts.csv.gz", CSV_FILES["inventory_parts.csv.gz"], "inventory_parts", 6, "人仔物理零件构成库 (该步骤较大，请耐心等待)", 92)
     ]
     
     total_start = time.time()
     
-    for filename, url, table_name, num_fields in import_tasks:
+    for filename, url, table_name, num_fields, cn_desc, percent in import_tasks:
         try:
+            report(f"正在从云端下载 {cn_desc} ({filename})...", percent)
             local_file = download_file(filename, url)
+            report(f"正在向数据库导入 {cn_desc} 数据...", percent + 3)
             import_csv_to_table(conn, local_file, table_name, num_fields)
         except Exception as e:
+            report(f"导入 {cn_desc} 失败: {e}", percent)
             print(f"[Error] Failed task for {filename}: {e}")
             
+    report("正在重建数据库检索引擎与字段索引 (优化查询效率)...", 98)
     create_indexes(conn)
     
     conn.close()
+    report("同步完成！数据库已成功更新至最新状态。", 100)
     print(f"\n[Success] SQLite Database successfully built at {DB_PATH}!")
     print(f"[Success] Total execution time: {time.time() - total_start:.2f} seconds.")
+
+def main():
+    run_sync()
 
 if __name__ == "__main__":
     main()
