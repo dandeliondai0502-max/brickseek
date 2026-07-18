@@ -599,12 +599,17 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.addEventListener('input', () => {
         const query = searchInput.value.trim();
         clearTimeout(searchDebounceTimeout);
-        if (query.length > 0) {
+        if (query.length > 1) {
             searchBoxWrapper.classList.add('has-text');
             clearBtn.classList.add('visible');
             searchDebounceTimeout = setTimeout(() => {
                 fetchSuggestions(query);
-            }, 200);
+            }, 280);
+        } else if (query.length === 1) {
+            searchBoxWrapper.classList.add('has-text');
+            clearBtn.classList.add('visible');
+            suggestionsContainer.classList.remove('active');
+            suggestionsContainer.innerHTML = '';
         } else {
             searchBoxWrapper.classList.remove('has-text');
             clearBtn.classList.remove('visible');
@@ -1608,7 +1613,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => {
-                    const maxDim = 480;
+                    const maxDim = 360;
                     let width = img.width;
                     let height = img.height;
                     if (width > maxDim || height > maxDim) {
@@ -1626,9 +1631,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
 
+                    const exportType = canvas.toDataURL('image/webp').startsWith('data:image/webp')
+                        ? 'image/webp'
+                        : 'image/jpeg';
                     canvas.toBlob((blob) => {
                         resolve(blob || input);
-                    }, 'image/jpeg', 0.80);
+                    }, exportType, 0.72);
                 };
                 img.onerror = () => resolve(input);
                 img.src = dataUrl;

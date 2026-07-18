@@ -21,6 +21,7 @@ SCAN_CANDIDATE_CACHE_TTL_SECONDS = 3600
 
 API_CACHE = OrderedDict()
 SCAN_CANDIDATE_CACHE = {"loaded_at": 0, "rows": None}
+SEARCH_MINIFIG_CACHE = {"loaded_at": 0, "rows": None}
 BRICKOGNIZE_CACHE = OrderedDict()
 BRICKOGNIZE_CACHE_MAX_ITEMS = 128
 BRICKOGNIZE_CACHE_TTL_SECONDS = 900
@@ -83,6 +84,42 @@ def set_cached_api_response(cache_key, payload):
     API_CACHE.move_to_end(cache_key)
     while len(API_CACHE) > API_CACHE_MAX_ITEMS:
         API_CACHE.popitem(last=False)
+
+def get_search_minifig_rows(conn):
+    now = time.time()
+    cached_rows = SEARCH_MINIFIG_CACHE["rows"]
+    if cached_rows is not None and now - SEARCH_MINIFIG_CACHE["loaded_at"] < SCAN_CANDIDATE_CACHE_TTL_SECONDS:
+        return cached_rows
+
+    cursor = conn.cursor()
+    db_mappings = dict(MINIFIG_MAPPINGS)
+    try:
+        cursor.execute("SELECT rebrickable_id, official_id FROM minifig_mappings")
+        for row in cursor.fetchall():
+            db_mappings[row["rebrickable_id"]] = row["official_id"]
+    except Exception as map_err:
+        print(f"[Search Cache] Mapping merge skipped: {map_err}")
+
+    cursor.execute(f"""
+        SELECT m.minifig_num, m.name, m.num_parts
+        FROM minifigs m
+        WHERE m.num_parts BETWEEN 3 AND 12
+          {MINIFIG_EXCLUSION_SQL}
+    """)
+    rows = []
+    for row in cursor.fetchall():
+        row_dict = dict(row)
+        official_id = db_mappings.get(row_dict["minifig_num"], row_dict["minifig_num"])
+        row_dict["official_id"] = official_id
+        row_dict["_search_text"] = " ".join([
+            row_dict["minifig_num"].lower(),
+            str(official_id).lower(),
+            row_dict["name"].lower()
+        ])
+        rows.append(row_dict)
+    SEARCH_MINIFIG_CACHE["rows"] = rows
+    SEARCH_MINIFIG_CACHE["loaded_at"] = now
+    return rows
 
 THEME_ZH_MAP = {
     "Star Wars": "星球大战 (Star Wars)",
@@ -420,7 +457,7 @@ def resolve_name_to_official_id_via_brickset(name_en):
     print(f"[Name Resolver] Could not resolve '{name_en}' via any strategy.")
     return None
 
-def resolve_minifig_id(m_id, conn=None):
+def resolve_minifig_id(m_id, conn=None, allow_remote=True):
     if not m_id:
         return m_id
     m_id_lower = m_id.lower().strip()
@@ -456,7 +493,7 @@ def resolve_minifig_id(m_id, conn=None):
     # If it looks like a BrickLink ID (e.g. sw0527, njo0298, sh087) but isn't mapped yet,
     # let's try to resolve it on-the-fly via Brickset!
     import re
-    if re.match(r'^[a-zA-Z]{2,4}\d{2,5}[a-zA-Z]?$', m_id_clean := m_id_lower.replace("-", "")):
+    if allow_remote and re.match(r'^[a-zA-Z]{2,4}\d{2,5}[a-zA-Z]?$', m_id_clean := m_id_lower.replace("-", "")):
         resolved_name = resolve_official_id_via_brickset(m_id_clean)
         if resolved_name:
             print(f"[Brickset Resolver] Resolved {m_id} to name: {resolved_name}")
@@ -982,6 +1019,12 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             # Find all rebrickable_ids that map to this official ID
             cursor.execute("SELECT rebrickable_id FROM minifig_mappings WHERE LOWER(official_id) = ?", (query.lower().strip(),))
             mapped_ids = [r[0] for r in cursor.fetchall()]
+            if not mapped_ids and full_mode:
+                import re
+                if re.match(r'^[a-zA-Z]{2,4}\d{2,5}[a-zA-Z]?$', query.strip()):
+                    resolved_id = resolve_minifig_id(query, conn, allow_remote=True)
+                    if resolved_id and resolved_id.lower().startswith("fig-"):
+                        mapped_ids = [resolved_id]
 
         # Initialize results
         minifigs_results = []
@@ -1001,6 +1044,36 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
             query_words = [w.strip() for w in translated_query.split() if w.strip()]
             if not query_words:
                 return {"minifigs": [], "sets": []} if full_mode else []
+
+            if not full_mode:
+                normalized_words = [translate_query(qw).lower() for qw in query_words[:3]]
+                query_lower = query.lower()
+                ranked_rows = []
+                for row in get_search_minifig_rows(conn):
+                    search_text = row["_search_text"]
+                    if not all(word in search_text for word in normalized_words):
+                        continue
+                    official_lower = str(row.get("official_id", "")).lower()
+                    minifig_lower = row["minifig_num"].lower()
+                    if official_lower == query_lower or minifig_lower == query_lower:
+                        rank = 0
+                    elif official_lower.startswith(query_lower) or minifig_lower.startswith(query_lower):
+                        rank = 1
+                    elif query_lower in official_lower or query_lower in minifig_lower:
+                        rank = 2
+                    else:
+                        rank = 3
+                    ranked_rows.append((rank, -int(row.get("num_parts") or 0), row))
+                ranked_rows.sort(key=lambda item: (item[0], item[1], item[2]["minifig_num"]))
+                for _, __, row in ranked_rows[:40]:
+                    row_dict = {
+                        "minifig_num": row["minifig_num"],
+                        "name": translate_to_zh(row["name"]),
+                        "num_parts": row["num_parts"],
+                        "official_id": row["official_id"]
+                    }
+                    minifigs_results.append(row_dict)
+                return minifigs_results
 
             # Step 1: Find parts matching all query words (limit to 200 parts to prevent parameter list overflow)
             part_clauses = []
@@ -1278,7 +1351,7 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 for cand in candidates:
                     if not cand:
                         continue
-                    resolved_cand = resolve_minifig_id(cand, conn)
+                    resolved_cand = resolve_minifig_id(cand, conn, allow_remote=False)
                     cursor.execute("SELECT minifig_num, name, num_parts FROM minifigs WHERE LOWER(minifig_num) = ?", (resolved_cand.lower(),))
                     row = cursor.fetchone()
                     if row:
