@@ -1545,14 +1545,44 @@ def api_scan_image(self, conn, body):
             return
         SCAN_IMAGE_RESPONSE_CACHE.pop(response_cache_key, None)
 
+    try:
+        cache_cursor = conn.cursor()
+        cache_cursor.execute(
+            "SELECT payload_json, expires_at FROM scan_response_cache WHERE cache_key = ?",
+            (response_cache_key,)
+        )
+        row = cache_cursor.fetchone()
+        if row and float(row["expires_at"]) >= time.time():
+            payload = json.loads(row["payload_json"])
+            SCAN_IMAGE_RESPONSE_CACHE[response_cache_key] = (float(row["expires_at"]), payload)
+            SCAN_IMAGE_RESPONSE_CACHE.move_to_end(response_cache_key)
+            self.send_json_response(payload)
+            return
+        if row:
+            cache_cursor.execute("DELETE FROM scan_response_cache WHERE cache_key = ?", (response_cache_key,))
+            conn.commit()
+    except Exception as cache_err:
+        print(f"[Scanner Cache] Persistent read skipped: {cache_err}")
+
     def finish_scan(payload):
+        expires_at = time.time() + SCAN_IMAGE_RESPONSE_CACHE_TTL_SECONDS
         SCAN_IMAGE_RESPONSE_CACHE[response_cache_key] = (
-            time.time() + SCAN_IMAGE_RESPONSE_CACHE_TTL_SECONDS,
+            expires_at,
             payload
         )
         SCAN_IMAGE_RESPONSE_CACHE.move_to_end(response_cache_key)
         while len(SCAN_IMAGE_RESPONSE_CACHE) > SCAN_IMAGE_RESPONSE_CACHE_MAX_ITEMS:
             SCAN_IMAGE_RESPONSE_CACHE.popitem(last=False)
+        try:
+            cache_cursor = conn.cursor()
+            cache_cursor.execute(
+                "INSERT OR REPLACE INTO scan_response_cache (cache_key, payload_json, expires_at) VALUES (?, ?, ?)",
+                (response_cache_key, json.dumps(payload, ensure_ascii=False), expires_at)
+            )
+            cache_cursor.execute("DELETE FROM scan_response_cache WHERE expires_at < ?", (time.time(),))
+            conn.commit()
+        except Exception as cache_err:
+            print(f"[Scanner Cache] Persistent write skipped: {cache_err}")
         self.send_json_response(payload)
 
     def get_brickognize_cache(cache_key):
@@ -2234,6 +2264,13 @@ def init_users_db():
             official_id TEXT
         )""")
 
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS scan_response_cache (
+            cache_key TEXT PRIMARY KEY,
+            payload_json TEXT NOT NULL,
+            expires_at REAL NOT NULL
+        )""")
+
         # Prepopulate MINIFIG_ID_MAP mappings
         for r_id, o_id in MINIFIG_ID_MAP.items():
             cursor.execute("INSERT OR IGNORE INTO minifig_mappings (rebrickable_id, official_id) VALUES (?, ?)", (r_id, o_id))
@@ -2259,6 +2296,7 @@ def init_users_db():
         CREATE INDEX IF NOT EXISTS idx_sets_theme ON sets(theme_id);
         DROP INDEX IF EXISTS idx_minifig_mappings_official;
         CREATE INDEX IF NOT EXISTS idx_minifig_mappings_official ON minifig_mappings(official_id);
+        CREATE INDEX IF NOT EXISTS idx_scan_response_cache_expires ON scan_response_cache(expires_at);
         """)
         conn.commit()
         conn.close()
