@@ -7402,11 +7402,11 @@ footer a,
 }
 
 .lego-figure-canvas.exploded {
-    flex-basis: 210px;
+    flex-basis: 220px;
     width: 100% !important;
     max-width: 390px !important;
-    min-height: 210px !important;
-    height: 210px !important;
+    min-height: 220px !important;
+    height: 220px !important;
     padding: 14px 6px !important;
     gap: 12px !important;
 }
@@ -7418,12 +7418,37 @@ footer a,
 .lego-figure-canvas.exploded .lego-part-layer {
     flex: 0 0 calc(25% - 9px) !important;
     width: calc(25% - 9px) !important;
-    height: 72px !important;
+    height: 88px !important;
 }
 
 .lego-figure-canvas.exploded .lego-svg-holder {
-    width: 72px !important;
-    height: 72px !important;
+    width: 88px !important;
+    height: 88px !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.lego-figure-canvas.exploded .lego-svg-holder img {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 4px;
+    object-fit: contain;
+    filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.16));
+}
+
+.lego-figure-canvas.exploded .lego-part-layer:hover .lego-svg-holder,
+.lego-figure-canvas.exploded .lego-part-layer.selected-part .lego-svg-holder {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: scale(1.04) !important;
 }
 
 .assembly-footer {
@@ -7494,10 +7519,10 @@ footer a,
     }
 
     .lego-figure-canvas.exploded {
-        flex-basis: 170px !important;
+        flex-basis: 180px !important;
         max-width: 310px !important;
-        min-height: 170px !important;
-        height: 170px !important;
+        min-height: 180px !important;
+        height: 180px !important;
         padding: 10px 4px !important;
         gap: 10px !important;
     }
@@ -7505,13 +7530,13 @@ footer a,
     .lego-figure-canvas.exploded .lego-part-layer {
         flex: 0 0 calc(25% - 7.5px) !important;
         width: calc(25% - 7.5px) !important;
-        min-height: 58px !important;
-        height: 58px !important;
+        min-height: 68px !important;
+        height: 68px !important;
     }
 
     .lego-figure-canvas.exploded .lego-svg-holder {
-        width: 58px !important;
-        height: 58px !important;
+        width: 68px !important;
+        height: 68px !important;
     }
 
     .part-label-tag {
