@@ -712,6 +712,8 @@ def get_minifig_prices(official_id_or_num):
     return None, None
 
 class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
 
@@ -721,8 +723,10 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
         path = parsed_url.path
         if path.startswith("/api/"):
             self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+        elif path.startswith(("/style-v", "/app-v")) and path.endswith((".js", ".css")):
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
         elif path.endswith((".js", ".css")):
-            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Cache-Control", "public, max-age=3600, must-revalidate")
         elif path.endswith((".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2", ".webp")):
             self.send_header("Cache-Control", "public, max-age=604800")
         elif path.endswith((".html", "/")) or not "." in path:
@@ -2509,7 +2513,10 @@ def run_background_precacher():
 
 def main():
     init_users_db()
-    run_background_precacher()
+    if os.environ.get("ENABLE_BACKGROUND_PRECACHE") == "1":
+        run_background_precacher()
+    else:
+        print("[Pre-Cacher] Disabled for faster startup; set ENABLE_BACKGROUND_PRECACHE=1 to enable.")
     handler = LegoAPIHandler
     socketserver.ThreadingTCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer(("", PORT), handler) as httpd:

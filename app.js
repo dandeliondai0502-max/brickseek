@@ -3082,6 +3082,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gallerySearch = "";
 
         window.scrollTo({ top: 0, behavior: "smooth" });
+        void loadDynamicThemes();
         fetchGalleryItems(true);
     }
 
@@ -3428,30 +3429,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 10. Interactive Mouse-following Glow Background ---
-    const bgGlow = document.querySelector('.bg-glow');
-    if (bgGlow) {
-        let mouseX = window.innerWidth / 2;
-        let mouseY = window.innerHeight / 3;
-        let glowX = mouseX;
-        let glowY = mouseY;
-
-        window.addEventListener('mousemove', (e) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-        });
-
-        function updateGlowPosition() {
-            glowX += (mouseX - glowX) * 0.08;
-            glowY += (mouseY - glowY) * 0.08;
-
-            bgGlow.style.left = `${glowX}px`;
-            bgGlow.style.top = `${glowY}px`;
-
-            requestAnimationFrame(updateGlowPosition);
-        }
-        updateGlowPosition();
-    }
     // Home search category tab switching
     if (homeTabMinifigs && homeTabSets) {
         [homeTabMinifigs, homeTabSets].forEach(tab => {
@@ -3488,6 +3465,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Fetch dynamic themes list from server and populate dropdown
     async function loadDynamicThemes() {
+        if (!galleryThemeFilter || galleryThemeFilter.dataset.loaded === 'true') return;
         try {
             const res = await fetch('/api/themes');
             if (res.ok) {
@@ -3501,13 +3479,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         opt.textContent = `${t.display_name} (${t.count})`;
                         galleryThemeFilter.appendChild(opt);
                     });
+                    galleryThemeFilter.dataset.loaded = 'true';
                 }
             }
         } catch (e) {
             console.error("Failed to load themes dropdown:", e);
         }
     }
-
-    // Initial fetch of dynamic themes
-    loadDynamicThemes();
 });
