@@ -37,6 +37,7 @@ Viewport: 390 x 844
 - Camera photos are sent directly to Brickognize's minifigure model; the UI displays only returned candidates and asks the user to retake the photo when no reliable result is available.
 - At 390 x 844, the open camera modal has zero outline, guide-copy, or simulated bounding-box nodes and the document scroll width remains exactly 390px.
 - The local `/api/scan-image` gateway was exercised with a public Darth Vader image: Brickognize returned `sw0218`, which resolved to local record `fig-000581` at 81.1% confidence.
+- Exploded figures now use an auto-height four-column grid. Tyr's nine parts produce a 316px stage at 920px viewport width; the third row remains 18px above the footer. At 390px, all nine parts remain inside a 244px stage with no horizontal overflow.
 - The dark gold theme still renders without overflow.
 
 Final result: passed

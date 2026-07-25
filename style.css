@@ -8630,3 +8630,40 @@ body.scan-open .mobile-bottom-nav {
         -webkit-line-clamp: unset;
     }
 }
+
+/* Keep every exploded part inside the assembly stage at any row count. */
+.lego-figure-canvas.exploded {
+    --assembly-part-size: 88px;
+    display: grid !important;
+    grid-template-columns: repeat(4, var(--assembly-part-size));
+    grid-auto-rows: var(--assembly-part-size);
+    flex: 0 0 auto !important;
+    width: min(100%, 400px) !important;
+    max-width: 400px !important;
+    min-height: 220px !important;
+    height: auto !important;
+    padding: 14px 6px !important;
+    gap: 12px !important;
+    overflow: hidden !important;
+}
+
+.lego-figure-canvas.exploded .lego-part-layer {
+    width: var(--assembly-part-size) !important;
+    height: var(--assembly-part-size) !important;
+    min-height: var(--assembly-part-size) !important;
+}
+
+.lego-figure-canvas.exploded .lego-svg-holder {
+    width: var(--assembly-part-size) !important;
+    height: var(--assembly-part-size) !important;
+}
+
+@media (max-width: 720px) {
+    .lego-figure-canvas.exploded {
+        --assembly-part-size: clamp(54px, 18vw, 68px);
+        width: min(100%, 310px) !important;
+        min-height: 180px !important;
+        padding: 10px 4px !important;
+        gap: 10px !important;
+    }
+}
