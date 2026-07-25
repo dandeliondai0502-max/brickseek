@@ -8631,39 +8631,144 @@ body.scan-open .mobile-bottom-nav {
     }
 }
 
-/* Keep every exploded part inside the assembly stage at any row count. */
+/* Long names and exploded parts use readable, untruncated lists. */
+#detail-title {
+    max-width: none !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere;
+}
+
+.title-with-fav {
+    width: 100%;
+    align-items: flex-start;
+}
+
+#favorite-btn {
+    flex: 0 0 auto;
+}
+
 .lego-figure-canvas.exploded {
-    --assembly-part-size: 88px;
-    display: grid !important;
-    grid-template-columns: repeat(4, var(--assembly-part-size));
-    grid-auto-rows: var(--assembly-part-size);
+    --assembly-part-size: 72px;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
     flex: 0 0 auto !important;
-    width: min(100%, 400px) !important;
-    max-width: 400px !important;
-    min-height: 220px !important;
+    width: min(100%, 680px) !important;
+    max-width: 680px !important;
+    min-height: 0 !important;
     height: auto !important;
-    padding: 14px 6px !important;
-    gap: 12px !important;
+    padding: 8px 0 !important;
+    gap: 0 !important;
     overflow: hidden !important;
 }
 
 .lego-figure-canvas.exploded .lego-part-layer {
-    width: var(--assembly-part-size) !important;
-    height: var(--assembly-part-size) !important;
-    min-height: var(--assembly-part-size) !important;
+    position: relative !important;
+    display: grid !important;
+    grid-template-columns: 34px var(--assembly-part-size) minmax(0, 1fr);
+    align-items: center !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: calc(var(--assembly-part-size) + 16px) !important;
+    padding: 8px 12px !important;
+    gap: 14px !important;
+    border-bottom: 1px solid var(--border-color);
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+}
+
+.lego-figure-canvas.exploded .lego-part-layer:last-child {
+    border-bottom: 0;
 }
 
 .lego-figure-canvas.exploded .lego-svg-holder {
     width: var(--assembly-part-size) !important;
     height: var(--assembly-part-size) !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    transform: none !important;
+}
+
+.lego-figure-canvas.exploded .lego-svg-holder img {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.lego-figure-canvas.exploded .part-label-tag {
+    position: static !important;
+    display: flex !important;
+    flex-direction: column;
+    min-width: 0 !important;
+    max-width: none !important;
+    padding: 0 !important;
+    gap: 5px;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--text-primary);
+    text-align: left !important;
+    white-space: normal !important;
+    opacity: 1 !important;
+    transform: none !important;
+}
+
+.lego-figure-canvas.exploded .part-label-tag::before {
+    display: none !important;
+}
+
+.part-list-index {
+    color: #73777f;
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.part-list-name {
+    color: #171717;
+    overflow-wrap: anywhere;
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+
+.part-list-code {
+    color: #62666d;
+    font-size: 0.74rem;
+}
+
+.lego-figure-canvas.exploded .lego-part-layer:hover,
+.lego-figure-canvas.exploded .lego-part-layer.selected-part {
+    background: #f4f5f6;
+}
+
+.lego-figure-canvas.exploded .lego-part-layer:hover .lego-svg-holder,
+.lego-figure-canvas.exploded .lego-part-layer.selected-part .lego-svg-holder {
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    transform: none !important;
 }
 
 @media (max-width: 720px) {
     .lego-figure-canvas.exploded {
-        --assembly-part-size: clamp(54px, 18vw, 68px);
-        width: min(100%, 310px) !important;
-        min-height: 180px !important;
-        padding: 10px 4px !important;
+        --assembly-part-size: 60px;
+        width: 100% !important;
+    }
+
+    .lego-figure-canvas.exploded .lego-part-layer {
+        grid-template-columns: 24px var(--assembly-part-size) minmax(0, 1fr);
+        min-height: calc(var(--assembly-part-size) + 12px) !important;
+        padding: 6px 4px !important;
         gap: 10px !important;
     }
 }

@@ -2349,7 +2349,7 @@ document.addEventListener('DOMContentLoaded', () => {
         oldLayers.forEach(l => l.remove());
 
         // Draw real parts images dynamically for ALL parts
-        parts.forEach(part => {
+        parts.forEach((part, index) => {
             const layer = document.createElement('div');
             layer.className = 'lego-part-layer';
 
@@ -2358,7 +2358,10 @@ document.addEventListener('DOMContentLoaded', () => {
             layer.setAttribute('data-color-id', part.color_id);
             layer.setAttribute('data-part-name', part.part_name);
 
-            // Label tag (slides in on hover)
+            const indexBadge = document.createElement('span');
+            indexBadge.className = 'part-list-index';
+            indexBadge.textContent = String(index + 1).padStart(2, '0');
+
             const labelTag = document.createElement('div');
             labelTag.className = 'part-label-tag';
 
@@ -2368,8 +2371,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (bracketMatch) {
                 displayName = bracketMatch[1].trim();
             }
-            labelTag.textContent = displayName;
-            layer.appendChild(labelTag);
+            const nameLabel = document.createElement('strong');
+            nameLabel.className = 'part-list-name';
+            nameLabel.textContent = displayName;
+            const codeLabel = document.createElement('span');
+            codeLabel.className = 'part-list-code';
+            codeLabel.textContent = `零件编号 ${part.part_num}`;
+            labelTag.append(nameLabel, codeLabel);
 
             // SVG / Image Holder bubble
             const holder = document.createElement('div');
@@ -2387,7 +2395,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 holder.innerHTML = `<i class="fas fa-puzzle-piece" style="font-size: 1.8rem; color: var(--text-muted);"></i>`;
             }
-            layer.appendChild(holder);
+            layer.append(indexBadge, holder, labelTag);
 
             // Bind click event dynamically
             layer.addEventListener('click', async (e) => {

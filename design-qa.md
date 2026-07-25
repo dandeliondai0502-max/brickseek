@@ -37,7 +37,8 @@ Viewport: 390 x 844
 - Camera photos are sent directly to Brickognize's minifigure model; the UI displays only returned candidates and asks the user to retake the photo when no reliable result is available.
 - At 390 x 844, the open camera modal has zero outline, guide-copy, or simulated bounding-box nodes and the document scroll width remains exactly 390px.
 - The local `/api/scan-image` gateway was exercised with a public Darth Vader image: Brickognize returned `sw0218`, which resolved to local record `fig-000581` at 81.1% confidence.
-- Exploded figures now use an auto-height four-column grid. Tyr's nine parts produce a 316px stage at 920px viewport width; the third row remains 18px above the footer. At 390px, all nine parts remain inside a 244px stage with no horizontal overflow.
+- Long character names wrap to their full text. At 920px, `Spectral Dragonian Warrior, Ghost Lower Body, Wings` is unclipped and all nine parts occupy nine distinct list rows.
+- Each exploded-part row contains its sequence number, real image, full name, and part number. The list grows with the part count without touching the footer; the same nine-row structure remains unclipped at 390px.
 - The dark gold theme still renders without overflow.
 
 Final result: passed
