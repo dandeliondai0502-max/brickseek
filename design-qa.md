@@ -32,6 +32,7 @@ Viewport: 390 x 844
 - Home actions, theme searches, bottom navigation, text search, category tabs, sorting, detail navigation, assemble/explode, part images, and full-screen camera were exercised.
 - The `IG-88, Round Plate Head` search-to-detail flow was rerun after the split-screen fix; both assembly controls remain available and explode reveals all seven parts.
 - The catalog was checked at 1280 x 800 and 390 x 844: cards have 0px radius and 1px connected dividers; the longest sampled name has equal client and scroll heights, with no line clamp.
+- Minifigure image hover was checked after the catalog revision: computed transform remains `none` and transition duration is `0s`, so pointer entry and exit cannot resize the figure.
 - Camera is full viewport, the dashed guide is visible, the shutter is 76px, local upload remains hidden, and the site navigation is hidden while scanning.
 - The dark gold theme still renders without overflow.
 

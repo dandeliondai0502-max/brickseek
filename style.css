@@ -8692,6 +8692,12 @@ body.scan-open .mobile-bottom-nav {
     object-position: center bottom;
 }
 
+.gallery-card-img img,
+.gallery-card:hover .gallery-card-img img {
+    transform: none !important;
+    transition: none !important;
+}
+
 .light-theme .gallery-card-img img {
     mix-blend-mode: multiply;
 }
