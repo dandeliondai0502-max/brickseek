@@ -15,6 +15,7 @@ Viewport: 390 x 844
 | Navigation | Five-item fixed mobile navigation | Five-item fixed navigation with emphasized scan action | Passed |
 | Spacing and geometry | Tight vertical rhythm, small radii, no decorative shadows | Tight rhythm, 8-10px radii, flat surfaces | Passed |
 | Responsive behavior | Mobile-first composition with dense content | 390px mobile, 900px tablet, and 1440px desktop use separate grid arrangements with zero horizontal overflow | Passed |
+| Split-screen detail | The supplied narrow desktop screenshot clips the assembly controls and shrinks the figure to mobile scale | Detail containers can shrink without overflow; 641-1180px uses a single-column detail layout and 641-720px enlarges the figure while retaining desktop navigation | Passed |
 
 ## Intentional Deviations
 
@@ -26,6 +27,7 @@ Viewport: 390 x 844
 ## Interaction Verification
 
 - Home actions, theme searches, bottom navigation, text search, category tabs, sorting, detail navigation, assemble/explode, part images, and full-screen camera were exercised.
+- The `IG-88, Round Plate Head` search-to-detail flow was rerun after the split-screen fix; both assembly controls remain available and explode reveals all seven parts.
 - Camera is full viewport, the dashed guide is visible, the shutter is 76px, local upload remains hidden, and the site navigation is hidden while scanning.
 - The dark gold theme still renders without overflow.
 

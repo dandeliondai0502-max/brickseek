@@ -8188,6 +8188,96 @@ body.scan-open .mobile-bottom-nav {
     }
 }
 
+/* Detail pages need their own compact-desktop mode for split-screen windows. */
+.detail-container,
+.detail-content-grid,
+.assembly-card,
+.info-sidebar {
+    min-width: 0;
+}
+
+.detail-container {
+    width: min(100%, 1120px);
+}
+
+.detail-nav-header,
+.title-with-fav {
+    min-width: 0;
+}
+
+.title-with-fav {
+    flex-wrap: nowrap;
+}
+
+#detail-title {
+    max-width: 100%;
+}
+
+@media (min-width: 641px) and (max-width: 1180px) {
+    .detail-container {
+        max-width: 900px;
+    }
+
+    .detail-content-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .assembly-card {
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .info-sidebar {
+        width: 100%;
+        min-height: 0;
+    }
+
+    .assembly-footer {
+        align-items: flex-start;
+        gap: 18px;
+    }
+
+    .click-instruction-hint {
+        min-width: 0;
+        text-align: right;
+        white-space: normal;
+    }
+}
+
+@media (min-width: 641px) and (max-width: 720px) {
+    .detail-nav {
+        gap: 14px;
+    }
+
+    #detail-title {
+        font-size: 1.5rem;
+    }
+
+    .assembly-header {
+        align-items: center;
+        gap: 12px;
+    }
+
+    .assembly-controls-row {
+        flex: 0 0 auto;
+    }
+
+    .lego-figure-canvas {
+        flex-basis: 300px !important;
+        min-height: 300px !important;
+        height: 300px !important;
+    }
+
+    .lego-full-figure {
+        width: min(240px, 44vw) !important;
+        height: 285px !important;
+    }
+
+    .assembly-footer {
+        flex-wrap: wrap;
+    }
+}
+
 @media (max-width: 900px) {
     .light-theme main {
         padding-top: 18px;
