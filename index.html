@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BrickFinder 乐高人仔雷达 - 极简搜索</title>
-    <link rel="stylesheet" href="style-v6.5.min.css">
+    <link rel="stylesheet" href="style-v7.6.min.css">
     <!-- FontAwesome is decorative; load it asynchronously so the first screen is not blocked by the CDN. -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://cdn.rebrickable.com" crossorigin>
@@ -15,6 +15,10 @@
 <body class="light-theme">
     <!-- Header Navigation -->
     <header>
+        <button type="button" class="header-brand" id="header-brand" aria-label="返回 BrickSeek 首页">
+            <span class="header-brand-mark"><i class="fas fa-user-astronaut"></i></span>
+            <strong>BrickSeek</strong>
+        </button>
         <div class="header-left">
             <a href="#" class="nav-link" id="nav-search-btn">雷达搜索</a>
             <a href="#" class="nav-link" id="nav-gallery-btn">人仔图鉴</a>
@@ -137,9 +141,44 @@
 
             <!-- Home Default Sections (Hidden when search results are shown) -->
             <div id="home-default-sections" style="display: block; width: 100%;">
+                <div class="home-action-grid" aria-label="常用功能">
+                    <button type="button" class="home-action-btn" id="home-action-camera">
+                        <span class="home-action-icon"><i class="fas fa-camera"></i></span>
+                        <span>拍照识别</span>
+                    </button>
+                    <button type="button" class="home-action-btn" id="home-action-gallery">
+                        <span class="home-action-icon"><i class="fas fa-fire"></i></span>
+                        <span>人气图鉴</span>
+                    </button>
+                    <button type="button" class="home-action-btn" id="home-action-favorites">
+                        <span class="home-action-icon"><i class="fas fa-star"></i></span>
+                        <span>我的收藏</span>
+                    </button>
+                    <button type="button" class="home-action-btn" id="home-action-themes">
+                        <span class="home-action-icon"><i class="fas fa-layer-group"></i></span>
+                        <span>热门系列</span>
+                    </button>
+                </div>
+
+                <section class="home-theme-section" aria-labelledby="home-theme-title">
+                    <h3 class="section-title" id="home-theme-title">主题图鉴</h3>
+                    <div class="home-theme-grid">
+                        <button class="home-theme-btn hot-tag-btn" data-search="Ninjago"><strong>NINJAGO</strong><span>幻影忍者</span></button>
+                        <button class="home-theme-btn hot-tag-btn" data-search="Star Wars"><strong>STAR WARS</strong><span>星球大战</span></button>
+                        <button class="home-theme-btn hot-tag-btn" data-search="Harry Potter"><strong>HP</strong><span>哈利波特</span></button>
+                        <button class="home-theme-btn hot-tag-btn" data-search="Super Heroes"><strong>HEROES</strong><span>超级英雄</span></button>
+                        <button class="home-theme-btn hot-tag-btn" data-search="Lord of the Rings"><strong>LOTR</strong><span>指环王</span></button>
+                        <button class="home-theme-btn hot-tag-btn" data-search="Pirates"><strong>PIRATES</strong><span>加勒比海盗</span></button>
+                        <button class="home-theme-btn hot-tag-btn" data-search="Disney"><strong>DISNEY</strong><span>迪士尼</span></button>
+                        <button class="home-theme-btn hot-tag-btn" data-search="Space"><strong>SPACE</strong><span>太空系列</span></button>
+                        <button class="home-theme-btn hot-tag-btn" data-search="City"><strong>CITY</strong><span>城市系列</span></button>
+                        <button class="home-theme-btn hot-tag-btn" data-search="Minecraft"><strong>MINECRAFT</strong><span>我的世界</span></button>
+                    </div>
+                </section>
+
                 <!-- Hot Searches / Quick Filters -->
                 <div class="hot-searches-section">
-                    <h3 class="section-title"><i class="fas fa-fire hot-icon"></i> 最近热门</h3>
+                    <h3 class="section-title"><i class="fas fa-fire hot-icon"></i> 热门人仔</h3>
                     <div class="hot-tags-row">
                         <button class="hot-tag-btn" data-search="Vader">
                             <img src="https://cdn.rebrickable.com/media/sets/fig-000581.jpg" alt="Vader" class="hot-tag-img">
@@ -493,6 +532,14 @@
         </div>
     </main>
 
+    <nav class="mobile-bottom-nav" aria-label="手机底部导航">
+        <button type="button" class="mobile-nav-btn active" id="mobile-nav-home"><i class="fas fa-home"></i><span>首页</span></button>
+        <button type="button" class="mobile-nav-btn" id="mobile-nav-gallery"><i class="fas fa-th-large"></i><span>图鉴</span></button>
+        <button type="button" class="mobile-nav-btn mobile-nav-scan" id="mobile-nav-scan"><i class="fas fa-camera"></i><span>识别</span></button>
+        <button type="button" class="mobile-nav-btn" id="mobile-nav-favorites"><i class="fas fa-star"></i><span>收藏</span></button>
+        <button type="button" class="mobile-nav-btn" id="mobile-nav-about"><i class="fas fa-info-circle"></i><span>关于</span></button>
+    </nav>
+
     <!-- Scan / Upload Overlay Modal -->
     <div class="modal-overlay" id="scan-modal">
         <div class="modal-card">
@@ -529,7 +576,19 @@
                     </div>
                     <video id="webcam" autoplay playsinline></video>
                     <canvas id="camera-canvas" style="display: none;"></canvas>
+                    <div class="camera-guide-copy">
+                        <strong>将人仔放在虚线轮廓内</strong>
+                        <span>保持光线充足，并拍摄完整正面</span>
+                    </div>
                     <div class="camera-overlay-frame">
+                        <div class="minifig-outline-container" aria-hidden="true">
+                            <svg class="minifig-outline-svg" viewBox="0 0 240 360" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M92 28h56v20c18 8 28 26 28 47v33c0 19-8 35-23 44l22 18 35 91c6 17-2 35-18 41-15 6-32-1-39-17l-16-38v66h-34v-66l-16 38c-7 16-24 23-39 17-16-6-24-24-18-41l35-91 22-18c-15-9-23-25-23-44V95c0-21 10-39 28-47V28Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="9 8"/>
+                                <path d="M80 174h80l-8 91h-64l-8-91Zm8 91h64v68h-32v-53m0 0v53H88v-68Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="9 8"/>
+                                <circle cx="51" cy="302" r="19" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="9 8"/>
+                                <circle cx="189" cy="302" r="19" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="9 8"/>
+                            </svg>
+                        </div>
                         <!-- Apple Camera Yellow Autofocus Target Box -->
                         <div class="apple-focus-indicator">
                             <div class="focus-box"></div>
@@ -998,6 +1057,6 @@
         </div>
     </div>
 
-    <script src="app-v6.0.min.js" defer></script>
+    <script src="app-v7.4.min.js" defer></script>
 </body>
 </html>

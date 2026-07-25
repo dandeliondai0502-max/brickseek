@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchBoxWrapper = document.querySelector('.search-box-wrapper');
     const cameraTrigger = document.getElementById('camera-trigger');
     const searchSubmitBtn = document.getElementById('search-submit-btn');
+    const headerBrand = document.getElementById('header-brand');
 
     // Home Dedicated Search Results View Elements
     const homeLogoWrapper = document.getElementById('home-logo-wrapper');
@@ -62,6 +63,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const homeSortPopularity = document.getElementById('home-sort-popularity');
     const homeSortPrice = document.getElementById('home-sort-price');
     const homeSortId = document.getElementById('home-sort-id');
+    const homeActionCamera = document.getElementById('home-action-camera');
+    const homeActionGallery = document.getElementById('home-action-gallery');
+    const homeActionFavorites = document.getElementById('home-action-favorites');
+    const homeActionThemes = document.getElementById('home-action-themes');
+    const mobileNavButtons = document.querySelectorAll('.mobile-nav-btn');
+    const mobileNavHome = document.getElementById('mobile-nav-home');
+    const mobileNavGallery = document.getElementById('mobile-nav-gallery');
+    const mobileNavScan = document.getElementById('mobile-nav-scan');
+    const mobileNavFavorites = document.getElementById('mobile-nav-favorites');
+    const mobileNavAbout = document.getElementById('mobile-nav-about');
 
     // Settings & Auth DOM Elements
     const settingsBtn = document.getElementById('settings-btn');
@@ -596,7 +607,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Debounce for search suggestions to avoid duplicate heavy backend requests
     let searchDebounceTimeout = null;
+    let suppressSuggestions = false;
     searchInput.addEventListener('input', () => {
+        suppressSuggestions = false;
         const query = searchInput.value.trim();
         clearTimeout(searchDebounceTimeout);
         if (query.length > 1) {
@@ -694,6 +707,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderSuggestions(items) {
+        if (suppressSuggestions) {
+            suggestionsContainer.classList.remove('active');
+            suggestionsContainer.innerHTML = '';
+            return;
+        }
         suggestionsContainer.innerHTML = '';
         if (items.length === 0) {
             suggestionsContainer.classList.remove('active');
@@ -747,6 +765,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.preventDefault();
                     items[activeSuggestionIdx].click();
                 } else {
+                    e.preventDefault();
                     performTextSearch();
                 }
             } else if (e.key === 'Escape') {
@@ -781,6 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         clearTimeout(searchDebounceTimeout);
         searchDebounceTimeout = null;
+        suppressSuggestions = true;
         suggestionRequestVersion += 1;
         if (suggestionsAbortController) {
             suggestionsAbortController.abort();
@@ -829,6 +849,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (homeSearchResultsSection) homeSearchResultsSection.style.display = 'flex';
 
                 renderHomeSearchResults();
+                suggestionsContainer.classList.remove('active');
+                suggestionsContainer.innerHTML = '';
+                searchInput.blur();
             } else {
                 alert(`在全量数据库中未找到与 "${query}" 匹配的乐高人仔或套装。请换个词试试（如 "Vader"、"fig-000581"、"太空"）`);
             }
@@ -839,6 +862,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 3. Modal Opening & Closing ---
     const openModal = async () => {
+        body.classList.add('scan-open');
         scanModal.classList.add('open');
         resetScannerState();
 
@@ -852,6 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const closeModal = () => {
+        body.classList.remove('scan-open');
         scanModal.classList.remove('open');
         stopWebcam();
         resetScannerState();
@@ -3428,6 +3453,42 @@ document.addEventListener('DOMContentLoaded', () => {
             openFavoritesView();
         });
     }
+
+    const setMobileNavActive = (activeButton) => {
+        mobileNavButtons.forEach(button => button.classList.toggle('active', button === activeButton));
+    };
+
+    homeActionCamera?.addEventListener('click', () => cameraTrigger.click());
+    homeActionGallery?.addEventListener('click', () => navGalleryBtn.click());
+    homeActionFavorites?.addEventListener('click', () => openFavoritesView());
+    homeActionThemes?.addEventListener('click', () => {
+        document.querySelector('.home-theme-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    mobileNavHome?.addEventListener('click', () => {
+        navSearchBtn.click();
+        setMobileNavActive(mobileNavHome);
+    });
+    mobileNavGallery?.addEventListener('click', () => {
+        navGalleryBtn.click();
+        setMobileNavActive(mobileNavGallery);
+    });
+    mobileNavScan?.addEventListener('click', () => {
+        cameraTrigger.click();
+        setMobileNavActive(mobileNavScan);
+    });
+    mobileNavFavorites?.addEventListener('click', () => {
+        openFavoritesView();
+        setMobileNavActive(mobileNavFavorites);
+    });
+    mobileNavAbout?.addEventListener('click', () => {
+        navAboutBtn.click();
+        setMobileNavActive(mobileNavAbout);
+    });
+    headerBrand?.addEventListener('click', () => {
+        navSearchBtn.click();
+        setMobileNavActive(mobileNavHome);
+    });
 
     // Home search category tab switching
     if (homeTabMinifigs && homeTabSets) {
