@@ -16,6 +16,9 @@ Viewport: 390 x 844
 | Spacing and geometry | Tight vertical rhythm, small radii, no decorative shadows | Tight rhythm, 8-10px radii, flat surfaces | Passed |
 | Responsive behavior | Mobile-first composition with dense content | 390px mobile, 900px tablet, and 1440px desktop use separate grid arrangements with zero horizontal overflow | Passed |
 | Split-screen detail | The supplied narrow desktop screenshot clips the assembly controls and shrinks the figure to mobile scale | Detail containers can shrink without overflow; 641-1180px uses a single-column detail layout and 641-720px enlarges the figure while retaining desktop navigation | Passed |
+| Minifigure catalog geometry | Individual rounded cards feel disconnected | Search, catalog, and favorites use connected square cells with a single 1px divider | Passed |
+| Minifigure imagery | Source photos use visibly different canvas colors and whitespace | Every figure uses the same square stage, neutral background, padding, bottom alignment, and light-theme blending | Passed |
+| Minifigure names | Long names are clamped and end in an ellipsis | Names wrap to their full content on desktop and mobile without horizontal overflow | Passed |
 
 ## Intentional Deviations
 
@@ -28,6 +31,7 @@ Viewport: 390 x 844
 
 - Home actions, theme searches, bottom navigation, text search, category tabs, sorting, detail navigation, assemble/explode, part images, and full-screen camera were exercised.
 - The `IG-88, Round Plate Head` search-to-detail flow was rerun after the split-screen fix; both assembly controls remain available and explode reveals all seven parts.
+- The catalog was checked at 1280 x 800 and 390 x 844: cards have 0px radius and 1px connected dividers; the longest sampled name has equal client and scroll heights, with no line clamp.
 - Camera is full viewport, the dashed guide is visible, the shutter is 76px, local upload remains hidden, and the site navigation is hidden while scanning.
 - The dark gold theme still renders without overflow.
 
