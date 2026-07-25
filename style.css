@@ -8159,6 +8159,35 @@ body.scan-open .mobile-bottom-nav {
     display: none !important;
 }
 
+@media (min-width: 901px) {
+    #home-default-sections {
+        width: 100% !important;
+        max-width: 1120px;
+    }
+
+    .home-action-grid {
+        max-width: 920px;
+        margin-top: 10px;
+        margin-bottom: 26px;
+    }
+
+    .home-theme-grid {
+        grid-template-columns: repeat(10, minmax(0, 1fr));
+    }
+
+    .home-theme-btn {
+        min-height: 82px;
+    }
+
+    .hot-tag-btn:not(.home-theme-btn) .hot-tag-img {
+        height: 210px;
+    }
+
+    .quick-cards-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 @media (max-width: 900px) {
     .light-theme main {
         padding-top: 18px;

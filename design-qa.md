@@ -14,7 +14,7 @@ Viewport: 390 x 844
 | Product imagery | Large minifigure photos dominate cards | Real minifigure photos dominate the featured rail and result cards | Passed |
 | Navigation | Five-item fixed mobile navigation | Five-item fixed navigation with emphasized scan action | Passed |
 | Spacing and geometry | Tight vertical rhythm, small radii, no decorative shadows | Tight rhythm, 8-10px radii, flat surfaces | Passed |
-| Responsive behavior | Mobile-first composition | 390px mobile and 1280px desktop verified with zero horizontal overflow | Passed |
+| Responsive behavior | Mobile-first composition with dense content | 390px mobile, 900px tablet, and 1440px desktop use separate grid arrangements with zero horizontal overflow | Passed |
 
 ## Intentional Deviations
 
