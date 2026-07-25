@@ -285,10 +285,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusPercent = document.getElementById('status-percent');
     const scanLogs = document.getElementById('scan-logs');
 
-    const boxHead = document.getElementById('box-head');
-    const boxTorso = document.getElementById('box-torso');
-    const boxLegs = document.getElementById('box-legs');
-
     const scanResultContainer = document.getElementById('scan-result-container');
     const rescanBtn = document.getElementById('rescan-btn');
     const viewDetailedPartsBtn = document.querySelector('.btn-card-primary');
@@ -340,8 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
         soundEnabled: true,
         cameraId: "",
         favorites: [], // [{"id": "fig-002816", "name": "Killow"}]
-        theme: "light",
-        geminiApiKey: ""
+        theme: "light"
     };
     let preferences = { ...DEFAULT_PREFERENCES };
 
@@ -364,7 +359,6 @@ document.addEventListener('DOMContentLoaded', () => {
         merged.soundEnabled = typeof merged.soundEnabled === 'boolean' ? merged.soundEnabled : DEFAULT_PREFERENCES.soundEnabled;
         merged.cameraId = typeof merged.cameraId === 'string' ? merged.cameraId : DEFAULT_PREFERENCES.cameraId;
         merged.theme = merged.theme === 'dark' || merged.theme === 'light' ? merged.theme : DEFAULT_PREFERENCES.theme;
-        merged.geminiApiKey = typeof merged.geminiApiKey === 'string' ? merged.geminiApiKey : DEFAULT_PREFERENCES.geminiApiKey;
         merged.favorites = Array.isArray(merged.favorites)
             ? merged.favorites.map(normalizeFavorite).filter(Boolean)
             : [];
@@ -1580,9 +1574,6 @@ document.addEventListener('DOMContentLoaded', () => {
         isPartMatch = false;
         scannedPartInfo = null;
 
-        boxHead.style.display = 'none';
-        boxTorso.style.display = 'none';
-        boxLegs.style.display = 'none';
     }
 
     function addLog(text, type = '') {
@@ -1613,20 +1604,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const aiBox = document.getElementById('ai-analysis-box');
         if (aiBox) aiBox.style.display = 'none';
 
-        addLog('⚡ Initializing visual feature matrix analysis engine...', 'highlight');
+        addLog('正在准备 Brickognize 人仔识别...', 'highlight');
 
         // Fetch matching figures instantly in the background!
         scanResults = [];
         let isAiSuccessful = false;
-
-        function dataURLtoBlob(dataurl) {
-            var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
-                bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
-            while(n--){
-                u8arr[n] = bstr.charCodeAt(n);
-            }
-            return new Blob([u8arr], {type:mime});
-        }
 
         function blobToDataURL(blob) {
             return new Promise((resolve, reject) => {
@@ -1654,7 +1636,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => {
-                    const maxDim = 360;
+                    const maxDim = 960;
                     let width = img.width;
                     let height = img.height;
                     if (width > maxDim || height > maxDim) {
@@ -1677,7 +1659,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         : 'image/jpeg';
                     canvas.toBlob((blob) => {
                         resolve(blob || input);
-                    }, exportType, 0.72);
+                    }, exportType, 0.82);
                 };
                 img.onerror = () => resolve(input);
                 img.src = dataUrl;
@@ -1687,14 +1669,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (imageInput) {
             let compressedBlob;
             try {
-                addLog('⚡ Resizing and optimizing image bytes for instant transmission...', 'highlight');
+                addLog('正在压缩照片，保留人仔识别细节...', 'highlight');
                 compressedBlob = await compressImageInput(imageInput);
             } catch (err) {
                 console.error("Compression error:", err);
                 compressedBlob = imageInput;
             }
 
-            addLog('🔍 Sending optimized image to local recognition gateway...', 'highlight');
+            addLog('正在发送照片到 Brickognize 人仔识别模型...', 'highlight');
             try {
                 const compressedDataUrl = typeof compressedBlob === 'string'
                     ? compressedBlob
@@ -1721,55 +1703,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (!isAiSuccessful) {
-                    addLog('⚠️ Local gateway unavailable. Trying direct Brickognize request...', 'warning');
-                    const formData = new FormData();
-                    if (typeof compressedBlob === 'string') {
-                        formData.append('query_image', dataURLtoBlob(compressedBlob), 'image.jpg');
-                    } else {
-                        formData.append('query_image', compressedBlob, 'image.jpg');
-                    }
-
-                    const apiRes = await fetch('https://api.brickognize.com/predict/', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    if (apiRes.ok) {
-                        const apiData = await apiRes.json();
-                        const items = apiData.items || [];
-                        const res = await fetch('/api/scan-candidates', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                items: items,
-                                color: color
-                            })
-                        });
-
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data.results && data.results.length > 0) {
-                                scanResults = data.results;
-                                scanAiDescription = data.description || '';
-                                isAiSuccessful = true;
-                                isPartMatch = data.type === 'part';
-                                scannedPartInfo = data.part || null;
-                            }
-                        }
-                    }
-                }
-
-                if (!isAiSuccessful) {
-                    addLog('⚠️ Recognition service offline. Falling back to visual proxy...', 'warning');
+                    addLog('⚠️ Brickognize 未找到可靠匹配。', 'warning');
                 }
             } catch (e) {
                 console.error("Direct API Scan fetch error:", e);
-                addLog('⚠️ Connection timed out. Falling back to visual proxy...', 'warning');
+                addLog('⚠️ Brickognize 连接超时，请稍后重新拍摄。', 'warning');
             }
         }
 
-        // Fallback if AI not successful or not attempted
-        if (!isAiSuccessful) {
+        // Keep the legacy text/color scan only for non-photo requests.
+        if (!isAiSuccessful && !imageInput) {
             try {
                 const res = await fetch(`/api/scan?color=${color}&query=${encodeURIComponent(query)}`);
                 if (res.ok) {
@@ -1782,87 +1725,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // If fetch fails or returns empty, fallback to default popular figures
-        if (!scanResults || scanResults.length === 0) {
-            scanResults = [
-                { minifig_num: 'fig-000581', name: 'Darth Vader (达斯·维达 - 铬黑版)', num_parts: 6, img_url: 'https://cdn.rebrickable.com/media/sets/fig-000581.jpg' },
-                { minifig_num: 'fig-001783', name: 'Darth Vader (Light Nougat)', num_parts: 5, img_url: 'https://cdn.rebrickable.com/media/sets/fig-001783.jpg' },
-                { minifig_num: 'fig-000516', name: 'Darth Vader (LBG Skin)', num_parts: 6, img_url: 'https://cdn.rebrickable.com/media/sets/fig-000516.jpg' }
-            ];
-        }
-
-        const bestMatch = scanResults[0];
-        const matchName = bestMatch.name;
-
-        // Customize logs dynamically based on the best match character name!
-        let characterType = 'Unknown Minifigure';
-        let detail1 = `Head accessory with #${color.toUpperCase()} highlights`;
-        let detail2 = `Standard torso with #${color.toUpperCase()} print patterns`;
-
-        const matchNameLower = matchName.toLowerCase();
-        if (matchNameLower.includes('vader')) {
-            characterType = 'Darth Vader';
-            detail1 = 'Classic Darth Vader helmet contour';
-            detail2 = 'Sith chest control panel insignia';
-        } else if (matchNameLower.includes('yoda')) {
-            characterType = 'Master Yoda';
-            detail1 = 'Alien green pointed ears & forehead contour';
-            detail2 = 'Jedi Grand Master textured robe pattern';
-        } else if (matchNameLower.includes('batman')) {
-            characterType = 'Batman';
-            detail1 = 'Pointed ears cowl mask profile';
-            detail2 = 'Signature bat chest insignia print';
-        } else if (matchNameLower.includes('iron')) {
-            characterType = 'Iron Man';
-            detail1 = 'Tony Stark gold faceplate contour';
-            detail2 = 'Chest arc reactor power unit outline';
-        } else if (matchNameLower.includes('lloyd')) {
-            characterType = 'Green Ninja Lloyd';
-            detail1 = 'Ninjago hood wrap bandana contour';
-            detail2 = 'Energy elemental fabric alignment print';
-        } else if (matchNameLower.includes('spider')) {
-            characterType = 'Spider-Man';
-            detail1 = 'Classic webbed spider-cowl contour';
-            detail2 = 'Signature spider chest emblem print';
-        } else if (matchNameLower.includes('stormtrooper')) {
-            characterType = 'Stormtrooper';
-            detail1 = 'Classic military imperial helmet profile';
-            detail2 = 'Tactical white plastoid armor prints';
-        } else if (matchNameLower.includes('luke')) {
-            characterType = 'Luke Skywalker';
-            detail1 = 'Tatooine hair or rebel helmet contour';
-            detail2 = 'Jedi Knight tunic or pilot flight suit pattern';
-        }
-
+        const bestMatch = scanResults[0] || {
+            name: '未找到可靠匹配',
+            num_parts: 0
+        };
         const logsSchedule = [
-            { threshold: 10, text: '🔍 Image bytes parsed. Commencing edge contour extraction...', type: '' },
-            { threshold: 22, text: isAiSuccessful ? `🤖 API Match Confirmed: ${characterType}` : `🤖 Structural match identified: ${characterType}`, type: 'success' },
-            { threshold: 30, text: '🎯 [LOCK] Scanning facial decals and helmet prints...', type: '' },
-            { threshold: 45, text: `🏷️ Helmet Match: ${detail1}`, type: 'highlight' },
-            { threshold: 55, text: '🎯 [LOCK] Analysing torso decals, arms, and base colors...', type: '' },
-            { threshold: 70, text: `🏷️ Torso Match: ${detail2}`, type: 'highlight' },
-            { threshold: 82, text: '🎯 [LOCK] Leg and hip alignment validation completed...', type: '' },
-            { threshold: 90, text: isAiSuccessful ? '📦 Matching database catalogs against visual weights...' : '📦 Fetching metadata from offline index files...', type: '' },
-            { threshold: 98, text: isAiSuccessful ? `✅ Match verified! Registered as: ${bestMatch.name}` : `✅ Search completed. Match confidence for ${bestMatch.name}: 99.4%`, type: 'success' }
+            { threshold: 12, text: '照片处理完成。', type: '' },
+            { threshold: 35, text: '正在调用 Brickognize 人仔识别模型...', type: 'highlight' },
+            { threshold: 72, text: isAiSuccessful ? `Brickognize 返回 ${scanResults.length} 个候选结果。` : 'Brickognize 未返回可靠候选。', type: isAiSuccessful ? 'success' : 'warning' },
+            { threshold: 90, text: isAiSuccessful ? '正在匹配本地人仔图鉴编号...' : '请调整角度或光线后重新拍摄。', type: '' },
+            { threshold: 98, text: isAiSuccessful ? `Brickognize 匹配完成：${bestMatch.name}` : 'Brickognize 未找到可靠匹配，请重新拍摄。', type: isAiSuccessful ? 'success' : 'warning' }
         ];
 
         scanInterval = setInterval(() => {
             progress += 1;
             progressBarFill.style.width = `${progress}%`;
             statusPercent.textContent = `${progress}%`;
-
-            if (progress >= 25 && progress < 85) {
-                boxHead.style.display = 'block';
-                boxHead.querySelector('.box-label').textContent = `Head [${Math.min(99, progress * 1.2).toFixed(1)}%]`;
-            }
-            if (progress >= 50 && progress < 85) {
-                boxTorso.style.display = 'block';
-                boxTorso.querySelector('.box-label').textContent = `Torso [${Math.min(99, progress * 1.15).toFixed(1)}%]`;
-            }
-            if (progress >= 70 && progress < 85) {
-                boxLegs.style.display = 'block';
-                boxLegs.querySelector('.box-label').textContent = `Legs [${Math.min(99, progress * 1.1).toFixed(1)}%]`;
-            }
 
             const logItem = logsSchedule.find(item => item.threshold === progress);
             if (logItem) {
@@ -1896,7 +1774,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const resultCardsContainer = document.querySelector('.result-cards');
         resultCardsContainer.innerHTML = '';
 
-        if (!scanResults || scanResults.length === 0) return;
+        const resultIcon = document.getElementById('scan-result-icon');
+        const resultTitle = document.getElementById('scan-result-title');
+        const resultSubtext = document.getElementById('scan-result-subtext');
+
+        if (!scanResults || scanResults.length === 0) {
+            if (resultIcon) resultIcon.className = 'fas fa-search result-empty-icon';
+            if (resultTitle) resultTitle.textContent = '未识别到人仔';
+            if (resultSubtext) resultSubtext.textContent = '请让人物保持完整、光线均匀后重新拍摄';
+            resultCardsContainer.innerHTML = `
+                <div class="scan-empty-state">
+                    <i class="fas fa-camera-retro"></i>
+                    <strong>Brickognize 没有返回可靠结果</strong>
+                    <span>建议拍摄人仔正面，并避免强烈反光或复杂背景。</span>
+                </div>
+            `;
+            return;
+        }
+
+        if (resultIcon) resultIcon.className = 'fas fa-check-circle success-icon';
+        if (resultTitle) resultTitle.textContent = '人仔识别成功！';
+        if (resultSubtext) resultSubtext.textContent = `Brickognize 找到 ${scanResults.length} 个匹配结果`;
 
         if (isPartMatch && scannedPartInfo) {
             const partCard = document.createElement('div');

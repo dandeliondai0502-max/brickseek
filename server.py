@@ -1514,83 +1514,6 @@ class LegoAPIHandler(http.server.SimpleHTTPRequestHandler):
                 unique_figs.append(fig)
         return unique_figs
 
-def call_gemini_vision(img_b64, m_type, api_key):
-    import urllib.request
-    import json
-
-    if not api_key:
-        return []
-
-    clean_mime = "image/jpeg"
-    if "png" in m_type:
-        clean_mime = "image/png"
-    elif "webp" in m_type:
-        clean_mime = "image/webp"
-
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-    payload = {
-        "contents": [
-            {
-                "parts": [
-                    {
-                        "text": (
-                            "You are a professional LEGO Minifigure cataloging and identification expert. "
-                            "Analyze this photo of a LEGO Minifigure. Identify the exact character. "
-                            "Return a JSON list of matching minifigures (up to 3 matches) with the following schema:\n"
-                            "[\n"
-                            "  {\n"
-                            "    \"id\": \"official BrickLink ID (e.g. njo0979, sw0107, sh012) or Rebrickable ID (e.g. fig-016380)\",\n"
-                            "    \"name\": \"character name\",\n"
-                            "    \"score\": confidence score between 0.0 and 1.0\n"
-                            "  }\n"
-                            "]\n"
-                            "Return ONLY the raw JSON array. No markdown code blocks."
-                        )
-                    },
-                    {
-                        "inlineData": {
-                            "mimeType": clean_mime,
-                            "data": img_b64
-                        }
-                    }
-                ]
-            }
-        ],
-        "generationConfig": {
-            "responseMimeType": "application/json"
-        }
-    }
-
-    try:
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode('utf-8'),
-            headers={'Content-Type': 'application/json'}
-        )
-        with urllib.request.urlopen(req, timeout=12) as response:
-            res = json.loads(response.read().decode('utf-8'))
-
-        text = res["candidates"][0]["content"]["parts"][0]["text"].strip()
-        items = json.loads(text)
-        if isinstance(items, list):
-            result = []
-            for item in items:
-                m_id = str(item.get("id", "")).strip()
-                m_name = str(item.get("name", "")).strip()
-                m_score = float(item.get("score", 0.85))
-                result.append({
-                    "id": m_id,
-                    "name": m_name,
-                    "score": m_score,
-                    "type": "minifig",
-                    "source": "gemini"
-                })
-            return result
-    except Exception as e:
-        print(f"[Gemini Vision Error] Failed to call Gemini API: {e}")
-        return []
-    return []
-
 def api_scan_image(self, conn, body):
     import urllib.request
     import urllib.error
@@ -1600,10 +1523,6 @@ def api_scan_image(self, conn, body):
 
     base64_image = body.get("image", "").strip()
     target_color = body.get("color", "ffffff").strip().lower()
-    api_key = body.get("api_key", "").strip()
-    if not api_key:
-        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-
     if not base64_image:
         self.send_json_response({
             "error": "INVALID_IMAGE",
@@ -1623,7 +1542,7 @@ def api_scan_image(self, conn, body):
         elif "image/gif" in header:
             mime_type = "image/gif"
 
-    response_cache_key = hashlib.sha256(f"{target_color}:{image_data}".encode("utf-8")).hexdigest()
+    response_cache_key = hashlib.sha256(f"brickognize-figs-v2:{target_color}:{image_data}".encode("utf-8")).hexdigest()
     cached_response = SCAN_IMAGE_RESPONSE_CACHE.get(response_cache_key)
     if cached_response:
         expires_at, payload = cached_response
@@ -1692,7 +1611,7 @@ def api_scan_image(self, conn, body):
 
     # Brickognize expects multipart/form-data with a query_image file field.
     def call_brickognize(img_b64, m_type):
-        cache_key = hashlib.sha256(img_b64.encode("utf-8")).hexdigest()
+        cache_key = hashlib.sha256(f"figs-v1:{img_b64}".encode("utf-8")).hexdigest()
         cached_items = get_brickognize_cache(cache_key)
         if cached_items is not None:
             print("[Scanner] Brickognize cache hit.")
@@ -1712,7 +1631,7 @@ def api_scan_image(self, conn, body):
             ]
             req_bytes = b'\r\n'.join(body_parts)
             req = urllib.request.Request(
-                "https://api.brickognize.com/predict/",
+                "https://api.brickognize.com/predict/figs/",
                 data=req_bytes,
                 headers={
                     'Content-Type': f'multipart/form-data; boundary={bound}',
@@ -1721,10 +1640,19 @@ def api_scan_image(self, conn, body):
                 },
                 method='POST'
             )
-            ssl_context = ssl._create_unverified_context()
+            ca_candidates = (
+                "/etc/ssl/cert.pem",
+                "/etc/ssl/certs/ca-certificates.crt",
+                "/opt/homebrew/etc/openssl@3/cert.pem",
+            )
+            ca_file = next((path for path in ca_candidates if os.path.exists(path)), None)
+            ssl_context = ssl.create_default_context(cafile=ca_file) if ca_file else ssl.create_default_context()
             with urllib.request.urlopen(req, timeout=10, context=ssl_context) as response:
                 res = json.loads(response.read().decode('utf-8'))
-            items = res.get("items", [])[:12]
+            items = [
+                item for item in res.get("items", [])
+                if str(item.get("type", "")).lower() == "fig"
+            ][:12]
             set_brickognize_cache(cache_key, items)
             return items
         except urllib.error.HTTPError as he:
@@ -1738,21 +1666,7 @@ def api_scan_image(self, conn, body):
 
     print("[Scanner] Calling Brickognize recognition engine...")
     brick_items = call_brickognize(image_data, mime_type)
-    best_brick_score = 0
-    if brick_items:
-        try:
-            best_brick_score = max(float(item.get("score", 0) or 0) for item in brick_items)
-        except Exception:
-            best_brick_score = 0
-
-    gemini_items = []
-    if api_key and best_brick_score < 0.86:
-        print("[Scanner] Brickognize confidence is low; calling Gemini validator...")
-        gemini_items = call_gemini_vision(image_data, mime_type, api_key)
-        print(f"[Scanner] Gemini matched {len(gemini_items)} candidate figures.")
-
-    combined_items = brick_items + gemini_items
-    matches = self.lookup_candidates(conn, combined_items)
+    matches = self.lookup_candidates(conn, brick_items)
 
     # Translate names for top matches
     top_matches = matches[:3]
@@ -1766,25 +1680,20 @@ def api_scan_image(self, conn, body):
             "type": "minifig",
             "description": ai_desc,
             "results": top_matches,
-            "source": "brickognize" if brick_items else "gemini"
+            "source": "brickognize"
         })
         return
 
-    # Fallback to color distance if still no matches found
-    print("Brickognize returned no matches. Falling back to traditional color distance match...")
-    params = {"color": [target_color], "query": [""]}
-    color_matches = self.api_scan(conn, params)
-
+    print("Brickognize returned no minifigure matches.")
     finish_scan({
         "type": "minifig",
-        "description": "⚠️ No exact match found. Recommending figures with similar dominant colors.",
-        "results": color_matches,
-        "source": "color-fallback"
+        "description": "Brickognize 未找到可靠的人仔匹配，请调整角度或光线后重新拍摄。",
+        "results": [],
+        "source": "brickognize"
     })
 
 def api_scan_candidates(self, conn, body):
     brick_items = body.get("items", [])
-    target_color = body.get("color", "ffffff").strip().lower()
 
     recognized_parts = []
     for item in brick_items:
@@ -1902,15 +1811,11 @@ def api_scan_candidates(self, conn, body):
         })
         return
 
-    # Fallback to color distance if still no matches found
-    print("Brickognize returned no matches. Falling back to traditional color distance match...")
-    params = {"color": [target_color], "query": [""]}
-    color_matches = self.api_scan(conn, params)
-
     self.send_json_response({
         "type": "minifig",
-        "description": "⚠️ No exact match found. Recommending figures with similar dominant colors.",
-        "results": color_matches
+        "description": "Brickognize 未找到可靠的人仔匹配，请调整角度或光线后重新拍摄。",
+        "results": [],
+        "source": "brickognize"
     })
 
 def api_prices(self, conn, body):

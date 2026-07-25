@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BrickFinder 乐高人仔雷达 - 极简搜索</title>
-    <link rel="stylesheet" href="style-v7.10.min.css">
+    <link rel="stylesheet" href="style-v7.11.min.css">
     <!-- FontAwesome is decorative; load it asynchronously so the first screen is not blocked by the CDN. -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://cdn.rebrickable.com" crossorigin>
@@ -325,8 +325,8 @@
                     <div class="about-rich-text" style="font-size: 0.92rem; line-height: 1.6; color: var(--text-secondary); display: flex; flex-direction: column; gap: 12px;">
                         <p><strong>BrickSeek 乐高人仔雷达</strong>是由乐高极客社群发起的一款数字化百科探测系统。我们整合了前沿的智能软硬件加速能力：</p>
                         <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
-                            <li><i class="fas fa-camera-retro" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>变焦 WebRTC 采集</strong>：支持原生摄像头缩放与 CSS 视网膜数码变焦，配有经典的乐高标准人仔虚线网格，辅助用户轻松对焦。</li>
-                            <li><i class="fas fa-crop" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>Gemini 双通道裁剪比对</strong>：当首轮匹配度较低或用户只拍了零件局部，AI 视觉大模型会自动标记人仔轮廓坐标，由 Pillow 模块执行实时剪裁放大二次检索，识别率跃升。</li>
+                            <li><i class="fas fa-camera-retro" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>全屏 WebRTC 采集</strong>：直接打开实时摄像头，保留原生镜头切换和缩放能力，不在取景画面上遮挡人物。</li>
+                            <li><i class="fas fa-search" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>Brickognize 人仔识别</strong>：拍照后直接调用 Brickognize 人仔专用模型，并使用返回的 BrickLink 编号匹配本地图鉴。</li>
                             <li><i class="fas fa-database" style="color: var(--accent-color); margin-right: 6px;"></i> <strong>图谱关联百科</strong>：后端联查 84,921 款人仔与数十万核心零件关系网，点击任一零件可瞬间获取全图鉴共享人仔的实物画廊。</li>
                         </ul>
                         <p style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 12px; font-size: 0.85rem; color: var(--text-muted);">免责声明：本系统为非盈利性质的扇子开发项目。所有的乐高积木、人仔及相关设计商标的所有权均归属于乐高集团（The LEGO Group）。本系统不与乐高集团产生官方绑定。</p>
@@ -369,7 +369,7 @@
                         </div>
                         <div class="legal-section">
                             <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">二、图像智能识别与缓存说明</h5>
-                            <p>您快门截取的照片上传后会先经 Brickognize 识别，若置信度过低则由 Gemini 进行算法裁剪和再次检测。识别完成后，服务器<strong>会自动、立即且永久销毁</strong>接收到的图像数据，不设任何存储记录。</p>
+                            <p>您按下快门后，截取的照片会发送至 Brickognize 用于人仔识别，并受其<a href="https://brickognize.com/terms-of-service" target="_blank" rel="noopener noreferrer">服务条款</a>约束。BrickSeek 本地服务仅处理识别请求与结果缓存，不主动保存原始照片。</p>
                         </div>
                         <div class="legal-section">
                             <h5 style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">三、收藏与偏好存储</h5>
@@ -576,19 +576,7 @@
                     </div>
                     <video id="webcam" autoplay playsinline></video>
                     <canvas id="camera-canvas" style="display: none;"></canvas>
-                    <div class="camera-guide-copy">
-                        <strong>将人仔放在虚线轮廓内</strong>
-                        <span>保持光线充足，并拍摄完整正面</span>
-                    </div>
                     <div class="camera-overlay-frame">
-                        <div class="minifig-outline-container" aria-hidden="true">
-                            <svg class="minifig-outline-svg" viewBox="0 0 240 360" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M92 28h56v20c18 8 28 26 28 47v33c0 19-8 35-23 44l22 18 35 91c6 17-2 35-18 41-15 6-32-1-39-17l-16-38v66h-34v-66l-16 38c-7 16-24 23-39 17-16-6-24-24-18-41l35-91 22-18c-15-9-23-25-23-44V95c0-21 10-39 28-47V28Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="9 8"/>
-                                <path d="M80 174h80l-8 91h-64l-8-91Zm8 91h64v68h-32v-53m0 0v53H88v-68Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="9 8"/>
-                                <circle cx="51" cy="302" r="19" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="9 8"/>
-                                <circle cx="189" cy="302" r="19" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="9 8"/>
-                            </svg>
-                        </div>
                         <!-- Apple Camera Yellow Autofocus Target Box -->
                         <div class="apple-focus-indicator">
                             <div class="focus-box"></div>
@@ -626,22 +614,12 @@
                     <div class="preview-image-wrapper">
                         <img id="preview-image" src="" alt="待识别的人仔">
                         <div class="laser-scanner"></div>
-                        <!-- Bounding Box overlays -->
-                        <div class="scan-bounding-box" id="box-head" style="display: none;">
-                            <span class="box-label">Head [匹配中...]</span>
-                        </div>
-                        <div class="scan-bounding-box" id="box-torso" style="display: none;">
-                            <span class="box-label">Torso [匹配中...]</span>
-                        </div>
-                        <div class="scan-bounding-box" id="box-legs" style="display: none;">
-                            <span class="box-label">Legs [匹配中...]</span>
-                        </div>
                     </div>
                     
                     <!-- Scan Status Details -->
                     <div class="scan-status-panel">
                         <div class="status-header">
-                            <span class="status-title"><i class="fas fa-microchip animate-pulse"></i> 图像分析引擎已就绪</span>
+                            <span class="status-title"><i class="fas fa-search animate-pulse"></i> Brickognize 识别中</span>
                             <span class="status-percent" id="status-percent">0%</span>
                         </div>
                         <div class="progress-bar-container">
@@ -655,18 +633,18 @@
 
                 <!-- Result Viewport -->
                 <div class="scan-result-container" id="scan-result-container" style="display: none;">
-                    <div class="result-header">
-                        <i class="fas fa-check-circle success-icon"></i>
+                    <div class="result-header" id="scan-result-header">
+                        <i class="fas fa-check-circle success-icon" id="scan-result-icon"></i>
                         <div>
-                            <h4>人仔识别成功！</h4>
-                            <p class="result-subtext">在特征数据库中找到 3 个高比例匹配结果</p>
+                            <h4 id="scan-result-title">人仔识别成功！</h4>
+                            <p class="result-subtext" id="scan-result-subtext">Brickognize 已返回匹配结果</p>
                         </div>
                     </div>
                     
-                    <!-- AI Visual Analysis Box -->
+                    <!-- Brickognize result summary -->
                     <div class="ai-analysis-box" id="ai-analysis-box" style="display: none;">
                         <div class="ai-analysis-title">
-                            <i class="fas fa-magic animate-pulse"></i> AI 智能视觉分析报告
+                            <i class="fas fa-search"></i> Brickognize 识别报告
                         </div>
                         <p class="ai-analysis-text" id="ai-analysis-text"></p>
                     </div>
@@ -1057,6 +1035,6 @@
         </div>
     </div>
 
-    <script src="app-v7.4.min.js" defer></script>
+    <script src="app-v7.5.min.js" defer></script>
 </body>
 </html>
