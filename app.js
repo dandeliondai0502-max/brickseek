@@ -1507,9 +1507,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    shutterBtn.addEventListener('click', () => {
+    shutterBtn.addEventListener('click', async () => {
         if (!webcamStream) return;
+        shutterBtn.disabled = true;
 
+        try {
         const zoomSlider = document.getElementById('camera-zoom-slider');
         const zoomVal = zoomSlider ? parseFloat(zoomSlider.value) : 1.0;
 
@@ -1519,24 +1521,34 @@ document.addEventListener('DOMContentLoaded', () => {
         cameraCanvas.width = width;
         cameraCanvas.height = height;
 
-        const ctx = cameraCanvas.getContext('2d');
+        const captureFrame = () => {
+            const ctx = cameraCanvas.getContext('2d');
+            ctx.clearRect(0, 0, width, height);
+            if (zoomVal > 1) {
+                const sw = width / zoomVal;
+                const sh = height / zoomVal;
+                const sx = (width - sw) / 2;
+                const sy = (height - sh) / 2;
+                ctx.drawImage(webcam, sx, sy, sw, sh, 0, 0, width, height);
+            } else {
+                ctx.drawImage(webcam, 0, 0, width, height, 0, 0, width, height);
+            }
+            return cameraCanvas.toDataURL('image/jpeg', 0.94);
+        };
 
-        if (zoomVal > 1) {
-            const sw = width / zoomVal;
-            const sh = height / zoomVal;
-            const sx = (width - sw) / 2;
-            const sy = (height - sh) / 2;
-            ctx.drawImage(webcam, sx, sy, sw, sh, 0, 0, width, height);
-        } else {
-            ctx.drawImage(webcam, 0, 0, width, height, 0, 0, width, height);
+        const capturedFrames = [];
+        for (let index = 0; index < 3; index += 1) {
+            capturedFrames.push(captureFrame());
+            if (index < 2) {
+                await new Promise(resolve => setTimeout(resolve, 130));
+            }
         }
-
-        const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.95);
+        const dataUrl = capturedFrames[1];
 
         // Define onload FIRST to avoid data URL race conditions
         previewImage.onload = () => {
             const hexColor = getAverageColorFromImage(previewImage);
-            startScanning(hexColor, '', dataUrl);
+            startScanning(hexColor, '', dataUrl, capturedFrames);
             previewImage.onload = null;
         };
         previewImage.src = dataUrl;
@@ -1544,6 +1556,9 @@ document.addEventListener('DOMContentLoaded', () => {
         stopWebcam();
         cameraViewport.style.display = 'none';
         if (cameraControls) cameraControls.style.display = 'none';
+        } finally {
+            shutterBtn.disabled = false;
+        }
     });
 
     function stopWebcam() {
@@ -1573,6 +1588,7 @@ document.addEventListener('DOMContentLoaded', () => {
         scanAiDescription = '';
         isPartMatch = false;
         scannedPartInfo = null;
+        scanVerification = null;
 
     }
 
@@ -1588,7 +1604,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let scanAiDescription = '';
     let isPartMatch = false;
     let scannedPartInfo = null;
-    async function startScanning(color, query, imageInput) {
+    let scanVerification = null;
+    async function startScanning(color, query, imageInput, imageInputs = []) {
         dropZone.style.display = 'none';
         cameraViewport.style.display = 'none';
         if (cameraControls) cameraControls.style.display = 'none';
@@ -1600,6 +1617,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusPercent.textContent = '0%';
         scanLogs.innerHTML = '';
         scanAiDescription = '';
+        scanVerification = null;
 
         const aiBox = document.getElementById('ai-analysis-box');
         if (aiBox) aiBox.style.display = 'none';
@@ -1666,27 +1684,65 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        async function createRecognitionVariants(dataUrl) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const variants = [
+                        { crop: 1, filter: 'none' },
+                        { crop: 0.9, filter: 'none' },
+                        { crop: 0.96, filter: 'contrast(1.08) saturate(1.06) brightness(1.03)' }
+                    ].map(({ crop, filter }) => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        const sourceWidth = img.width * crop;
+                        const sourceHeight = img.height * crop;
+                        const sourceX = (img.width - sourceWidth) / 2;
+                        const sourceY = (img.height - sourceHeight) / 2;
+                        ctx.filter = filter;
+                        ctx.drawImage(
+                            img,
+                            sourceX,
+                            sourceY,
+                            sourceWidth,
+                            sourceHeight,
+                            0,
+                            0,
+                            canvas.width,
+                            canvas.height
+                        );
+                        return canvas.toDataURL('image/jpeg', 0.86);
+                    });
+                    resolve(variants);
+                };
+                img.onerror = () => resolve([dataUrl]);
+                img.src = dataUrl;
+            });
+        }
+
         if (imageInput) {
-            let compressedBlob;
             try {
-                addLog('正在压缩照片，保留人仔识别细节...', 'highlight');
-                compressedBlob = await compressImageInput(imageInput);
-            } catch (err) {
-                console.error("Compression error:", err);
-                compressedBlob = imageInput;
-            }
+                addLog('正在整理三路识别图像...', 'highlight');
+                const sourceImages = Array.isArray(imageInputs) && imageInputs.length > 1
+                    ? imageInputs.slice(0, 3)
+                    : [imageInput];
+                let recognitionImages = await Promise.all(sourceImages.map(async source => {
+                    const compressed = await compressImageInput(source);
+                    return typeof compressed === 'string' ? compressed : blobToDataURL(compressed);
+                }));
+                if (recognitionImages.length === 1) {
+                    recognitionImages = await createRecognitionVariants(recognitionImages[0]);
+                }
 
-            addLog('正在发送照片到 Brickognize 人仔识别模型...', 'highlight');
-            try {
-                const compressedDataUrl = typeof compressedBlob === 'string'
-                    ? compressedBlob
-                    : await blobToDataURL(compressedBlob);
-
+                addLog(`正在发送 ${recognitionImages.length} 路图像到 Brickognize...`, 'highlight');
                 const gatewayRes = await fetch('/api/scan-image', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        image: compressedDataUrl,
+                        image: recognitionImages[0],
+                        images: recognitionImages,
                         color: color
                     })
                 });
@@ -1700,13 +1756,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         isPartMatch = data.type === 'part';
                         scannedPartInfo = data.part || null;
                     }
+                    scanVerification = data.verification || null;
                 }
 
                 if (!isAiSuccessful) {
-                    addLog('⚠️ Brickognize 未找到可靠匹配。', 'warning');
+                    addLog('Brickognize 多路结果未达成一致，请重新拍摄。', 'warning');
                 }
             } catch (e) {
-                console.error("Direct API Scan fetch error:", e);
+                console.error("Brickognize consensus scan error:", e);
                 addLog('⚠️ Brickognize 连接超时，请稍后重新拍摄。', 'warning');
             }
         }
@@ -1730,11 +1787,17 @@ document.addEventListener('DOMContentLoaded', () => {
             num_parts: 0
         };
         const logsSchedule = [
-            { threshold: 12, text: '照片处理完成。', type: '' },
-            { threshold: 35, text: '正在调用 Brickognize 人仔识别模型...', type: 'highlight' },
-            { threshold: 72, text: isAiSuccessful ? `Brickognize 返回 ${scanResults.length} 个候选结果。` : 'Brickognize 未返回可靠候选。', type: isAiSuccessful ? 'success' : 'warning' },
-            { threshold: 90, text: isAiSuccessful ? '正在匹配本地人仔图鉴编号...' : '请调整角度或光线后重新拍摄。', type: '' },
-            { threshold: 98, text: isAiSuccessful ? `Brickognize 匹配完成：${bestMatch.name}` : 'Brickognize 未找到可靠匹配，请重新拍摄。', type: isAiSuccessful ? 'success' : 'warning' }
+            { threshold: 12, text: '三路图像处理完成。', type: '' },
+            { threshold: 35, text: '正在调用 Brickognize 人仔模型...', type: 'highlight' },
+            {
+                threshold: 72,
+                text: scanVerification
+                    ? `一致性验证：${scanVerification.votes}/${scanVerification.attempts} 路返回同一编号。`
+                    : '未取得一致性验证结果。',
+                type: isAiSuccessful ? 'success' : 'warning'
+            },
+            { threshold: 90, text: isAiSuccessful ? '一致结果正在匹配本地图鉴编号...' : '请调整角度或光线后重新拍摄。', type: '' },
+            { threshold: 98, text: isAiSuccessful ? `一致验证完成：${bestMatch.name}` : '多路结果不一致，本次不返回猜测结果。', type: isAiSuccessful ? 'success' : 'warning' }
         ];
 
         scanInterval = setInterval(() => {
@@ -1780,21 +1843,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!scanResults || scanResults.length === 0) {
             if (resultIcon) resultIcon.className = 'fas fa-search result-empty-icon';
-            if (resultTitle) resultTitle.textContent = '未识别到人仔';
-            if (resultSubtext) resultSubtext.textContent = '请让人物保持完整、光线均匀后重新拍摄';
+            if (resultTitle) resultTitle.textContent = '识别结果未通过验证';
+            if (resultSubtext) resultSubtext.textContent = '多路结果不一致，请调整角度或光线后重新拍摄';
             resultCardsContainer.innerHTML = `
                 <div class="scan-empty-state">
                     <i class="fas fa-camera-retro"></i>
-                    <strong>Brickognize 没有返回可靠结果</strong>
-                    <span>建议拍摄人仔正面，并避免强烈反光或复杂背景。</span>
+                    <strong>本次不返回猜测结果</strong>
+                    <span>请拍摄完整正面，避免反光、遮挡和复杂背景。</span>
                 </div>
             `;
             return;
         }
 
         if (resultIcon) resultIcon.className = 'fas fa-check-circle success-icon';
-        if (resultTitle) resultTitle.textContent = '人仔识别成功！';
-        if (resultSubtext) resultSubtext.textContent = `Brickognize 找到 ${scanResults.length} 个匹配结果`;
+        if (resultTitle) resultTitle.textContent = '人仔识别已通过一致验证';
+        if (resultSubtext) {
+            resultSubtext.textContent = scanVerification
+                ? `${scanVerification.votes}/${scanVerification.attempts} 路识别返回同一编号`
+                : 'Brickognize 已返回匹配结果';
+        }
 
         if (isPartMatch && scannedPartInfo) {
             const partCard = document.createElement('div');
@@ -1805,7 +1872,9 @@ document.addEventListener('DOMContentLoaded', () => {
             partCard.style.boxShadow = '0 8px 32px rgba(0, 123, 255, 0.25)';
 
             const partImgUrl = scannedPartInfo.img_url || `https://cdn.rebrickable.com/media/parts/ldraw/0/${scannedPartInfo.part_num}.png`;
-            const matchScoreText = scannedPartInfo.score ? `Match Confirmed ${(scannedPartInfo.score * 100).toFixed(1)}%` : 'Part Matched 98%';
+            const matchScoreText = scannedPartInfo.score
+                ? `模型置信度 ${(scannedPartInfo.score * 100).toFixed(1)}%`
+                : '零件匹配';
 
             partCard.innerHTML = `
                 <div class="badge-best" style="background: linear-gradient(135deg, #007bff, #0056b3); font-weight: 600; text-transform: uppercase;">${matchScoreText}</div>
@@ -1927,7 +1996,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return '普通级 (Common)';
         };
 
-        const bestScore = best.score ? `Match Confirmed ${(best.score * 100).toFixed(1)}%` : 'Best Match 99.4%';
+        const modelScore = best.score ? `${(best.score * 100).toFixed(1)}%` : '未提供';
+        const bestScore = scanVerification
+            ? `一致验证 ${scanVerification.votes}/${scanVerification.attempts} · 模型 ${modelScore}`
+            : `模型置信度 ${modelScore}`;
 
         const bestCard = document.createElement('div');
         bestCard.className = 'result-card best-match';
@@ -1964,7 +2036,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             [item2, item3].forEach((item, index) => {
                 if (!item) return;
-                const percent = item.score ? `${(item.score * 100).toFixed(1)}% Match` : (index === 0 ? '88.5% Match' : '65.2% Match');
+                const percent = item.score ? `模型 ${(item.score * 100).toFixed(1)}%` : '候选结果';
                 const miniCard = document.createElement('div');
                 miniCard.className = 'result-card-mini';
                 miniCard.setAttribute('data-minifig-num', item.minifig_num);

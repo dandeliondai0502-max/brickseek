@@ -1521,19 +1521,31 @@ def api_scan_image(self, conn, body):
     import uuid
     import ssl
 
-    base64_image = body.get("image", "").strip()
+    submitted_images = body.get("images", [])
+    if not isinstance(submitted_images, list):
+        submitted_images = []
+    submitted_images = [
+        str(image).strip() for image in submitted_images[:3]
+        if isinstance(image, str) and image.strip()
+    ]
+    if not submitted_images:
+        base64_image = str(body.get("image", "")).strip()
+        if base64_image:
+            submitted_images = [base64_image]
+
     target_color = body.get("color", "ffffff").strip().lower()
-    if not base64_image:
+    if not submitted_images:
         self.send_json_response({
             "error": "INVALID_IMAGE",
             "message": "无有效的图像数据。"
         }, status=400)
         return
 
-    # Extract mime type and raw base64 data
-    mime_type = "image/jpeg"
-    image_data = base64_image
-    if "," in base64_image:
+    def parse_image_data(base64_image):
+        mime_type = "image/jpeg"
+        image_data = base64_image
+        if "," not in base64_image:
+            return image_data, mime_type
         header, image_data = base64_image.split(",", 1)
         if "image/png" in header:
             mime_type = "image/png"
@@ -1541,8 +1553,13 @@ def api_scan_image(self, conn, body):
             mime_type = "image/webp"
         elif "image/gif" in header:
             mime_type = "image/gif"
+        return image_data, mime_type
 
-    response_cache_key = hashlib.sha256(f"brickognize-figs-v2:{target_color}:{image_data}".encode("utf-8")).hexdigest()
+    parsed_images = [parse_image_data(image) for image in submitted_images]
+    cache_material = "|".join(image_data for image_data, _ in parsed_images)
+    response_cache_key = hashlib.sha256(
+        f"brickognize-consensus-v1:{target_color}:{cache_material}".encode("utf-8")
+    ).hexdigest()
     cached_response = SCAN_IMAGE_RESPONSE_CACHE.get(response_cache_key)
     if cached_response:
         expires_at, payload = cached_response
@@ -1664,8 +1681,76 @@ def api_scan_image(self, conn, body):
             traceback.print_exc()
             return []
 
-    print("[Scanner] Calling Brickognize recognition engine...")
-    brick_items = call_brickognize(image_data, mime_type)
+    print(f"[Scanner] Calling Brickognize consensus engine for {len(parsed_images)} image passes...")
+    if len(parsed_images) > 1:
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(parsed_images)) as executor:
+            pass_results = list(executor.map(
+                lambda parsed: call_brickognize(parsed[0], parsed[1]),
+                parsed_images
+            ))
+    else:
+        image_data, mime_type = parsed_images[0]
+        pass_results = [call_brickognize(image_data, mime_type)]
+
+    top_predictions = [items[0] for items in pass_results if items]
+    votes_by_id = {}
+    for item in top_predictions:
+        item_id = str(item.get("id", "")).strip().lower()
+        if item_id:
+            votes_by_id.setdefault(item_id, []).append(item)
+
+    winning_id = ""
+    winning_items = []
+    if votes_by_id:
+        winning_id, winning_items = max(
+            votes_by_id.items(),
+            key=lambda entry: (
+                len(entry[1]),
+                sum(float(item.get("score", 0) or 0) for item in entry[1])
+            )
+        )
+
+    attempts = len(parsed_images)
+    successful_passes = len(top_predictions)
+    votes = len(winning_items)
+    required_votes = 2 if attempts >= 2 else 1
+    average_score = (
+        sum(float(item.get("score", 0) or 0) for item in winning_items) / votes
+        if votes else 0
+    )
+    minimum_average_score = 0.68
+    verified = votes >= required_votes and average_score >= minimum_average_score
+    rejection_reason = ""
+    if not verified:
+        rejection_reason = (
+            "model_score_too_low"
+            if votes >= required_votes and average_score < minimum_average_score
+            else "insufficient_consensus"
+        )
+    verification = {
+        "mode": "brickognize_consensus",
+        "attempts": attempts,
+        "successful_passes": successful_passes,
+        "votes": votes,
+        "required_votes": required_votes,
+        "agreement": round(votes / attempts, 4) if attempts else 0,
+        "average_model_score": round(average_score, 6),
+        "minimum_average_score": minimum_average_score,
+        "winning_id": winning_id,
+        "verified": verified,
+        "rejection_reason": rejection_reason
+    }
+
+    brick_items = []
+    if verified and winning_items:
+        winner = dict(max(
+            winning_items,
+            key=lambda item: float(item.get("score", 0) or 0)
+        ))
+        winner["score"] = average_score
+        brick_items = [winner]
+
     matches = self.lookup_candidates(conn, brick_items)
 
     # Translate names for top matches
@@ -1673,23 +1758,40 @@ def api_scan_image(self, conn, body):
     for fig in top_matches:
         fig["name"] = translate_to_zh(fig["name"])
 
-    # If matches are found, return them directly!
-    if top_matches:
-        ai_desc = f"Match confirmed with {(top_matches[0].get('score', 0.9)*100):.1f}% confidence."
+    if verified and top_matches:
+        ai_desc = (
+            f"Brickognize 一致性验证通过：{votes}/{attempts} 路返回同一编号；"
+            f"模型平均置信度 {average_score * 100:.1f}%。"
+        )
         finish_scan({
             "type": "minifig",
             "description": ai_desc,
             "results": top_matches,
-            "source": "brickognize"
+            "source": "brickognize_consensus",
+            "verification": verification
         })
         return
 
-    print("Brickognize returned no minifigure matches.")
+    print(
+        f"Brickognize consensus rejected: winner={winning_id or 'none'}, "
+        f"votes={votes}/{attempts}, successful={successful_passes}."
+    )
     finish_scan({
         "type": "minifig",
-        "description": "Brickognize 未找到可靠的人仔匹配，请调整角度或光线后重新拍摄。",
+        "description": (
+            (
+                f"虽然有 {votes}/{attempts} 路结果一致，但模型平均置信度仅 "
+                f"{average_score * 100:.1f}%，未达到 {minimum_average_score * 100:.0f}% 验证线。"
+            )
+            if rejection_reason == "model_score_too_low"
+            else (
+                f"多路识别未达成一致（{votes}/{attempts}），"
+                "本次不返回猜测结果，请调整角度或光线后重新拍摄。"
+            )
+        ),
         "results": [],
-        "source": "brickognize"
+        "source": "brickognize_consensus",
+        "verification": verification
     })
 
 def api_scan_candidates(self, conn, body):
