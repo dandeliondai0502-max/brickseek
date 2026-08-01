@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BrickFinder 乐高人仔雷达 - 极简搜索</title>
-    <link rel="stylesheet" href="style-v7.19.min.css">
+    <link rel="stylesheet" href="style-v7.21.min.css">
     <!-- FontAwesome is decorative; load it asynchronously so the first screen is not blocked by the CDN. -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://cdn.rebrickable.com" crossorigin>
@@ -12,7 +12,7 @@
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
 </head>
-<body class="light-theme">
+<body class="light-theme minimal-ui">
     <!-- Header Navigation -->
     <header>
         <button type="button" class="header-brand" id="header-brand" aria-label="返回 BrickSeek 首页">
@@ -84,7 +84,7 @@
                     <!-- Left: Text search -->
                     <div class="search-text-part">
                         <i class="fas fa-search search-icon"></i>
-                        <input type="text" id="search-input" placeholder="输入人仔特征、编号或所属系列..." autocomplete="off">
+                        <input type="text" id="search-input" placeholder="搜索人仔名称或编号" autocomplete="off">
                         <div class="search-shortcut" id="search-shortcut">/</div>
                         <button id="clear-btn" class="clear-btn" aria-label="清空输入" title="清空"><i class="fas fa-times"></i></button>
                     </div>
@@ -445,6 +445,16 @@
                 </div>
             </div>
 
+            <section class="simple-detail-section detail-intro-section" aria-labelledby="detail-intro-heading">
+                <h3 id="detail-intro-heading">简介</h3>
+                <p id="detail-intro-text">正在读取角色资料...</p>
+            </section>
+
+            <section class="simple-detail-section detail-parts-section" aria-labelledby="detail-parts-heading">
+                <h3 id="detail-parts-heading">零件</h3>
+                <div class="simple-parts-grid" id="detail-parts-list"></div>
+            </section>
+
             <div class="detail-content-grid">
                 <!-- Left: 3D Exploded-view Assembly Player -->
                 <div class="assembly-card">
@@ -524,7 +534,7 @@
 
             <!-- Bottom: Associated Sets -->
             <div class="sets-section">
-                <h3><i class="fas fa-box-open"></i> 包含此人仔的乐高系列/套装</h3>
+                <h3>所属套装</h3>
                 <div class="sets-grid" id="detail-sets-grid">
                     <!-- Dynamic sets cards -->
                 </div>
@@ -1028,6 +1038,6 @@
         </div>
     </div>
 
-    <script src="app-v7.10.min.js" defer></script>
+    <script src="app-v7.12.min.js" defer></script>
 </body>
 </html>

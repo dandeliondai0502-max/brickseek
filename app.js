@@ -307,6 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const infoParts = document.getElementById('info-parts');
     const infoPriceNew = document.getElementById('info-price-new');
     const infoPriceUsed = document.getElementById('info-price-used');
+    const detailIntroText = document.getElementById('detail-intro-text');
+    const detailPartsList = document.getElementById('detail-parts-list');
     const detailSetsGrid = document.getElementById('detail-sets-grid');
 
     // Instruction Manual Modal
@@ -393,13 +395,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function applyTheme() {
-        if (preferences.theme === 'light') {
-            body.classList.remove('dark-theme');
-            body.classList.add('light-theme');
-        } else {
-            body.classList.remove('light-theme');
-            body.classList.add('dark-theme');
-        }
+        preferences.theme = 'light';
+        body.classList.remove('dark-theme');
+        body.classList.add('light-theme');
         updateThemeOptionsUI();
     }
 
@@ -627,6 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (homeLogoWrapper) homeLogoWrapper.style.display = 'block';
             if (homeDefaultSections) homeDefaultSections.style.display = 'block';
             if (homeSearchResultsSection) homeSearchResultsSection.style.display = 'none';
+            searchContainer.classList.remove('has-results');
         }
     });
 
@@ -641,6 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (homeLogoWrapper) homeLogoWrapper.style.display = 'block';
         if (homeDefaultSections) homeDefaultSections.style.display = 'block';
         if (homeSearchResultsSection) homeSearchResultsSection.style.display = 'none';
+        searchContainer.classList.remove('has-results');
 
         searchInput.focus();
     });
@@ -841,6 +841,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (homeLogoWrapper) homeLogoWrapper.style.display = 'none';
                 if (homeDefaultSections) homeDefaultSections.style.display = 'none';
                 if (homeSearchResultsSection) homeSearchResultsSection.style.display = 'flex';
+                searchContainer.classList.add('has-results');
 
                 renderHomeSearchResults();
                 suggestionsContainer.classList.remove('active');
@@ -2074,6 +2075,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const year = data.sets.length > 0 ? Math.min(...data.sets.map(s => s.year)) : "历史典藏";
         infoYear.textContent = year + " 年";
 
+        if (detailIntroText) {
+            const releaseText = typeof year === 'number' ? `${year} 年首次发行` : '发行年份暂未收录';
+            const setText = data.sets.length > 0
+                ? `收录于 ${data.sets.length} 款套装中`
+                : '暂未关联到套装';
+            detailIntroText.textContent = `${minifig.name}，属于${seriesName}。${releaseText}，由 ${data.parts.length} 个零件组成，${setText}。`;
+        }
+
         // Calculate Rarity dynamically based on num_parts
         let rarityText = "普通级 (Common)";
         let rarityClass = "btn-primary";
@@ -2123,6 +2132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Render assembly components
         renderAssemblyComponents(data.parts, minifig);
+        renderSimpleParts(data.parts);
 
         // Render containing Sets
         renderSetsCards(data.sets);
@@ -2431,6 +2441,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 700);
     }
 
+    function renderSimpleParts(parts) {
+        if (!detailPartsList) return;
+        detailPartsList.innerHTML = '';
+
+        if (!parts || parts.length === 0) {
+            detailPartsList.innerHTML = '<p class="simple-empty-state">暂未收录零件资料。</p>';
+            return;
+        }
+
+        parts.forEach(part => {
+            const item = document.createElement('div');
+            item.className = 'simple-part-item';
+            const imageUrl = part.img_url || (part.element_id
+                ? `https://cdn.rebrickable.com/media/parts/elements/${part.element_id}.jpg`
+                : `https://cdn.rebrickable.com/media/parts/ldraw/0/${part.part_num}.png`);
+            item.innerHTML = `
+                <div class="simple-part-image">
+                    <img src="${imageUrl}" alt="${part.part_name}" loading="lazy" decoding="async" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <i class="fas fa-puzzle-piece" aria-hidden="true"></i>
+                </div>
+                <div class="simple-part-copy">
+                    <strong>${part.part_name}</strong>
+                    <span>${part.part_num} · ${part.color_name}</span>
+                </div>
+                <span class="simple-part-quantity">×${part.quantity || 1}</span>
+            `;
+            detailPartsList.appendChild(item);
+        });
+    }
+
     function renderSetsCards(sets) {
         detailSetsGrid.innerHTML = '';
         if (sets.length === 0) {
@@ -2449,7 +2489,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Set image rendering (Real URL if available, else box placeholder)
             const imgHTML = set.img_url
-                ? `<img src="${set.img_url}" alt="${set.set_name}" loading="lazy" decoding="async" style="max-width: 90%; max-height: 90%; object-fit: contain;">`
+                ? `<img src="${set.img_url}" alt="${set.set_name}" loading="lazy" decoding="async" style="max-width: 90%; max-height: 90%; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.classList.add('image-missing');">`
                 : `<svg viewBox="0 0 100 100" width="80" height="80"><rect width="100" height="100" fill="var(--bg-secondary)" rx="10" stroke="var(--border-color)"/><rect x="15" y="15" width="70" height="70" fill="var(--accent-glow)" rx="6"/><text x="50" y="55" font-family="var(--font-outfit)" font-size="12" font-weight="bold" fill="var(--accent-color)" text-anchor="middle">SET</text></svg>`;
 
             card.innerHTML = `
@@ -2458,20 +2498,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="set-info">
                     <div>
-                        <span class="set-num">${set.num_parts} Parts | ${set.year} 年</span>
+                        <span class="set-num">${set.set_num} · ${set.year} 年 · ${set.num_parts} 个零件</span>
                         <h5 class="set-name">${set.set_name}</h5>
                     </div>
-                    <button type="button" class="btn-view-manual" data-setid="${set.set_num}" data-setname="${set.set_name}">
-                        <i class="fas fa-book-open"></i> 查阅官方说明书
-                    </button>
                 </div>
             `;
-
-            card.querySelector('.btn-view-manual').addEventListener('click', (e) => {
-                const setNum = e.currentTarget.getAttribute('data-setid');
-                const setName = e.currentTarget.getAttribute('data-setname');
-                openInstructionManual(setNum, setName);
-            });
 
             detailSetsGrid.appendChild(card);
         });

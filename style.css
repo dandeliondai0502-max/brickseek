@@ -7396,6 +7396,444 @@ footer a,
     }
 }
 
+/* Minimal product surface: search, camera, and essential character data only. */
+.minimal-ui,
+.minimal-ui.light-theme,
+.minimal-ui.dark-theme {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f6f6f6;
+    --bg-card: #ffffff;
+    --text-primary: #171717;
+    --text-secondary: #575757;
+    --text-muted: #858585;
+    --border-color: #dedede;
+    --border-hover: #b8b8b8;
+    --accent-color: #171717;
+    --accent-hover: #000000;
+    color: #171717;
+    background: #ffffff !important;
+}
+
+.minimal-ui > header,
+.minimal-ui > footer,
+.minimal-ui > .mobile-bottom-nav,
+.minimal-ui #home-logo-wrapper,
+.minimal-ui #home-default-sections {
+    display: none !important;
+}
+
+.minimal-ui main {
+    width: 100%;
+    min-height: 100dvh;
+    padding: 24px !important;
+    background: #ffffff !important;
+}
+
+.minimal-ui .search-container {
+    width: min(100%, 760px);
+    min-height: calc(100dvh - 48px) !important;
+    margin: 0 auto;
+    padding: 0 !important;
+    justify-content: center !important;
+    gap: 18px;
+}
+
+.minimal-ui .search-container.has-results {
+    width: min(100%, 1120px);
+    min-height: 0 !important;
+    justify-content: flex-start !important;
+}
+
+.minimal-ui .search-box-wrapper,
+.minimal-ui .search-box-wrapper.focused {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    border: 1px solid #cfcfcf !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.minimal-ui .search-box {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 52px !important;
+    grid-template-rows: 52px !important;
+    min-height: 52px !important;
+    height: 52px !important;
+    padding: 0 4px 0 16px !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+}
+
+.minimal-ui .search-text-part {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+}
+
+.minimal-ui .search-text-part input {
+    height: 100%;
+    color: #171717 !important;
+    font-size: 1rem !important;
+}
+
+.minimal-ui .search-text-part input::placeholder {
+    color: #8a8a8a !important;
+}
+
+.minimal-ui .search-icon {
+    color: #666666 !important;
+}
+
+.minimal-ui .search-submit-btn,
+.minimal-ui .search-divider,
+.minimal-ui .search-shortcut,
+.minimal-ui .camera-text,
+.minimal-ui .camera-scan-line {
+    display: none !important;
+}
+
+.minimal-ui .search-camera-part {
+    grid-column: 2;
+    grid-row: 1;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    align-self: center;
+    justify-self: center;
+    border: 0 !important;
+    border-left: 1px solid #e2e2e2 !important;
+    border-radius: 0 !important;
+    color: #171717 !important;
+    background: #ffffff !important;
+    transition: background-color 160ms ease;
+}
+
+.minimal-ui .search-camera-part:hover,
+.minimal-ui .search-camera-part:active {
+    background: #f3f3f3 !important;
+    transform: none !important;
+}
+
+.minimal-ui .camera-icon-wrapper {
+    width: 42px !important;
+    height: 42px !important;
+    color: #171717 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+.minimal-ui .camera-icon {
+    color: #171717 !important;
+}
+
+.minimal-ui .suggestions-container {
+    top: calc(100% + 6px);
+    border: 1px solid #dedede;
+    border-radius: 6px;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+}
+
+.minimal-ui #home-search-results-section {
+    margin-top: 6px;
+}
+
+.minimal-ui .search-sorting-bar {
+    display: none !important;
+}
+
+.minimal-ui .search-category-tabs {
+    border-radius: 4px !important;
+    background: #f6f6f6 !important;
+}
+
+.minimal-ui .detail-container {
+    width: min(100%, 960px) !important;
+    max-width: 960px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    color: #171717;
+    background: #ffffff !important;
+}
+
+.minimal-ui .detail-nav {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 20px;
+    min-height: 76px;
+    padding: 0 0 20px !important;
+    border-bottom: 1px solid #dedede !important;
+    background: #ffffff !important;
+}
+
+.minimal-ui .detail-nav .btn-back {
+    min-height: 40px;
+    padding: 8px 12px !important;
+    border: 1px solid #d6d6d6 !important;
+    border-radius: 5px !important;
+    color: #171717 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+}
+
+.minimal-ui .detail-nav-header {
+    min-width: 0;
+}
+
+.minimal-ui .detail-series-badge,
+.minimal-ui .fav-btn,
+.minimal-ui .detail-content-grid {
+    display: none !important;
+}
+
+.minimal-ui .title-with-fav {
+    display: block !important;
+}
+
+.minimal-ui #detail-title {
+    margin: 0 !important;
+    color: #171717 !important;
+    font-size: 1.75rem !important;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.minimal-ui .simple-detail-section,
+.minimal-ui .sets-section {
+    width: 100%;
+    margin: 0 !important;
+    padding: 28px 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid #dedede !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+}
+
+.minimal-ui .simple-detail-section h3,
+.minimal-ui .sets-section h3 {
+    margin: 0 0 16px !important;
+    color: #171717 !important;
+    font-size: 1.05rem !important;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.minimal-ui #detail-intro-text {
+    max-width: 760px;
+    margin: 0;
+    color: #575757;
+    font-size: .95rem;
+    line-height: 1.8;
+}
+
+.minimal-ui .simple-parts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    padding: 0;
+    border-top: 1px solid #dedede;
+    border-left: 1px solid #dedede;
+    background: transparent;
+}
+
+.minimal-ui .simple-part-item {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr) auto;
+    align-items: center;
+    min-width: 0;
+    min-height: 88px;
+    padding: 8px 14px 8px 8px;
+    gap: 12px;
+    border-right: 1px solid #dedede;
+    border-bottom: 1px solid #dedede;
+    background: #ffffff;
+}
+
+.minimal-ui .simple-part-image {
+    width: 72px;
+    height: 72px;
+    display: grid;
+    place-items: center;
+    background: #f6f6f6;
+}
+
+.minimal-ui .simple-part-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.minimal-ui .simple-part-image i {
+    display: none;
+    color: #999999;
+}
+
+.minimal-ui .simple-part-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.minimal-ui .simple-part-copy strong {
+    color: #171717;
+    font-size: .9rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.minimal-ui .simple-part-copy span,
+.minimal-ui .simple-part-quantity {
+    color: #777777;
+    font-size: .75rem;
+}
+
+.minimal-ui .sets-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0 !important;
+    padding: 0;
+    border-top: 1px solid #dedede;
+    border-left: 1px solid #dedede;
+    background: transparent;
+}
+
+.minimal-ui .set-card,
+.minimal-ui .set-card:hover {
+    display: grid !important;
+    grid-template-columns: 120px minmax(0, 1fr);
+    align-items: center;
+    min-width: 0;
+    min-height: 136px;
+    margin: 0 !important;
+    padding: 8px !important;
+    gap: 16px;
+    border: 0 !important;
+    border-right: 1px solid #dedede !important;
+    border-bottom: 1px solid #dedede !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+.minimal-ui .set-img-box {
+    width: 120px !important;
+    height: 120px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #f6f6f6 !important;
+}
+
+.minimal-ui .set-img-box.image-missing::after {
+    content: '暂无图片';
+    color: #999999;
+    font-size: .75rem;
+}
+
+.minimal-ui .set-info {
+    min-width: 0;
+}
+
+.minimal-ui .set-name {
+    margin: 6px 0 0 !important;
+    color: #171717 !important;
+    font-size: .95rem !important;
+    line-height: 1.4;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+}
+
+.minimal-ui .set-num {
+    color: #777777 !important;
+    font-size: .72rem !important;
+}
+
+.minimal-ui .simple-empty-state {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 24px;
+    color: #777777;
+    background: #ffffff;
+}
+
+@media (max-width: 700px) {
+    .minimal-ui main {
+        padding: 16px 14px !important;
+    }
+
+    .minimal-ui .search-container {
+        min-height: calc(100dvh - 32px) !important;
+    }
+
+    .minimal-ui.light-theme .search-container {
+        min-height: calc(100dvh - 32px) !important;
+        justify-content: center !important;
+    }
+
+    .minimal-ui .search-container.has-results {
+        min-height: 0 !important;
+    }
+
+    .minimal-ui.light-theme .search-container.has-results {
+        min-height: 0 !important;
+        justify-content: flex-start !important;
+    }
+
+    .minimal-ui .search-box {
+        height: 50px !important;
+        min-height: 50px !important;
+        grid-template-rows: 50px !important;
+    }
+
+    .minimal-ui .detail-nav {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        min-height: 0;
+        padding-bottom: 18px !important;
+    }
+
+    .minimal-ui .detail-nav .btn-back {
+        width: fit-content;
+    }
+
+    .minimal-ui #detail-title {
+        font-size: 1.4rem !important;
+    }
+
+    .minimal-ui .simple-detail-section,
+    .minimal-ui .sets-section {
+        padding: 24px 0 !important;
+    }
+
+    .minimal-ui .simple-parts-grid,
+    .minimal-ui .sets-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .minimal-ui .set-card,
+    .minimal-ui .set-card:hover {
+        grid-template-columns: 96px minmax(0, 1fr);
+        min-height: 112px;
+        gap: 12px;
+    }
+
+    .minimal-ui .set-img-box {
+        width: 96px !important;
+        height: 96px !important;
+    }
+}
+
 /* Scanner results become a dedicated fullscreen surface. */
 @keyframes scanResultRise {
     from { transform: translateY(100%); }
