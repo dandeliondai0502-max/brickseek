@@ -7396,6 +7396,40 @@ footer a,
     }
 }
 
+/* Minimal camera controls: one visible white shutter. */
+#scan-modal .camera-controls {
+    justify-content: center;
+    min-height: 118px;
+    padding: 18px 20px calc(22px + env(safe-area-inset-bottom));
+}
+
+#scan-modal #cancel-camera-btn,
+#scan-modal .camera-sub-controls,
+#scan-modal .camera-zoom-control {
+    display: none !important;
+}
+
+#scan-modal .btn-shutter {
+    width: 70px !important;
+    height: 70px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background: #fff !important;
+    box-shadow: none !important;
+}
+
+#scan-modal .btn-shutter:hover,
+#scan-modal .btn-shutter:active {
+    background: #fff !important;
+    opacity: 0.84;
+    transform: scale(0.96) !important;
+}
+
+#scan-modal .btn-shutter .shutter-inner {
+    display: none !important;
+}
+
 /* ==========================================================================
    Collector Edition v7: compact catalog-first interface
    ========================================================================== */
