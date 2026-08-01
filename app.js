@@ -858,6 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const openModal = async () => {
         body.classList.add('scan-open');
         scanModal.classList.add('open');
+        scanModal.classList.remove('result-open');
         resetScannerState();
 
         if (dropZone) dropZone.style.display = 'none';
@@ -872,6 +873,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeModal = () => {
         body.classList.remove('scan-open');
         scanModal.classList.remove('open');
+        scanModal.classList.remove('result-open');
         stopWebcam();
         resetScannerState();
     };
@@ -1564,6 +1566,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 6. Scanner Animation & Real SQLite Matching ---
     function resetScannerState() {
         clearInterval(scanInterval);
+        scanModal.classList.remove('result-open');
         dropZone.style.display = 'block';
         cameraViewport.style.display = 'none';
         if (cameraControls) cameraControls.style.display = 'none';
@@ -1752,6 +1755,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showScanResults() {
         scanPreviewContainer.style.display = 'none';
+        scanModal.classList.add('result-open');
         scanResultContainer.style.display = 'flex';
 
         const aiBox = document.getElementById('ai-analysis-box');
