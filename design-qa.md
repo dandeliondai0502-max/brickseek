@@ -39,7 +39,7 @@ Viewport: 390 x 844
 - The local `/api/scan-image` gateway was exercised with a public Darth Vader image: Brickognize returned `sw0218`, which resolved to local record `fig-000581` at 81.1% confidence.
 - Long character names wrap to their full text. At 920px, `Spectral Dragonian Warrior, Ghost Lower Body, Wings` is unclipped and all nine parts occupy nine distinct list rows.
 - Each exploded-part row contains its sequence number, real image, full name, and part number. The list grows with the part count without touching the footer; the same nine-row structure remains unclipped at 390px.
-- Camera recognition sends one photo in one Brickognize request and immediately uses its top minifigure result without local scoring thresholds, consensus voting, or a second AI model.
+- Camera recognition sends one photo directly from the browser to Brickognize and immediately uses its top minifigure result without the BrickSeek recognition gateway, local scoring thresholds, consensus voting, or a second AI model.
 - The dark gold theme still renders without overflow.
 
 Final result: passed

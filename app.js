@@ -1612,13 +1612,16 @@ document.addEventListener('DOMContentLoaded', () => {
         scanResults = [];
         let isAiSuccessful = false;
 
-        function blobToDataURL(blob) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
+        function dataURLToBlob(dataUrl) {
+            const [metadata, payload] = dataUrl.split(',', 2);
+            const mimeMatch = metadata.match(/^data:([^;]+)/);
+            const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+            const bytes = atob(payload);
+            const buffer = new Uint8Array(bytes.length);
+            for (let index = 0; index < bytes.length; index += 1) {
+                buffer[index] = bytes.charCodeAt(index);
+            }
+            return new Blob([buffer], { type: mimeType });
         }
 
         async function compressImageInput(input) {
@@ -1676,30 +1679,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 const preparedImage = typeof imageInput === 'string'
                     ? imageInput
                     : await compressImageInput(imageInput);
-                const recognitionImage = typeof preparedImage === 'string'
-                    ? preparedImage
-                    : await blobToDataURL(preparedImage);
+                const recognitionBlob = typeof preparedImage === 'string'
+                    ? dataURLToBlob(preparedImage)
+                    : preparedImage;
 
                 progressBarFill.style.width = '45%';
                 statusPercent.textContent = '45%';
-                addLog('正在调用 Brickognize...', 'highlight');
-                const gatewayRes = await fetch('/api/scan-image', {
+                addLog('正在直连 Brickognize...', 'highlight');
+                const requestBody = new FormData();
+                requestBody.append('query_image', recognitionBlob, 'minifigure.jpg');
+                const brickognizeRes = await fetch('https://api.brickognize.com/predict/figs/', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        image: recognitionImage,
-                        color: color
-                    })
+                    body: requestBody
                 });
 
-                if (gatewayRes.ok) {
-                    const data = await gatewayRes.json();
-                    if (data.results && data.results.length > 0) {
-                        scanResults = data.results;
-                        scanAiDescription = data.description || '';
+                if (brickognizeRes.ok) {
+                    const data = await brickognizeRes.json();
+                    const topItem = Array.isArray(data.items) ? data.items[0] : null;
+                    if (topItem) {
+                        scanResults = [{
+                            minifig_num: topItem.id,
+                            official_id: topItem.id,
+                            name: topItem.name,
+                            img_url: topItem.img_url,
+                            score: Number(topItem.score || 0),
+                            category: topItem.category || '',
+                            num_parts: 4
+                        }];
+                        scanAiDescription = `已直接采用 Brickognize 第一名结果，模型置信度 ${(Number(topItem.score || 0) * 100).toFixed(1)}%。`;
                         isAiSuccessful = true;
-                        isPartMatch = data.type === 'part';
-                        scannedPartInfo = data.part || null;
+                        isPartMatch = false;
+                        scannedPartInfo = null;
                     }
                 }
 
