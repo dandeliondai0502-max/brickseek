@@ -7404,9 +7404,66 @@ footer a,
 }
 
 #scan-modal #cancel-camera-btn,
-#scan-modal .camera-sub-controls,
 #scan-modal .camera-zoom-control {
     display: none !important;
+}
+
+#scan-modal .modal-header {
+    position: absolute;
+    top: max(12px, env(safe-area-inset-top));
+    left: 12px;
+    z-index: 6;
+    width: auto;
+    padding: 0;
+    border: 0;
+    justify-content: flex-start;
+}
+
+#scan-modal .modal-header .close-btn {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    color: #fff !important;
+    background: rgba(0, 0, 0, 0.44) !important;
+}
+
+#scan-modal .camera-sub-controls {
+    display: flex !important;
+    position: absolute;
+    right: 22px;
+    align-items: center;
+}
+
+#scan-modal #switch-camera-btn {
+    display: none !important;
+}
+
+#scan-modal #btn-camera-upload {
+    display: flex !important;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.44) !important;
+}
+
+#scan-modal #btn-camera-upload span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+#scan-modal #btn-camera-upload i {
+    margin: 0;
+    font-size: 1.15rem;
 }
 
 #scan-modal .btn-shutter {
