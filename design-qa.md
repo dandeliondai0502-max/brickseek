@@ -33,7 +33,7 @@ Viewport: 390 x 844
 - The `IG-88, Round Plate Head` search-to-detail flow was rerun after the split-screen fix; both assembly controls remain available and explode reveals all seven parts.
 - The catalog was checked at 1280 x 800 and 390 x 844: cards have 0px radius and 1px connected dividers; the longest sampled name has equal client and scroll heights, with no line clamp.
 - Minifigure image hover was checked after the catalog revision: computed transform remains `none` and transition duration is `0s`, so pointer entry and exit cannot resize the figure.
-- Camera is full viewport with no dashed figure overlay, the shutter is 76px, local upload remains hidden, and the site navigation is hidden while scanning.
+- Camera is full viewport with no figure outline, focus target, framing overlay, or guide copy; the shutter is 76px, local upload remains hidden, and the site navigation is hidden while scanning.
 - Camera photos are sent directly to Brickognize's minifigure model; the UI displays only returned candidates and asks the user to retake the photo when no reliable result is available.
 - At 390 x 844, the open camera modal has zero outline, guide-copy, or simulated bounding-box nodes and the document scroll width remains exactly 390px.
 - The local `/api/scan-image` gateway was exercised with a public Darth Vader image: Brickognize returned `sw0218`, which resolved to local record `fig-000581` at 81.1% confidence.
